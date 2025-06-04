@@ -4,15 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TheThroneOfGames.Infrastructure.Entities
+namespace TheThroneOfGames.Application.DTO
 {
-    public class Purchase
+    public class PurchaseDto
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
-        public Guid GameId { get; set; }
-
+        public List<GameDto> Games { get; set; }
         public DateTime PurchaseDate { get; set; }
-
+        public decimal TotalAmount { get; set; }
     }
 }

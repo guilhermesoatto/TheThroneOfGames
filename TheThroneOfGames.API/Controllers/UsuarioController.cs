@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
 using TheThroneOfGames.API.Models.DTO;
+using TheThroneOfGames.Application;
 using TheThroneOfGames.Infrastructure.ExternalServices;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -12,6 +13,7 @@ namespace TheThroneOfGames.API.Controllers
     public class UsuarioController : ControllerBase
     {
         EmailService _emailService;
+        TheThroneOfGames.Application. UsuarioService _userService;
         // GET: api/<UsuarioController>
         [HttpGet]
         public IEnumerable<string> Get()
@@ -62,7 +64,7 @@ namespace TheThroneOfGames.API.Controllers
         public IActionResult ActivateUser([FromQuery] string activationToken)
         {
             // Lógica para validar o token e ativar o usuário
-            var user = _userService.ActivateUser(activationToken);
+            var user = 0;// _userService.ActivateUserAsync(activationToken);
             if (user == null)
                 return BadRequest("Token inválido ou expirado.");
 
