@@ -1,15 +1,16 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TheThroneOfGames.Domain.Repository.Interfaces;
 using TheThroneOfGames.Infrastructure.Entities;
 using TheThroneOfGames.Infrastructure.Persistence;
+using TheThroneOfGames.Infrastructure.Repository.Interfaces;
 
 
 
-namespace TheThroneOfGames.Domain.Repository
+namespace TheThroneOfGames.Infrastructure.Repository
 {
     public class UsuarioRepository : IUsuarioRepository
     {
@@ -20,22 +21,27 @@ namespace TheThroneOfGames.Domain.Repository
             _context = context;
         }
 
-        public async Task AddAsync(Usuario user)
+        public async Task AddAsync(User user)
         {
-            var userEntity = .ToEntity(user);
+            var userEntity = user;
             await _context.Users.AddAsync(userEntity);
             await _context.SaveChangesAsync();
+        }
+
+        public Task<User> GetByActivationTokenAsync(string activationToken)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task<User?> GetByEmailAsync(string email)
         {
             var userEntity = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-            return userEntity == null ? null : UserMapper.ToDomain(userEntity);
+            return userEntity == null ? null : userEntity;
         }
 
         public async Task UpdateAsync(User user)
         {
-            var userEntity = UserMapper.ToEntity(user);
+            var userEntity = user;
             _context.Users.Update(userEntity);
             await _context.SaveChangesAsync();
         }

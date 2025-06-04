@@ -29,7 +29,10 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<MainDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-
+//builder.Services.AddSingleton<MongoDbContext>(sp =>
+//    new MongoDbContext(
+//        builder.Configuration.GetConnectionString("MongoDbConnection"),
+//        builder.Configuration["MongoDbDatabaseName"]));
 
 var app = builder.Build();
 app.UseAuthentication();
