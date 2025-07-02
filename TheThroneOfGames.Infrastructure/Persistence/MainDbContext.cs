@@ -10,12 +10,12 @@ public class MainDbContext : DbContext
 
 
     public DbSet<GameEntity> Games { get; set; }
-    public DbSet<User> Users { get; set; }
+    public DbSet<UserEntity> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<GameEntity>().ToTable("Games");
-        modelBuilder.Entity<User>().ToTable("Users");
+        modelBuilder.Entity<UserEntity>().ToTable("Users");
 
         modelBuilder.Entity<GameEntity>(entity =>
         {
@@ -25,7 +25,7 @@ public class MainDbContext : DbContext
             entity.Property(e => e.Price).IsRequired();
         });
 
-        modelBuilder.Entity<User>(entity =>
+        modelBuilder.Entity<UserEntity>(entity =>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);

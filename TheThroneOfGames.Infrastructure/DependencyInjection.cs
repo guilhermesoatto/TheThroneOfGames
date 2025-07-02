@@ -1,8 +1,13 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TheThroneOfGames.Infrastructure.Data;
+using TheThroneOfGames.Infrastructure.Repository;
 
 namespace TheThroneOfGames.Infrastructure
 {
@@ -14,18 +19,8 @@ namespace TheThroneOfGames.Infrastructure
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))); // Ou UseSqlite
 
-            // Registro dos Repositórios
-            services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IGameRepository, GameRepository>();
-            services.AddScoped<IPurchaseRepository, PurchaseRepository>();
-            // ... registrar outros repositórios
-
-            // Registro dos Serviços de E-mail
-            services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
-            services.AddTransient<IEmailService, EmailService>(); // IEmailService deve ser uma interface no Domain
-
-            // Registro de Background Services (se aplicável)
-            // services.AddHostedService<PromotionNotificationService>();
+            // Registro da RepositoryFactory
+            services.AddScoped<RepositoryFactory>();
 
             return services;
         }

@@ -10,7 +10,8 @@ namespace TheThroneOfGames.Infrastructure.Entities
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
-        public List<Guid> GameIds { get; set; } // Jogos comprados
+        // Relacionamento muitos-para-muitos com GameEntity
+        public ICollection<GameEntity> Games { get; set; } = new List<GameEntity>();
         public DateTime PurchaseDate { get; set; }
         public decimal TotalAmount { get; set; }
     }

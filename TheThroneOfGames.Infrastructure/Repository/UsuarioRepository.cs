@@ -21,25 +21,25 @@ namespace TheThroneOfGames.Infrastructure.Repository
             _context = context;
         }
 
-        public async Task AddAsync(User user)
+        public async Task AddAsync(UserEntity user)
         {
             var userEntity = user;
             await _context.Users.AddAsync(userEntity);
             await _context.SaveChangesAsync();
         }
 
-        public Task<User> GetByActivationTokenAsync(string activationToken)
+        public Task<UserEntity> GetByActivationTokenAsync(string activationToken)
         {
             throw new NotImplementedException();
         }
 
-        public async Task<User?> GetByEmailAsync(string email)
+        public async Task<UserEntity?> GetByEmailAsync(string email)
         {
             var userEntity = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
             return userEntity == null ? null : userEntity;
         }
 
-        public async Task UpdateAsync(User user)
+        public async Task UpdateAsync(UserEntity user)
         {
             var userEntity = user;
             _context.Users.Update(userEntity);

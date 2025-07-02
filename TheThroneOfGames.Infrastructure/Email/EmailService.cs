@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Net.Mail;
 
-namespace TheThroneOfGames.Infrastructure.ExternalServices
+namespace TheThroneOfGames.Infrastructure.Email
 {
     public class EmailService
     {

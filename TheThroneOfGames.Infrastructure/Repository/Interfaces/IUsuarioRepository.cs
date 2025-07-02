@@ -9,8 +9,8 @@ namespace TheThroneOfGames.Infrastructure.Repository.Interfaces
 {
     public interface IUsuarioRepository
     {
-        Task AddAsync(User user);
-        Task<User> GetByActivationTokenAsync(string activationToken);
-        Task UpdateAsync(User user);
+        Task AddAsync(UserEntity user);
+        Task<UserEntity> GetByActivationTokenAsync(string activationToken);
+        Task UpdateAsync(UserEntity user);
     }
 }

@@ -1,16 +1,22 @@
-﻿using TheThroneOfGames.Domain;
-using TheThroneOfGames.Domain.Auth;
-
-namespace TheThroneOfGames.API.Models.DTO
+﻿namespace TheThroneOfGames.API.Models.DTO
 {
-    public class UserDTO : UsuarioDomain
+    // DTO puro para transferência de dados de usuário
+    public class UserDTO
     {
-        public UserDTO(string name, string email, string passwordHash, string role)
+        public string Name { get; set; }
+        public string Email { get; set; }
+        public string Password { get; set; }
+        public string Role { get; set; }
+        public string Nickname { get; set; }
+
+        public UserDTO() { }
+        public UserDTO(string name, string email, string password, string role, string nickname = null)
         {
             Name = name;
             Email = email;
-            Password = passwordHash;
+            Password = password;
             Role = role;
+            Nickname = nickname;
         }
     }
 }

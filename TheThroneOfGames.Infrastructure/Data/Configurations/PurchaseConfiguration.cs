@@ -1,23 +1,27 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using TheThroneOfGames.Infrastructure.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Data.Configurations
 {
     public class PurchaseConfiguration : IEntityTypeConfiguration<PurchaseEntity>
     {
-        public void Configure(Microsoft.EntityFrameworkCore.Metadata.Builders.EntityTypeBuilder<PurchaseEntity> builder)
+        public void Configure(EntityTypeBuilder<PurchaseEntity> builder)
         {
+            builder.ToTable("Purchases");
             builder.HasKey(p => p.Id);
             builder.Property(p => p.UserId).IsRequired();
-            builder.Property(p => p.GameId).IsRequired();
             builder.Property(p => p.PurchaseDate).IsRequired();
-            builder.Property(p => p.Price).HasColumnType("decimal(18,2)").IsRequired();
+            builder.Property(p => p.TotalAmount).HasColumnType("decimal(18,2)").IsRequired();
+
+            // Configuração do relacionamento muitos-para-muitos entre Purchase e Game
+            builder
+                .HasMany(p => p.Games)
+                .WithMany()
+                .UsingEntity<Dictionary<string, object>>(
+                    "PurchaseGames",
+                    j => j.HasOne<GameEntity>().WithMany().HasForeignKey("GameId"),
+                    j => j.HasOne<PurchaseEntity>().WithMany().HasForeignKey("PurchaseId"));
         }
-    }
-    {
     }
 }
