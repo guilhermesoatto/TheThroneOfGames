@@ -8,8 +8,6 @@ using TheThroneOfGames.Infrastructure.Entities;
 using TheThroneOfGames.Infrastructure.Persistence;
 using TheThroneOfGames.Infrastructure.Repository.Interfaces;
 
-
-
 namespace TheThroneOfGames.Infrastructure.Repository
 {
     public class UsuarioRepository : IUsuarioRepository
@@ -28,9 +26,10 @@ namespace TheThroneOfGames.Infrastructure.Repository
             await _context.SaveChangesAsync();
         }
 
-        public Task<UserEntity> GetByActivationTokenAsync(string activationToken)
+        public async Task<UserEntity> GetByActivationTokenAsync(string activationToken)
         {
-            throw new NotImplementedException();
+            var userEntity = await _context.Users.FirstOrDefaultAsync(u => u.ActiveToken == activationToken);
+            return userEntity;
         }
 
         public async Task<UserEntity?> GetByEmailAsync(string email)

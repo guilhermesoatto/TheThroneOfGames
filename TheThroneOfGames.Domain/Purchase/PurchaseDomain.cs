@@ -1,17 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using TheThroneOfGames.Infrastructure.Entities;
 
 namespace TheThroneOfGames.Domain.Purchase
 {
-    public class PurchaseDomain
+    public class PurchaseDomain :PurchaseEntity
     {
-        public Guid Id { get; set; }
-        public Guid UserId { get; set; }
-        public List<Guid> GameIds { get; set; }
-        public DateTime PurchaseDate { get; set; }
-        public decimal TotalAmount { get; set; }
-
         public PurchaseDomain(Guid userId, List<Guid> gameIds, decimal totalAmount)
         {
             if (gameIds == null || !gameIds.Any()) throw new ArgumentException("A compra deve incluir pelo menos um jogo.");

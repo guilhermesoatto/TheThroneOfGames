@@ -1,13 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TheThroneOfGames.Infrastructure.Data;
+using TheThroneOfGames.Infrastructure.Email;
+using TheThroneOfGames.Infrastructure.Persistence;
 using TheThroneOfGames.Infrastructure.Repository;
+using TheThroneOfGames.Infrastructure.Repository.Interfaces;
 
 namespace TheThroneOfGames.Infrastructure
 {
@@ -15,12 +11,21 @@ namespace TheThroneOfGames.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            // Configuração do DbContext
-            services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))); // Ou UseSqlite
+            // Configuração do MongoDbContext
+            services.AddSingleton(sp =>
+                new MongoDbContext(
+                    configuration.GetConnectionString("MongoDbConnection") ?? throw new InvalidOperationException("MongoDb connection string is not configured"),
+                    configuration["MongoDbDatabaseName"] ?? throw new InvalidOperationException("MongoDb database name is not configured")
+                ));
 
-            // Registro da RepositoryFactory
-            services.AddScoped<RepositoryFactory>();
+            // Registro dos Repositórios
+            services.AddScoped<IUsuarioRepository, MongoUsuarioRepository>();
+            // Adicione outros repositórios conforme necessário
+
+            // Registro dos Serviços de E-mail
+            services.Configure<SmtpSettings>(options =>
+                configuration.GetSection("SmtpSettings").Bind(options));
+            services.AddTransient<IEmailService, EmailService>();
 
             return services;
         }

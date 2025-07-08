@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using TheThroneOfGames.Infrastructure;
 using TheThroneOfGames.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,13 +27,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDbContext<MainDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+//builder.Services.AddDbContext<MainDbContext>(options =>
+//    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-//builder.Services.AddSingleton<MongoDbContext>(sp =>
-//    new MongoDbContext(
-//        builder.Configuration.GetConnectionString("MongoDbConnection"),
-//        builder.Configuration["MongoDbDatabaseName"]));
+builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
 app.UseAuthentication();

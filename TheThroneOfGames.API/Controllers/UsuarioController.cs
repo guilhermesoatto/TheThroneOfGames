@@ -2,6 +2,10 @@
 using System.Text.RegularExpressions;
 using TheThroneOfGames.API.Models.DTO;
 using TheThroneOfGames.Application;
+using TheThroneOfGames.Infrastructure.Email;
+
+
+// For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
 namespace TheThroneOfGames.API.Controllers
 {
@@ -9,36 +13,36 @@ namespace TheThroneOfGames.API.Controllers
     [ApiController]
     public class UsuarioController : ControllerBase
     {
-        private readonly UsuarioService _userService;
-
-        public UsuarioController(UsuarioService userService)
-        {
-            _userService = userService;
-        }
-
+        EmailService _emailService;
+        TheThroneOfGames.Application. UsuarioService _userService;
+        // GET: api/<UsuarioController>
         [HttpGet]
         public IEnumerable<string> Get()
         {
             return new string[] { "value1", "value2" };
         }
 
+        // GET api/<UsuarioController>/5
         [HttpGet("{id}")]
         public string Get(int id)
         {
             return "value";
         }
 
+        // POST api/<UsuarioController>
         [HttpPost("register")]
         public IActionResult Post([FromBody] UserDTO value)
         {
             return Ok("Usuário registrado com sucesso!");
         }
 
+        // PUT api/<UsuarioController>/5
         [HttpPut("{id}")]
         public void Put(int id, [FromBody] string value)
         {
         }
 
+        // DELETE api/<UsuarioController>/5
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
@@ -47,22 +51,23 @@ namespace TheThroneOfGames.API.Controllers
         [HttpPost("pre-register")]
         public async Task<IActionResult> PreRegisterUser([FromBody] UserDTO userDto)
         {
+            // Validação do formato do e-mail
             if (!Regex.IsMatch(userDto.Email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                 return BadRequest("E-mail inválido.");
 
-            // Aqui você pode chamar um serviço de domínio para enviar o e-mail
-            // await _userService.PreRegisterUserAsync(userDto.Email, userDto.Name);
+            // Enviar e-mail de ativação
+            await _emailService.SendEmailAsync(userDto.Email, "Ativação de Conta", "Clique no link para ativar sua conta.");
 
             return Ok("E-mail de ativação enviado.");
         }
 
         [HttpPost("activate")]
-        public async Task<IActionResult> ActivateUser([FromQuery] string activationToken)
+        public IActionResult ActivateUser([FromQuery] string activationToken)
         {
             // Lógica para validar o token e ativar o usuário
-            // var user = await _userService.ActivateUserAsync(activationToken);
-            // if (user == null)
-            //     return BadRequest("Token inválido ou expirado.");
+            var user = 0;// _userService.ActivateUserAsync(activationToken);
+            if (user == null)
+                return BadRequest("Token inválido ou expirado.");
 
             return Ok("Usuário ativado com sucesso.");
         }

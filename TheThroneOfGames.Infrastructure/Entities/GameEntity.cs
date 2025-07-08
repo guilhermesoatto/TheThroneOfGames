@@ -12,7 +12,5 @@ namespace TheThroneOfGames.Infrastructure.Entities
         public string Name { get; set; }
         public string Genre { get; set; }
         public decimal Price { get; set; }
-        // Relacionamento muitos-para-muitos com PurchaseEntity
-        public ICollection<PurchaseEntity> Purchases { get; set; } = new List<PurchaseEntity>();
     }
 }

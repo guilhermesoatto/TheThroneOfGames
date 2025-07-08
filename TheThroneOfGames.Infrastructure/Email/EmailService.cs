@@ -1,28 +1,44 @@
-﻿using MimeKit;
+﻿using MailKit.Net.Smtp;
+using Microsoft.Extensions.Options;
+using MimeKit;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using System.Net.Mail;
 
 namespace TheThroneOfGames.Infrastructure.Email
 {
-    public class EmailService
+    public interface IEmailService
     {
+        Task SendEmailAsync(string to, string subject, string body);
+    }
+
+    public class EmailService : IEmailService
+    {
+        private readonly SmtpSettings _smtpSettings;
+
+        public EmailService(IOptions<SmtpSettings> smtpSettings)
+        {
+            _smtpSettings = smtpSettings.Value ?? throw new ArgumentNullException(nameof(smtpSettings));
+        }
+
         public async Task SendEmailAsync(string to, string subject, string body)
         {
             var email = new MimeMessage();
-            email.From.Add(new MailboxAddress("Plataforma de Jogos", "noreply@plataformajogos.com"));
-            email.To.Add(new MailboxAddress(name: to, address: to));
+            email.From.Add(MailboxAddress.Parse(_smtpSettings.From));
+            email.To.Add(MailboxAddress.Parse(to));
             email.Subject = subject;
-            email.Body = new TextPart("plain") { Text = body };
+            email.Body = new TextPart("html") { Text = body };
 
             using var smtp = new SmtpClient();
-            //await smtp.ConnectAsync("smtp.seuservidor.com", 587, false);
-            //await smtp.AuthenticateAsync("seuusuario", "suasenha");
-            //await smtp.SendAsync(email);
-            //await smtp.DisconnectAsync(true);
+            try
+            {
+                await smtp.ConnectAsync(_smtpSettings.Host, _smtpSettings.Port, _smtpSettings.UseSsl);
+                await smtp.AuthenticateAsync(_smtpSettings.User, _smtpSettings.Password);
+                await smtp.SendAsync(email);
+            }
+            finally
+            {
+                await smtp.DisconnectAsync(true);
+            }
         }
     }
 }

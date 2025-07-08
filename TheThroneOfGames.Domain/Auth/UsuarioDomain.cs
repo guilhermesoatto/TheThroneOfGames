@@ -3,20 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TheThroneOfGames.Infrastructure.Entities;
 
 namespace TheThroneOfGames.Domain.Auth
 {
-    public class UsuarioDomain
+    public class UsuarioDomain : UserEntity
     {
-        public Guid Id { get; set; }
-        public string Name { get; set; }
-        public string Nickname { get; set; }
-        public string Email { get; set; }
-        public string Password { get; set; }
-        public string Role { get; set; }
-        public string ActiveToken { get; set; }
-        public bool IsActive { get; set; }
-
         public void Activate() => IsActive = true;
 
         public bool IsValidToRegister()
@@ -25,6 +17,7 @@ namespace TheThroneOfGames.Domain.Auth
             ValidatePassword(Password);
             return true;
         }
+
 
         private void ValidateEmail(string email)
         {
