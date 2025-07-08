@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TheThroneOfGames.Infrastructure.Entities
+namespace TheThroneOfGames.Domain.Entities
 {
     public class Usuario
     {
@@ -15,7 +15,6 @@ namespace TheThroneOfGames.Infrastructure.Entities
         public string Role { get; private set; }
         public bool IsActive { get; private set; }
         public string ActiveToken { get; set; }
-
         public Usuario(string name, string email, string passwordHash, string role, string activeToken)
         {
             Id = Guid.NewGuid();
@@ -24,7 +23,18 @@ namespace TheThroneOfGames.Infrastructure.Entities
             PasswordHash = passwordHash;
             Role = role;
             IsActive = false;
-            ActiveToken = activeToken;  
+            ActiveToken = activeToken;
+        }
+
+        public Usuario(Guid id, string name, string email, string passwordHash, string role, bool isActive, string activeToken)
+        {
+            Id = id;
+            Name = name;
+            Email = email;
+            PasswordHash = passwordHash;
+            Role = role;
+            IsActive = isActive;
+            ActiveToken = activeToken;
         }
 
         public void Activate() => IsActive = true;

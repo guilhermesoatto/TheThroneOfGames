@@ -1,11 +1,20 @@
-﻿using TheThroneOfGames.Domain.Entities;
-
+﻿
 namespace TheThroneOfGames.API.Models.DTO
 {
-    public class UserDTO : Usuario
+    public class UserDTO
     {
-        public UserDTO(string name, string email, string passwordHash, string role) : base(name, email, passwordHash, role)
+        public string Name { get; set; }
+        public string Email { get; set; }
+        public string PasswordHash { get; set; }
+        public string Role { get; set; }
+
+        public UserDTO() { }
+        public UserDTO(string name, string email, string passwordHash, string role)
         {
+            Name = name;
+            Email = email;
+            PasswordHash = passwordHash;
+            Role = role;
         }
     }
 }

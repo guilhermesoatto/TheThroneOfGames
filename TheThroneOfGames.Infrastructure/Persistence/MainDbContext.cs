@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MimeKit;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Infrastructure.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Persistence;
@@ -49,3 +50,4 @@ public class MainDbContext : DbContext
             entity.Property(p => p.PurchaseDate).IsRequired();
         });
     }
+}

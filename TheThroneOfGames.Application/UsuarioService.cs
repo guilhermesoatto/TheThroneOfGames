@@ -1,37 +1,39 @@
 ﻿using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Infrastructure.ExternalServices;
+using TheThroneOfGames.Domain.Entities;
+using TheThroneOfGames.Domain.Interfaces;
 
 namespace TheThroneOfGames.Application;
 
 public class UsuarioService : IUsuarioService
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IEmailService _emailService;
+    private readonly IUsuarioRepository _userRepository;
 
-    public UserService(IUserRepository userRepository, IEmailService emailService)
+    public UsuarioService(IUsuarioRepository userRepository)
     {
         _userRepository = userRepository;
-        _emailService = emailService;
+    }
+
+    public Task ActivateUserAsync(string activationToken)
+    {
+        throw new NotImplementedException();
     }
 
     public async Task PreRegisterUserAsync(string email, string name)
     {
         // Lógica de pré-cadastro
-        var user = new User(name, email, "hashSenha", "User");
+        var user = new Usuario(name, email, "hashSenha", "User", "activationToken");
         await _userRepository.AddAsync(user);
 
-        // Enviar e-mail de ativação
-        await _emailService.SendEmailAsync(email, "Ativação de Conta", "Clique no link para ativar sua conta.");
     }
 
-    public async Task ActivateUserAsync(string activationToken)
-    {
-        // Lógica de ativação
-        var user = await _userRepository.GetByActivationTokenAsync(activationToken);
-        if (user == null)
-            throw new Exception("Token inválido ou expirado.");
+    //public async Task ActivateUserAsync(string activationToken)
+    //{
+    //    // Lógica de ativação
+    //    var user = await _userRepository.GetByActivationTokenAsync(activationToken);
+    //    if (user == null)
+    //        throw new Exception("Token inválido ou expirado.");
 
-        user.Activate();
-        await _userRepository.UpdateAsync(user);
-    }
+    //    user.Activate();
+    //    await _userRepository.UpdateAsync(user);
+    //}
 }
