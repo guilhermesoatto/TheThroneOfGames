@@ -1,19 +1,21 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Application;
 using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Infrastructure.Repository;
+using Microsoft.AspNetCore.Builder;
 
 
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-
 // Register application services
+#region Injeção de dependencias
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+#endregion
+
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -37,13 +39,40 @@ builder.Services.AddAuthentication(options =>
 });
 
 builder.Services.AddAuthorization();
+builder.Services.AddControllers(); // Adiciona suporte a controllers
+
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    // Opcional: Personalizar a documentação do Swagger
+    // Você pode adicionar informações sobre sua API aqui.
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Minha Super Minimal API", // Título da sua API
+        Version = "v1", // Versão da API
+        Description = "Uma API de exemplo para gerenciar produtos e clientes.", // Descrição
+        TermsOfService = new Uri("https://example.com/terms"), // Termos de Serviço (opcional)
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact // Contato (opcional)
+        {
+            Name = "Seu Nome",
+            Email = "seu.email@example.com"
+        },
+        License = new Microsoft.OpenApi.Models.OpenApiLicense // Licença (opcional)
+        {
+            Name = "Licença MIT",
+            Url = new Uri("https://opensource.org/licenses/MIT")
+        }
+
+    });
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Configure o pipeline HTTP para usar Swagger
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.UseSwagger(); 
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TheThroneOfGames API v1"));
 }
 
 app.UseHttpsRedirection();
@@ -51,28 +80,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+app.MapControllers(); // Garante que os controllers sejam mapeados
 
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.Run(); // Mantém a aplicação rodando
 
-app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}

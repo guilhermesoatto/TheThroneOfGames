@@ -13,9 +13,14 @@ public class UsuarioService : IUsuarioService
         _userRepository = userRepository;
     }
 
-    public Task ActivateUserAsync(string activationToken)
+    public async Task ActivateUserAsync(string activationToken)
     {
-        throw new NotImplementedException();
+        var user = await _userRepository.GetByActivationTokenAsync(activationToken);
+        if (user == null)
+            throw new Exception("Token inválido ou expirado.");
+
+        user.Activate();
+        await _userRepository.UpdateAsync(user);
     }
 
     public async Task PreRegisterUserAsync(string email, string name)
@@ -25,15 +30,4 @@ public class UsuarioService : IUsuarioService
         await _userRepository.AddAsync(user);
 
     }
-
-    //public async Task ActivateUserAsync(string activationToken)
-    //{
-    //    // Lógica de ativação
-    //    var user = await _userRepository.GetByActivationTokenAsync(activationToken);
-    //    if (user == null)
-    //        throw new Exception("Token inválido ou expirado.");
-
-    //    user.Activate();
-    //    await _userRepository.UpdateAsync(user);
-    //}
 }
