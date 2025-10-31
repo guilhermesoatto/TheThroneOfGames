@@ -1,28 +1,9 @@
-﻿namespace TheThroneOfGames.Application
+﻿namespace TheThroneOfGames.Application;
+
+// Minimal placeholder kept in Application project to avoid introducing heavy framework
+// dependencies into the domain/application layer. Full authentication implementation
+// is provided in the API project where IConfiguration and JWT libs are available.
+public class AuthenticationService
 {
-    public class AuthenticationService
-    {
-        //    private readonly IAuthenticationRepository _repository;
-        //    private readonly IJwtTokenGenerator _jwtTokenGenerator;
-
-        //    public AuthenticationService(IAuthenticationRepository repository, IJwtTokenGenerator jwtTokenGenerator)
-        //    {
-        //        _repository = repository;
-        //        _jwtTokenGenerator = jwtTokenGenerator;
-        //    }
-
-        //    public async Task<string?> AuthenticateAsync(string email, string password)
-        //    {
-        //        var user = await _repository.GetByEmailAsync(email);
-        //        if (user == null || user.PasswordHash != password || !user.IsActive)
-        //            return null;
-        //        return _jwtTokenGenerator.GenerateToken(user);
-        //    }
-        //}
-
-        //public interface IJwtTokenGenerator
-        //{
-        //    string GenerateToke(Usuario user);
-        //}
-    }
+    // Intentionally left minimal. Use API-level authentication service for token issuance.
 }

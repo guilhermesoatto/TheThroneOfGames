@@ -8,6 +8,9 @@ namespace TheThroneOfGames.Domain.Entities
 {
     public class Usuario
     {
+        // Parameterless constructor required by EF Core for materialization
+        protected Usuario() { }
+
         public Guid Id { get; private set; }
         public string Name { get; private set; }
         public string Email { get; private set; }
@@ -38,5 +41,22 @@ namespace TheThroneOfGames.Domain.Entities
         }
 
         public void Activate() => IsActive = true;
+
+        public void UpdateRole(string newRole)
+        {
+            if (string.IsNullOrWhiteSpace(newRole))
+                throw new ArgumentException("Role cannot be empty", nameof(newRole));
+            Role = newRole;
+        }
+
+        public void Disable()
+        {
+            IsActive = false;
+        }
+
+        public void Enable()
+        {
+            IsActive = true;
+        }
     }
 }

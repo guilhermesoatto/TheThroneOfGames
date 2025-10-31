@@ -1,0 +1,50 @@
+Relatório de Entrega - TheThroneOfGames
+
+## Visão Geral
+TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Suporta registro de usuários com ativação por e-mail, autenticação JWT, administração de jogos e promoções, e ampla cobertura de testes. O projeto demonstra arquitetura limpa, boas práticas de segurança e extensibilidade para uso em produção.
+
+## Funcionalidades Entregues
+- Registro de usuário com ativação por e-mail
+- Validação de força de senha e hash seguro PBKDF2
+- Autenticação JWT com claims de papel (role)
+- Endpoints de administração para gerenciar jogos, promoções e usuários
+- Integração com EF Core e SQL Server
+- Envio automatizado de e-mails (simulado para arquivos no dev/teste)
+- Testes unitários e de integração abrangentes (NUnit)
+- Tratamento global de exceções e respostas ProblemDetails
+- Documentação Swagger/OpenAPI
+
+## Qualidade e Arquitetura
+- Arquitetura monolítica, seguindo princípios de DDD
+- Controllers MVC, separação clara de camadas (API, Application, Domain, Infrastructure)
+- Middleware para tratamento de erros estruturados
+- Testes cobrindo regras de negócio principais e fluxos críticos
+- Pronto para extensão futura (matchmaking, servidores, etc.)
+
+## Segurança
+- Senhas validadas quanto à força e armazenadas com hash PBKDF2
+- Tokens JWT incluem claims de papel e expiração
+- Endpoints de administração protegidos por autorização baseada em papel
+
+## Testes
+- Testes de integração e unitários abrangentes
+- Cobertura de casos de borda para senha, JWT e endpoints protegidos
+
+## Extensibilidade
+- Fácil adição de novas funcionalidades, papéis, entidades ou provedores externos
+
+## Pronto para Produção
+- Segredos podem ser movidos para variáveis de ambiente ou cofre seguro
+- Suporte a Serilog para logs estruturados
+- Health checks e deploy via Docker recomendados
+
+## Estrutura do Projeto
+- TheThroneOfGames.API/ - Projeto principal da Web API
+- TheThroneOfGames.Application/ - Serviços de aplicação e lógica de negócio
+- TheThroneOfGames.Domain/ - Entidades de domínio e interfaces
+- TheThroneOfGames.Infrastructure/ - Acesso a dados, EF Core e serviços externos
+- Test/ - Testes unitários e de integração
+
+---
+
+Para dúvidas ou suporte, entre em contato com o mantenedor.

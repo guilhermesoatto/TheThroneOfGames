@@ -4,44 +4,85 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TheThroneOfGames.Application.Interface;
+using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Infrastructure.Entities;
 
 namespace TheThroneOfGames.Application
 {
     public class GameService : IGameService
     {
-        public Task ActivateGameAsync(string activationToken)
+        private readonly IBaseRepository<GameEntity> _gameRepository;
+        private readonly IBaseRepository<Purchase> _purchaseRepository;
+
+        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<Purchase> purchaseRepository)
         {
-            throw new NotImplementedException();
+            _gameRepository = gameRepository;
+            _purchaseRepository = purchaseRepository;
         }
 
-        public Task DeactivateGameAsync(string gameId)
+        public async Task AddAsync(GameEntity entity)
         {
-            throw new NotImplementedException();
+            await _gameRepository.AddAsync(entity);
         }
 
-        public Task<List<string>> GetAllGamesAsync()
+        public async Task DeleteAsync(Guid id)
         {
-            throw new NotImplementedException();
+            await _gameRepository.DeleteAsync(id);
         }
 
-        public Task<string> GetGameByIdAsync(string gameId)
+        public async Task<IEnumerable<GameEntity>> GetAllAsync()
         {
-            throw new NotImplementedException();
+            return await _gameRepository.GetAllAsync();
         }
 
-        public Task<string> GetGameByNameAsync(string gameName)
+        public async Task<GameEntity?> GetByIdAsync(Guid id)
         {
-            throw new NotImplementedException();
+            return await _gameRepository.GetByIdAsync(id);
         }
 
-        public Task PreRegisterGameAsync(string gameName, string gameDescription, string gameGenre)
+        public async Task UpdateAsync(GameEntity entity)
         {
-            throw new NotImplementedException();
+            await _gameRepository.UpdateAsync(entity);
         }
 
-        public Task UpdateGameAsync(string gameId, string gameName, string gameDescription, string gameGenre)
+        public async Task BuyGame(Guid gameId, Guid userId)
         {
-            throw new NotImplementedException();
+            var game = await _gameRepository.GetByIdAsync(gameId);
+            if (game == null)
+                throw new ArgumentException($"Game with ID {gameId} not found.");
+
+            var purchase = new Purchase
+            {
+                GameId = gameId,
+                UserId = userId,
+                PurchaseDate = DateTime.UtcNow
+            };
+
+            await _purchaseRepository.AddAsync(purchase);
+        }
+
+        public async Task<List<GameEntity>> GetAllGames()
+        {
+            var games = await _gameRepository.GetAllAsync();
+            return games.ToList();
+        }
+
+        public async Task<List<GameEntity>> GetAvailableGames(Guid userId)
+        {
+            var allGames = await _gameRepository.GetAllAsync();
+            var ownedGameIds = (await GetOwnedGames(userId)).Select(g => g.Id);
+
+            return allGames.Where(g => !ownedGameIds.Contains(g.Id)).ToList();
+        }
+
+        public async Task<List<GameEntity>> GetOwnedGames(Guid userId)
+        {
+            var purchases = await _purchaseRepository.GetAllAsync();
+            var userPurchases = purchases.Where(p => p.UserId == userId);
+            var gameIds = userPurchases.Select(p => p.GameId);
+            
+            var games = await _gameRepository.GetAllAsync();
+            return games.Where(g => gameIds.Contains(g.Id)).ToList();
         }
     }
 }

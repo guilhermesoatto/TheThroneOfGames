@@ -3,17 +3,15 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TheThroneOfGames.Infrastructure.Entities;
 
 namespace TheThroneOfGames.Application.Interface
 {
-    public interface IGameService
+    public interface IGameService : IBaseService<GameEntity>
     {
-        public Task PreRegisterGameAsync(string gameName, string gameDescription, string gameGenre);
-        public Task ActivateGameAsync(string activationToken);
-        public Task DeactivateGameAsync(string gameId);
-        public Task UpdateGameAsync(string gameId, string gameName, string gameDescription, string gameGenre);
-        public Task<List<string>> GetAllGamesAsync();
-        public Task<string> GetGameByIdAsync(string gameId);
-        public Task<string> GetGameByNameAsync(string gameName);
+        Task BuyGame(Guid gameId, Guid userId);
+        Task<List<GameEntity>> GetOwnedGames(Guid userId);
+        Task<List<GameEntity>> GetAvailableGames(Guid userId);
+        Task<List<GameEntity>> GetAllGames();
     }
 }

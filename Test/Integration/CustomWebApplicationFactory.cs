@@ -57,6 +57,21 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 var scopedServices = scope.ServiceProvider;
                 var db = scopedServices.GetRequiredService<MainDbContext>();
                 db.Database.EnsureCreated();
+                
+                // Seed admin user for testing
+                if (!db.Users.Any(u => u.Role == "Admin"))
+                {
+                    var adminUser = new TheThroneOfGames.Domain.Entities.Usuario(
+                        name: "Admin User",
+                        email: "admin@test.com",
+                        passwordHash: TheThroneOfGames.Application.UsuarioService.HashPassword("Admin@123!"),
+                        role: "Admin",
+                        activeToken: Guid.NewGuid().ToString()
+                    );
+                    adminUser.Activate(); // Make sure the admin is active and can log in
+                    db.Users.Add(adminUser);
+                    db.SaveChanges();
+                }
             }
         });
 

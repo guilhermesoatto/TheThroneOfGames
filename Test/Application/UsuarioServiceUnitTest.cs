@@ -25,16 +25,21 @@ namespace Test.Application
             // Arrange
             string email = "test@test.com";
             string name = "Test User";
+            string password = "P@ssw0rd!";
 
             // Act
-            await _usuarioService.PreRegisterUserAsync(email, name);
+            var token = await _usuarioService.PreRegisterUserAsync(email, name, password);
+
+            // token should be returned
+            Assert.That(token, Is.Not.Null.And.Not.Empty);
 
             // Assert
             _userRepositoryMock.Verify(x => x.AddAsync(It.Is<Usuario>(u =>
                 u.Email == email &&
                 u.Name == name &&
                 !u.IsActive &&
-                u.Role == "User")), Times.Once);
+                u.Role == "User" &&
+                !string.IsNullOrEmpty(u.PasswordHash))), Times.Once);
         }
 
         [Test]
@@ -47,8 +52,11 @@ namespace Test.Application
                 .ThrowsAsync(new Exception("Database error"));
 
             // Act & Assert
+            // We need a valid password to reach the database error
+            _userRepositoryMock.Setup(x => x.AddAsync(It.IsAny<Usuario>()))
+                .ThrowsAsync(new Exception("Database error"));
             Assert.ThrowsAsync<Exception>(async () => 
-                await _usuarioService.PreRegisterUserAsync(email, name));
+                await _usuarioService.PreRegisterUserAsync(email, name, "P@ssw0rd!"));
         }
 
         [Test]
@@ -86,7 +94,7 @@ namespace Test.Application
             // Act & Assert
             var ex = Assert.ThrowsAsync<Exception>(async () => 
                 await _usuarioService.ActivateUserAsync(invalidToken));
-            Assert.That(ex.Message, Is.EqualTo("Token inv·lido ou expirado."));
+            Assert.That(ex.Message, Is.EqualTo("Token inv√°lido ou expirado."));
         }
     }
 }

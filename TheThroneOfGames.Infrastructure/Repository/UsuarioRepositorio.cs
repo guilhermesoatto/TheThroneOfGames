@@ -5,45 +5,29 @@ using System.Text;
 using System.Threading.Tasks;
 using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Infrastructure.Persistence;
 
 namespace TheThroneOfGames.Infrastructure.Repository
 {
-    public class UsuarioRepository : IUsuarioRepository
+    using Microsoft.EntityFrameworkCore;
+
+    public class UsuarioRepository : BaseRepository<Usuario>, IUsuarioRepository
     {
-        public Task AddAsync(Usuario entity)
+        private readonly MainDbContext _context;
+
+        public UsuarioRepository(MainDbContext context) : base(context)
         {
-            // Implementação do método para adicionar um usuário  
-            throw new NotImplementedException();
+            _context = context;
         }
 
-        public Task DeleteAsync(Guid id)
+        public async Task<Usuario?> GetByActivationTokenAsync(string activationToken)
         {
-            // Implementação do método para deletar um usuário  
-            throw new NotImplementedException();
+            return await _context.Users.FirstOrDefaultAsync(u => u.ActiveToken == activationToken);
         }
 
-        public Task<IEnumerable<Usuario>> GetAllAsync()
+        public async Task<Usuario?> GetByEmailAsync(string email)
         {
-            // Implementação do método para obter todos os usuários  
-            throw new NotImplementedException();
-        }
-
-        public Task<Usuario?> GetByIdAsync(Guid id)
-        {
-            // Implementação do método para obter um usuário pelo ID  
-            throw new NotImplementedException();
-        }
-
-        public Task<Usuario?> GetByActivationTokenAsync(string activationToken)
-        {
-            // Implementação do método para obter um usuário pelo token de ativação
-            throw new NotImplementedException();
-        }
-
-        public Task UpdateAsync(Usuario entity)
-        {
-            // Implementação do método para atualizar um usuário  
-            throw new NotImplementedException();
+            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
     }
 }

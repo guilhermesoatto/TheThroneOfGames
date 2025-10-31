@@ -7,13 +7,22 @@ using TheThroneOfGames.Application;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Infrastructure.Repository;
 using Microsoft.AspNetCore.Builder;
+using TheThroneOfGames.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 
 var builder = WebApplication.CreateBuilder(args);
 // Register application services
-#region Injeção de dependencias
-builder.Services.AddScoped<IUsuarioService, UsuarioService>();
-builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddDbContext<MainDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+#region InjeÃ§Ã£o de dependencias
+// Add application services
+builder.Services.AddApplicationServices();
+
+// Authentication & email
+builder.Services.AddScoped<TheThroneOfGames.API.Services.AuthenticationService>();
+builder.Services.AddScoped<TheThroneOfGames.Infrastructure.ExternalServices.EmailService>();
 #endregion
 
 
@@ -44,30 +53,54 @@ builder.Services.AddControllers(); // Adiciona suporte a controllers
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    // Opcional: Personalizar a documentação do Swagger
-    // Você pode adicionar informações sobre sua API aqui.
+    // Opcional: Personalizar a documentaï¿½ï¿½o do Swagger
+    // Vocï¿½ pode adicionar informaï¿½ï¿½es sobre sua API aqui.
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "Minha Super Minimal API", // Título da sua API
-        Version = "v1", // Versão da API
-        Description = "Uma API de exemplo para gerenciar produtos e clientes.", // Descrição
-        TermsOfService = new Uri("https://example.com/terms"), // Termos de Serviço (opcional)
+        Title = "Minha Super Minimal API", // Tï¿½tulo da sua API
+        Version = "v1", // Versï¿½o da API
+        Description = "Uma API de exemplo para gerenciar produtos e clientes.", // Descriï¿½ï¿½o
+        TermsOfService = new Uri("https://example.com/terms"), // Termos de Serviï¿½o (opcional)
         Contact = new Microsoft.OpenApi.Models.OpenApiContact // Contato (opcional)
         {
             Name = "Seu Nome",
             Email = "seu.email@example.com"
         },
-        License = new Microsoft.OpenApi.Models.OpenApiLicense // Licença (opcional)
+        License = new Microsoft.OpenApi.Models.OpenApiLicense // Licenï¿½a (opcional)
         {
-            Name = "Licença MIT",
+            Name = "Licenï¿½a MIT",
             Url = new Uri("https://opensource.org/licenses/MIT")
         }
 
     });
+    // Add JWT Bearer authentication to Swagger (Authorize button)
+    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "Insira o token JWT no campo: 'Bearer {token}'\n\nExemplo: 'Bearer eyJhbGci...'.",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] { }
+        }
+    });
 });
 
 var app = builder.Build();
-
 // Configure o pipeline HTTP para usar Swagger
 if (app.Environment.IsDevelopment())
 {
@@ -77,11 +110,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Global exception handling middleware
+app.UseMiddleware<TheThroneOfGames.API.Middleware.ExceptionMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers(); // Garante que os controllers sejam mapeados
 
-app.Run(); // Mantém a aplicação rodando
+app.Run(); // MantÃ©m a aplicaÃ§Ã£o rodando
+
+public partial class Program { }
 
 
