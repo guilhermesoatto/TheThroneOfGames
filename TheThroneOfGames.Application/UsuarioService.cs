@@ -57,7 +57,29 @@ public class UsuarioService : IUsuarioService
         await _userRepository.UpdateAsync(user);
     }
 
-    public async Task<string> PreRegisterUserAsync(string email, string name, string password)
+    public async Task UpdateUserProfileAsync(string existingEmail, string newName, string newEmail)
+    {
+        if (string.IsNullOrWhiteSpace(existingEmail))
+            throw new ArgumentException("Existing email is required.", nameof(existingEmail));
+
+        var user = await _userRepository.GetByEmailAsync(existingEmail);
+        if (user == null)
+            throw new ArgumentException("User not found.", nameof(existingEmail));
+
+        // Basic validation
+        if (string.IsNullOrWhiteSpace(newName))
+            throw new ArgumentException("Name is required.", nameof(newName));
+
+        if (string.IsNullOrWhiteSpace(newEmail))
+            throw new ArgumentException("Email is required.", nameof(newEmail));
+
+        // Update fields via entity method
+        user.UpdateProfile(newName, newEmail);
+
+        await _userRepository.UpdateAsync(user);
+    }
+
+    public async Task<string> PreRegisterUserAsync(string email, string name, string password, string role)
     {
         // Validações básicas
         if (string.IsNullOrWhiteSpace(email))
@@ -66,8 +88,9 @@ public class UsuarioService : IUsuarioService
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Nome é obrigatório.", nameof(name));
 
-        if (!IsStrongPassword(password))
-            throw new ArgumentException("Senha fraca. A senha deve ter no mínimo 8 caracteres, conter letras, números e caracteres especiais.");
+            var (isStrong, pwdError) = ValidatePassword(password);
+            if (!isStrong)
+                throw new ArgumentException(pwdError);
 
         // Gerar hash de senha
         var passwordHash = HashPassword(password);
@@ -75,11 +98,18 @@ public class UsuarioService : IUsuarioService
         // Gerar token de ativação
         var activationToken = Guid.NewGuid().ToString();
 
-        var user = new Usuario(name, email, passwordHash, "User", activationToken);
+    var userRole = string.IsNullOrWhiteSpace(role) ? "User" : role;
+    var user = new Usuario(name, email, passwordHash, userRole, activationToken);
 
         await _userRepository.AddAsync(user);
 
         return activationToken;
+    }
+
+    // Backward-compatible overload: default to 'User' role
+    public Task<string> PreRegisterUserAsync(string email, string name, string password)
+    {
+        return PreRegisterUserAsync(email, name, password, "User");
     }
 
     // Simple PBKDF2-based password hashing
@@ -135,5 +165,41 @@ public class UsuarioService : IUsuarioService
         }
 
         return hasLetter && hasDigit && hasSpecial;
+    }
+
+    // Returns (isValid, errorMessage) where errorMessage matches test expectations (English)
+    private static (bool, string) ValidatePassword(string password)
+    {
+        if (string.IsNullOrEmpty(password) || password.Length < 8)
+            return (false, "Password must be at least 8 characters");
+
+        bool hasLetter = false, hasDigit = false, hasSpecial = false;
+        foreach (var c in password)
+        {
+            if (char.IsLetter(c)) hasLetter = true;
+            else if (char.IsDigit(c)) hasDigit = true;
+            else if (!char.IsWhiteSpace(c)) hasSpecial = true;
+        }
+
+        // Specific messages expected by tests
+        if (hasLetter && !hasDigit && !hasSpecial)
+            return (false, "Password must contain at least one number and one special character");
+
+        if (!hasLetter && hasDigit && !hasSpecial)
+            return (false, "Password must contain at least one letter and one special character");
+
+        if (!hasLetter && !hasDigit && hasSpecial)
+            return (false, "Password must contain at least one letter and one number");
+
+        if (hasLetter && hasDigit && !hasSpecial)
+            return (false, "Password must contain at least one special character");
+
+        if (hasLetter && !hasDigit && hasSpecial)
+            return (false, "Password must contain at least one number");
+
+        if (!hasLetter && hasDigit && hasSpecial)
+            return (false, "Password must contain at least one letter");
+
+        return (true, string.Empty);
     }
 }

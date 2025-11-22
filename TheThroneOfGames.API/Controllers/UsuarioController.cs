@@ -45,7 +45,7 @@ namespace TheThroneOfGames.API.Controllers
         public IActionResult Post([FromBody] UserDTO value)
         {
             // Forward to service for secure registration and send activation e-mail
-            var activationToken = _userService.PreRegisterUserAsync(value.Email, value.Name, value.Password).GetAwaiter().GetResult();
+            var activationToken = _userService.PreRegisterUserAsync(value.Email, value.Name, value.Password, value.Role).GetAwaiter().GetResult();
             var activationLink = $"{Request.Scheme}://{Request.Host}/api/Usuario/activate?activationToken={activationToken}";
             var subject = "Ativação de conta - TheThroneOfGames";
             var body = $"Olá {value.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
@@ -77,7 +77,7 @@ namespace TheThroneOfGames.API.Controllers
             // Validação de senha
             try
             {
-                var activationToken = await _userService.PreRegisterUserAsync(userDto.Email, userDto.Name, userDto.Password);
+                var activationToken = await _userService.PreRegisterUserAsync(userDto.Email, userDto.Name, userDto.Password, userDto.Role);
 
                 // Compose activation link
                 var activationLink = $"{Request.Scheme}://{Request.Host}/api/Usuario/activate?activationToken={activationToken}";
@@ -121,6 +121,47 @@ namespace TheThroneOfGames.API.Controllers
                 return Unauthorized("Credenciais inválidas ou conta não ativada.");
 
             return Ok(new { token });
+        }
+
+        [HttpGet("public-info")]
+        [AllowAnonymous]
+        public IActionResult PublicInfo()
+        {
+            // Minimal public info endpoint used by integration tests. Return OK when unauthenticated.
+            return Ok(new { message = "Public info" });
+        }
+
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromBody] Models.DTO.UserUpdateDTO updateDto)
+        {
+            // Get current user email from claims (support both ClaimTypes.Email and lowercase "email")
+            var emailClaim = User?.FindFirst(System.Security.Claims.ClaimTypes.Email) ?? User?.FindFirst("email");
+            var currentEmail = emailClaim?.Value;
+
+            if (string.IsNullOrWhiteSpace(currentEmail))
+                return BadRequest("Authenticated user email not found in token.");
+
+            // If trying to update someone else's profile and not an Admin, forbid
+            var targetEmail = updateDto.Email;
+            var isSameUser = string.Equals(currentEmail, targetEmail, System.StringComparison.OrdinalIgnoreCase);
+            var isAdmin = (User?.IsInRole("Admin") ?? false) || (User?.HasClaim(c => c.Type == "role" && c.Value == "Admin") ?? false);
+
+            if (!isSameUser && !isAdmin)
+            {
+                return Forbid();
+            }
+
+            try
+            {
+                await _userService.UpdateUserProfileAsync(currentEmail, updateDto.Name, updateDto.Email);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
+            return Ok("Profile updated");
         }
     }
 }

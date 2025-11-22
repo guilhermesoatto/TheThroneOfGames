@@ -59,7 +59,7 @@ public class UserManagementController : AdminControllerBase
 
             return Ok(dto);
         }
-        catch (ArgumentException ex)
+        catch (ArgumentException)
         {
             return NotFoundById<Usuario>(id);
         }

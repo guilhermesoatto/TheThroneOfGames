@@ -9,7 +9,9 @@ namespace TheThroneOfGames.Application.Interface
 {
     public interface IUsuarioService
     {
-        Task<string> PreRegisterUserAsync(string email, string name, string password);
+    // Backward-compatible overload: if role is omitted, defaults to 'User'
+    Task<string> PreRegisterUserAsync(string email, string name, string password);
+    Task<string> PreRegisterUserAsync(string email, string name, string password, string role);
         Task ActivateUserAsync(string activationToken);
         
         // Admin management methods
@@ -18,5 +20,8 @@ namespace TheThroneOfGames.Application.Interface
         Task DisableUserAsync(Guid userId);
         Task EnableUserAsync(Guid userId);
         Task<Usuario> GetUserByIdAsync(Guid userId);
+        
+            // Profile update for the authenticated user (or admin updating another user)
+            Task UpdateUserProfileAsync(string existingEmail, string newName, string newEmail);
     }
 }

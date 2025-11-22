@@ -3,11 +3,11 @@ namespace TheThroneOfGames.API.Models.DTO
 {
     public class UserDTO
     {
-        public string Name { get; set; }
-        public string Email { get; set; }
+        public string Name { get; set; } = null!;
+        public string Email { get; set; } = null!;
         // Accept raw password from client; service will hash
-        public string Password { get; set; }
-        public string Role { get; set; }
+        public string Password { get; set; } = null!;
+        public string Role { get; set; } = null!;
 
         public UserDTO() { }
         public UserDTO(string name, string email, string password, string role)

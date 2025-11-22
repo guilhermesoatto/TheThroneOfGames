@@ -1,7 +1,7 @@
 # TheThroneOfGames
 
 ## Visão Geral
-TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Suporta registro de usuários com ativação por e-mail, autenticação JWT, administração de jogos e promoções, e ampla cobertura de testes. O projeto demonstra arquitetura limpa, boas práticas de segurança e extensibilidade para uso em produção.
+TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Este projeto foi desenvolvido como solução para o desafio Tech Challenge (ver `TheThroneOfGames.API/objetivo1.md`), atendendo todos os requisitos obrigatórios da primeira fase.
 
 ## Funcionalidades
 - Registro de usuário com ativação por e-mail
@@ -76,6 +76,42 @@ TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar 
    ```
    (Garanta que sua string de conexão e segredo JWT estejam definidos via variáveis de ambiente ou segredos Docker.)
 
+### Testando Endpoints com Swagger
+1. **Registre um usuário:**
+   - No Swagger UI (`https://localhost:5001/swagger`), localize o endpoint `/api/Usuario/pre-register`
+   - Use o modelo de exemplo para registrar um usuário com email e senha válidos:
+     ```json
+     {
+       "name": "Usuário Teste",
+       "email": "teste@exemplo.com",
+       "password": "Senha@123",
+       "role": "User"
+     }
+     ```
+   - Verifique a pasta `Infrastructure/Outbox` para o email de ativação
+   - Use o token de ativação no endpoint `/api/Usuario/activate`
+
+2. **Obtenha um token JWT:**
+   - Use o endpoint `/api/Usuario/login` com o email e senha registrados:
+     ```json
+     {
+       "email": "teste@exemplo.com",
+       "password": "Senha@123"
+     }
+     ```
+   - Copie o token JWT retornado na resposta
+
+3. **Use o token no Swagger:**
+   - No topo da página do Swagger, clique no botão "Authorize" ou no cadeado
+   - No campo "Value", digite: `Bearer seu-token-jwt`
+   - Clique em "Authorize" e feche o modal
+   - Agora você pode acessar endpoints protegidos
+
+4. **Para endpoints administrativos:**
+   - É necessário um usuário com role "Admin"
+   - Por padrão, o primeiro usuário pode ser promovido a admin via banco de dados
+   - Ou use o endpoint de promoção de usuário (requer um admin existente)
+
 ## Configuração
 - **Segredo JWT:** Defina em `appsettings.json` ou como variável de ambiente `JWT_SECRET`.
 - **Conexão com Banco:** Defina em `appsettings.json` ou como variável de ambiente `DB_CONNECTION`.
@@ -93,6 +129,10 @@ TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar 
 - `TheThroneOfGames.Domain/` - Entidades de domínio e interfaces
 - `TheThroneOfGames.Infrastructure/` - Acesso a dados, EF Core e serviços externos
 - `Test/` - Testes unitários e de integração
+
+## Referências
+- Requisitos do desafio: veja `TheThroneOfGames.API/objetivo1.md`
+- Relatório de entrega: veja `relatorio_entrega.txt`
 
 ## Contribuindo
 Pull requests e issues são bem-vindos! Por favor, garanta que todos os testes passem e siga o estilo de código existente.

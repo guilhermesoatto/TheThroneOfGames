@@ -12,12 +12,12 @@ namespace TheThroneOfGames.Domain.Entities
         protected Usuario() { }
 
         public Guid Id { get; private set; }
-        public string Name { get; private set; }
-        public string Email { get; private set; }
-        public string PasswordHash { get; private set; }
-        public string Role { get; private set; }
+    public string Name { get; private set; } = null!;
+    public string Email { get; private set; } = null!;
+    public string PasswordHash { get; private set; } = null!;
+    public string Role { get; private set; } = null!;
         public bool IsActive { get; private set; }
-        public string ActiveToken { get; set; }
+    public string ActiveToken { get; set; } = null!;
         public Usuario(string name, string email, string passwordHash, string role, string activeToken)
         {
             Id = Guid.NewGuid();
@@ -47,6 +47,18 @@ namespace TheThroneOfGames.Domain.Entities
             if (string.IsNullOrWhiteSpace(newRole))
                 throw new ArgumentException("Role cannot be empty", nameof(newRole));
             Role = newRole;
+        }
+
+        public void UpdateProfile(string newName, string newEmail)
+        {
+            if (string.IsNullOrWhiteSpace(newName))
+                throw new ArgumentException("Name is required", nameof(newName));
+
+            if (string.IsNullOrWhiteSpace(newEmail))
+                throw new ArgumentException("Email is required", nameof(newEmail));
+
+            Name = newName;
+            Email = newEmail;
         }
 
         public void Disable()
