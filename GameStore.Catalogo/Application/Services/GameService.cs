@@ -1,26 +1,23 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Entities;
 
-namespace TheThroneOfGames.Application
+namespace GameStore.Catalogo.Application
 {
     public class GameService : IGameService
     {
         private readonly IBaseRepository<GameEntity> _gameRepository;
         private readonly IBaseRepository<Purchase> _purchaseRepository;
-    private readonly IEventBus _eventBus;
 
-        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<Purchase> purchaseRepository, IEventBus eventBus)
+        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<Purchase> purchaseRepository)
         {
             _gameRepository = gameRepository;
             _purchaseRepository = purchaseRepository;
-    _eventBus = eventBus;
         }
 
         public async Task AddAsync(GameEntity entity)
@@ -62,15 +59,6 @@ namespace TheThroneOfGames.Application
             };
 
             await _purchaseRepository.AddAsync(purchase);
-        
-        // Publish domain event
-        var gameCompradoEvent = new GameCompradoEvent(
-            GameId: gameId,
-            UserId: userId,
-            Preco: game.Price,
-            NomeJogo: game.Name
-        );
-        await _eventBus.PublishAsync(gameCompradoEvent);
         }
 
         public async Task<List<GameEntity>> GetAllGames()

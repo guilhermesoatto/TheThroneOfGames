@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+  <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>GameStore.Usuarios</AssemblyName>
+    <RootNamespace>GameStore.Usuarios</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj" />
+    <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
+    <ProjectReference Include="..\TheThroneOfGames.Application\TheThroneOfGames.Application.csproj" />
+  </ItemGroup>
+</Project>

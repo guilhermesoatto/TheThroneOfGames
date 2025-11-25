@@ -1,7 +1,7 @@
-Relatório de Entrega - TheThroneOfGames
+Relatório de Entrega - TheThroneOfGames (Atualizado 24/11/2025)
 
 ## Visão Geral
-TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Suporta registro de usuários com ativação por e-mail, autenticação JWT, administração de jogos e promoções, e ampla cobertura de testes. O projeto demonstra arquitetura limpa, boas práticas de segurança e extensibilidade para uso em produção.
+TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Suporta registro de usuários com ativação por e-mail, autenticação JWT, administração de jogos e promoções, e ampla cobertura de testes. O projeto está sendo refatorado para **bounded contexts** independentes (arquitetura pré-microservices) para facilitar escalabilidade e evolução futura.
 
 ## Funcionalidades Entregues
 - Registro de usuário com ativação por e-mail
@@ -38,13 +38,80 @@ TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar 
 - Suporte a Serilog para logs estruturados
 - Health checks e deploy via Docker recomendados
 
-## Estrutura do Projeto
+## Estrutura do Projeto (Monólito Original)
 - TheThroneOfGames.API/ - Projeto principal da Web API
 - TheThroneOfGames.Application/ - Serviços de aplicação e lógica de negócio
 - TheThroneOfGames.Domain/ - Entidades de domínio e interfaces
 - TheThroneOfGames.Infrastructure/ - Acesso a dados, EF Core e serviços externos
 - Test/ - Testes unitários e de integração
 
+## Novos Bounded Contexts (Refatoração 24/11/2025)
+
+### GameStore.Usuarios (Contexto de Usuários)
+- **Responsabilidade:** Gerenciamento de usuários, autenticação, perfis
+- **Arquivos principais:**
+  - `Domain/Entities/Usuario.cs` - Entidade com lógica de ativação/desativação
+  - `Domain/Interfaces/IUsuarioRepository.cs` - Contrato local
+  - `Application/Services/UsuarioService.cs` - Serviço com lógica de pre-registro, ativação
+  - `Infrastructure/Repository/UsuarioRepository.cs` - Implementação de repositório
+- **Testes:** `GameStore.Usuarios.Tests/UsuarioTests.cs` (2 testes, 100% passando)
+
+### GameStore.Catalogo (Contexto de Catálogo)
+- **Responsabilidade:** Catálogo de jogos, buscas, filtros
+- **Arquivos principais:**
+  - `Domain/Entities/Jogo.cs` - Entidade de jogo
+  - `Application/Services/GameService.cs` - Serviço com lógica de listagem e compra
+  - `Infrastructure/Repository/GameEntityRepository.cs` - Repositório
+
+### GameStore.Vendas (Contexto de Vendas)
+- **Responsabilidade:** Pedidos, compras, transações
+- **Arquivos principais:**
+  - `Domain/Entities/Pedido.cs` - Entidade de pedido
+  - `Application/Services/PedidoService.cs` - Serviço de gerenciamento de compras
+  - `Infrastructure/Repository/PurchaseRepository.cs` - Repositório
+
+### Decisões de Arquitetura
+1. **Interfaces Locais por Contexto:** Cada contexto define seus próprios contratos (ex: `IUsuarioRepository`) para reduzir acoplamento com o monólito.
+2. **Abordagem Incremental:** Reutilizamos tipos do monólito inicialmente para manter compatibilidade com `MainDbContext` durante a transição.
+3. **Próximas Fases:**
+   - Extrair DTOs por contexto
+   - Criar adapters/mappers entre tipos
+   - Implementar eventos de domínio para comunicação inter-contextos
+   - Separar bancos de dados e deployments independentes
+
+### Build e Testes (Status Atual)
+- **Build:** ✅ Sucesso (2,1s)
+- **Testes:** ✅ 42 testes executados, 0 falhas
+- **Adições:**
+  - 3 projetos de bounded contexts
+  - 1 projeto de testes (`GameStore.Usuarios.Tests`)
+  - ~300 linhas de código mapeadas/duplicadas
+
+### Documentação Adicional
+- `ARCHITECTURE_README.md` - Visão geral da arquitetura pré-microservices
+- `DEVELOPMENT_PROMPT.md` - Contexto de desenvolvimento com instruções e checklist
+- `.github/instructions/memory.instruction.md` - Memória do agente
+
 ---
 
-Para dúvidas ou suporte, entre em contato com o mantenedor.
+## Próximos Passos Recomendados
+
+**Fase 1 (Curto Prazo):**
+- Extrair DTOs por contexto
+- Implementar mappers/adapters
+- Ampliar testes de integração
+
+**Fase 2 (Médio Prazo):**
+- Eventos de domínio para comunicação entre contextos
+- APIs gRPC/REST entre contextos
+- Pacote compartilhado (`GameStore.Shared`)
+
+**Fase 3 (Longo Prazo):**
+- DbContext separados por contexto
+- Bancos de dados independentes
+- Containerização e orquestração
+- CI/CD independente por contexto
+
+---
+
+Para dúvidas sobre a arquitetura, refira-se ao `ARCHITECTURE_README.md` ou `DEVELOPMENT_PROMPT.md`.

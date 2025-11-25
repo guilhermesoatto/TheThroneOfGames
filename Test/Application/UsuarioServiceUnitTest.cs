@@ -3,6 +3,7 @@ using NUnit.Framework;
 using TheThroneOfGames.Application;
 using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Domain.Events;
 
 namespace Test.Application
 {
@@ -10,13 +11,15 @@ namespace Test.Application
     public class UsuarioServiceUnitTest
     {
         private Mock<IUsuarioRepository> _userRepositoryMock;
+    private Mock<IEventBus> _eventBusMock;
         private UsuarioService _usuarioService;
 
         [SetUp]
         public void Setup()
         {
             _userRepositoryMock = new Mock<IUsuarioRepository>();
-            _usuarioService = new UsuarioService(_userRepositoryMock.Object);
+        _eventBusMock = new Mock<IEventBus>();
+        _usuarioService = new UsuarioService(_userRepositoryMock.Object, _eventBusMock.Object);
         }
 
         [Test]

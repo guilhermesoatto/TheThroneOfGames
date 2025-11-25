@@ -1,19 +1,15 @@
-﻿using TheThroneOfGames.Application.Interface;
+using GameStore.Usuarios.Domain.Interfaces;
 using TheThroneOfGames.Domain.Entities;
-using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Domain.Events;
 
-namespace TheThroneOfGames.Application;
+namespace GameStore.Usuarios.Application;
 
-public class UsuarioService : IUsuarioService
+public class UsuarioService
 {
     private readonly IUsuarioRepository _userRepository;
-    private readonly IEventBus _eventBus;
 
-    public UsuarioService(IUsuarioRepository userRepository, IEventBus eventBus)
+    public UsuarioService(IUsuarioRepository userRepository)
     {
         _userRepository = userRepository;
-        _eventBus = eventBus;
     }
 
     public async Task<IEnumerable<Usuario>> GetAllUsersAsync()
@@ -57,14 +53,6 @@ public class UsuarioService : IUsuarioService
             throw new Exception("Token inválido ou expirado.");
 
         user.Activate();
-        
-        // Publish domain event
-        var usuarioAtivadoEvent = new UsuarioAtivadoEvent(
-            UsuarioId: user.Id,
-            Email: user.Email,
-            Nome: user.Name
-        );
-        await _eventBus.PublishAsync(usuarioAtivadoEvent);
         await _userRepository.UpdateAsync(user);
     }
 
@@ -86,14 +74,6 @@ public class UsuarioService : IUsuarioService
 
         // Update fields via entity method
         user.UpdateProfile(newName, newEmail);
-        
-        // Publish domain event
-        var perfilAtualizadoEvent = new UsuarioPerfillAtualizadoEvent(
-            UsuarioId: user.Id,
-            NovoNome: newName,
-            NovoEmail: newEmail
-        );
-        await _eventBus.PublishAsync(perfilAtualizadoEvent);
 
         await _userRepository.UpdateAsync(user);
     }

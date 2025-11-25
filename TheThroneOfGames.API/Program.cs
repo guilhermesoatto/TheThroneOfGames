@@ -5,10 +5,15 @@ using System.Text;
 using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Application;
 using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Repository;
+using TheThroneOfGames.Infrastructure.Events;
 using Microsoft.AspNetCore.Builder;
 using TheThroneOfGames.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using GameStore.Catalogo.Application.EventHandlers;
+using GameStore.Usuarios.Application.EventHandlers;
+using GameStore.Vendas.Application.EventHandlers;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +24,18 @@ builder.Services.AddDbContext<MainDbContext>(options =>
 #region Injeção de dependencias
 // Add application services
 builder.Services.AddApplicationServices();
+
+// Event Bus - Barramento de eventos de domínio
+builder.Services.AddSingleton<IEventBus, SimpleEventBus>();
+
+// Register event handlers for cross-context communication
+var eventBus = new SimpleEventBus();
+builder.Services.AddSingleton<IEventBus>(eventBus);
+
+// Subscribe handlers to events
+eventBus.Subscribe<UsuarioAtivadoEvent>(new UsuarioAtivadoEventHandler());
+eventBus.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
+eventBus.Subscribe<PedidoFinalizadoEvent>(new PedidoFinalizadoEventHandler());
 
 // Authentication & email
 builder.Services.AddScoped<TheThroneOfGames.API.Services.AuthenticationService>();

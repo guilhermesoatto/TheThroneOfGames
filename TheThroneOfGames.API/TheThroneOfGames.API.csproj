@@ -22,6 +22,9 @@
   <ItemGroup>
     <ProjectReference Include="..\TheThroneOfGames.Application\TheThroneOfGames.Application.csproj" />
     <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
+    <ProjectReference Include="..\GameStore.Usuarios\GameStore.Usuarios.csproj" />
+    <ProjectReference Include="..\GameStore.Catalogo\GameStore.Catalogo.csproj" />
+    <ProjectReference Include="..\GameStore.Vendas\GameStore.Vendas.csproj" />
   </ItemGroup>
 
 </Project>
