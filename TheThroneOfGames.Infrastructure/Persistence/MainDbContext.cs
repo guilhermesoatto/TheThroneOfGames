@@ -9,10 +9,9 @@ public class MainDbContext : DbContext
 {
     public MainDbContext(DbContextOptions<MainDbContext> options) : base(options) { }
 
-    public DbSet<Usuario> Users { get; set; }
+
     public DbSet<GameEntity> Games { get; set; }
-    public DbSet<Promotion> Promotions { get; set; }
-    public DbSet<Purchase> Purchases { get; set; }
+    public DbSet<User> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -40,7 +39,7 @@ public class MainDbContext : DbContext
             entity.Property(g => g.Price).IsRequired().HasPrecision(18, 2);
         });
 
-        modelBuilder.Entity<Promotion>(entity =>
+        modelBuilder.Entity<User>(entity =>
         {
             entity.ToTable("Promotion");
             entity.HasKey(p => p.Id);

@@ -3,13 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.API", "TheThroneOfGames.API\TheThroneOfGames.API.csproj", "{CD775E85-9E6F-4713-8F1D-98445B64442F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheThroneOfGames.API", "TheThroneOfGames.API\TheThroneOfGames.API.csproj", "{CD775E85-9E6F-4713-8F1D-98445B64442F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.Application", "TheThroneOfGames.Application\TheThroneOfGames.Application.csproj", "{0499A02A-7750-40F4-88A8-57CCD8D91BC6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheThroneOfGames.Application", "TheThroneOfGames.Application\TheThroneOfGames.Application.csproj", "{0499A02A-7750-40F4-88A8-57CCD8D91BC6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.Domain", "TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj", "{D00A4A30-6C83-4306-879F-036E183F398A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheThroneOfGames.Domain", "TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj", "{D00A4A30-6C83-4306-879F-036E183F398A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.Infrastructure", "TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj", "{27AFD4C7-2F98-44A4-9ADF-FF6B23B5156A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TheThroneOfGames.Infrastructure", "TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj", "{27AFD4C7-2F98-44A4-9ADF-FF6B23B5156A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{9A086E8E-BA66-4670-921A-F4AC5BF336B5}"
 EndProject
@@ -180,5 +180,11 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {475F8B36-DE42-40E8-BE1B-0C777DD4CA4F}
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {69131B3B-8745-4FBD-931E-DEC1EF0166E2}
 	EndGlobalSection
 EndGlobal
