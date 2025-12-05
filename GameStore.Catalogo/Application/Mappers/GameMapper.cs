@@ -25,9 +25,10 @@ namespace GameStore.Catalogo.Application.Mappers
                 Name = game.Name,
                 Genre = game.Genre,
                 Price = game.Price,
-                IsAvailable = true, // Será ajustado quando GameEntity tiver IsAvailable
-                CreatedAt = DateTime.UtcNow, // Será ajustado quando GameEntity tiver CreatedAt
-                UpdatedAt = null
+                Description = game.Description,
+                IsAvailable = game.IsAvailable,
+                CreatedAt = game.CreatedAt,
+                UpdatedAt = game.UpdatedAt
             };
         }
 
@@ -44,7 +45,11 @@ namespace GameStore.Catalogo.Application.Mappers
                 Id = dto.Id,
                 Name = dto.Name,
                 Genre = dto.Genre,
-                Price = dto.Price
+                Price = dto.Price,
+                Description = dto.Description,
+                IsAvailable = dto.IsAvailable,
+                CreatedAt = dto.CreatedAt,
+                UpdatedAt = dto.UpdatedAt
             };
         }
 
@@ -83,12 +88,12 @@ namespace GameStore.Catalogo.Application.Mappers
         /// <summary>
         /// Converte uma coleção de GameEntities para uma coleção de GameDTOs.
         /// </summary>
-        public static IEnumerable<GameDTO> ToDTOList(IEnumerable<GameEntity> games)
+        public static IEnumerable<GameDTO> ToDTOList(IEnumerable<GameEntity>? games)
         {
             if (games == null)
-                throw new ArgumentNullException(nameof(games));
+                return Enumerable.Empty<GameDTO>();
 
-            return games.Select(ToDTO).ToList();
+            return games.Select(g => ToDTO(g) ?? new GameDTO()).ToList();
         }
 
         /// <summary>

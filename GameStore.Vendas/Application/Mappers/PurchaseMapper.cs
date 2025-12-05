@@ -14,7 +14,7 @@ namespace GameStore.Vendas.Application.Mappers
         /// <summary>
         /// Converte um Purchase para PurchaseDTO.
         /// </summary>
-        public static PurchaseDTO ToDTO(Purchase purchase)
+        public static PurchaseDTO ToPurchaseDTO(Purchase purchase)
         {
             if (purchase == null)
                 throw new ArgumentNullException(nameof(purchase));
@@ -24,11 +24,20 @@ namespace GameStore.Vendas.Application.Mappers
                 Id = purchase.Id,
                 UserId = purchase.UserId,
                 GameId = purchase.GameId,
-                TotalPrice = 0, // Será ajustado quando Purchase tiver TotalPrice
+                TotalPrice = purchase.TotalPrice,
                 PurchaseDate = purchase.PurchaseDate,
-                Status = "Completed"
+                Status = purchase.Status,
+                PaymentMethod = purchase.PaymentMethod,
+                CancellationReason = purchase.CancellationReason,
+                CompletedAt = purchase.CompletedAt,
+                CancelledAt = purchase.CancelledAt
             };
         }
+
+        /// <summary>
+        /// Converte um Purchase para PurchaseDTO (método legacy).
+        /// </summary>
+        public static PurchaseDTO ToDTO(Purchase purchase) => ToPurchaseDTO(purchase);
 
         /// <summary>
         /// Converte um PurchaseDTO para Purchase.
@@ -43,9 +52,31 @@ namespace GameStore.Vendas.Application.Mappers
                 Id = dto.Id,
                 UserId = dto.UserId,
                 GameId = dto.GameId,
-                PurchaseDate = dto.PurchaseDate
+                TotalPrice = dto.TotalPrice,
+                PurchaseDate = dto.PurchaseDate,
+                Status = dto.Status ?? "Pending",
+                PaymentMethod = dto.PaymentMethod,
+                CancellationReason = dto.CancellationReason,
+                CompletedAt = dto.CompletedAt,
+                CancelledAt = dto.CancelledAt
             };
         }
+
+        /// <summary>
+        /// Converte uma coleção de Purchases para uma coleção de PurchaseDTOs.
+        /// </summary>
+        public static IEnumerable<PurchaseDTO> ToPurchaseDTOList(IEnumerable<Purchase> purchases)
+        {
+            if (purchases == null)
+                throw new ArgumentNullException(nameof(purchases));
+
+            return purchases.Select(ToPurchaseDTO).ToList();
+        }
+
+        /// <summary>
+        /// Converte uma coleção de Purchases para uma coleção de PurchaseDTOs (método legacy).
+        /// </summary>
+        public static IEnumerable<PurchaseDTO> ToDTOList(IEnumerable<Purchase> purchases) => ToPurchaseDTOList(purchases);
 
         /// <summary>
         /// Converte um Pedido (entidade local) para PedidoDTO.
@@ -78,17 +109,6 @@ namespace GameStore.Vendas.Application.Mappers
                 Id = dto.Id,
                 UsuarioId = dto.UsuarioId
             };
-        }
-
-        /// <summary>
-        /// Converte uma coleção de Purchases para uma coleção de PurchaseDTOs.
-        /// </summary>
-        public static IEnumerable<PurchaseDTO> ToDTOList(IEnumerable<Purchase> purchases)
-        {
-            if (purchases == null)
-                throw new ArgumentNullException(nameof(purchases));
-
-            return purchases.Select(ToDTO).ToList();
         }
 
         /// <summary>

@@ -12,6 +12,9 @@ namespace GameStore.Catalogo.Application.DTOs
 
         public string Genre { get; set; } = null!;
 
+        // Optional description expected by some tests
+        public string? Description { get; set; }
+
         public decimal Price { get; set; }
 
         public bool IsAvailable { get; set; }

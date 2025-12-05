@@ -49,6 +49,13 @@ namespace TheThroneOfGames.Domain.Entities
             Role = newRole;
         }
 
+        public void ChangeRole(string newRole)
+        {
+            if (string.IsNullOrWhiteSpace(newRole))
+                throw new ArgumentException("Role cannot be empty", nameof(newRole));
+            Role = newRole;
+        }
+
         public void UpdateProfile(string newName, string newEmail)
         {
             if (string.IsNullOrWhiteSpace(newName))

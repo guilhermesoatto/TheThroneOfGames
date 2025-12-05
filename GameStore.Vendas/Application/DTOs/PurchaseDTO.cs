@@ -17,6 +17,14 @@ namespace GameStore.Vendas.Application.DTOs
         public DateTime PurchaseDate { get; set; }
 
         public string Status { get; set; } = "Completed";
+        
+        public string? PaymentMethod { get; set; }
+        
+        public string? CancellationReason { get; set; }
+        
+        public DateTime? CompletedAt { get; set; }
+        
+        public DateTime? CancelledAt { get; set; }
     }
 
     /// <summary>
