@@ -25,6 +25,7 @@
     <ProjectReference Include="..\GameStore.Usuarios\GameStore.Usuarios.csproj" />
     <ProjectReference Include="..\GameStore.Catalogo\GameStore.Catalogo.csproj" />
     <ProjectReference Include="..\GameStore.Vendas\GameStore.Vendas.csproj" />
+    <ProjectReference Include="..\GameStore.Common\GameStore.Common.csproj" />
   </ItemGroup>
 
 </Project>
