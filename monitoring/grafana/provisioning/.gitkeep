@@ -1,0 +1,5 @@
+# Grafana Provisioning Configuration
+# This directory contains provisioning files for datasources and dashboards
+
+# Datasources are configured in datasources.yml
+# Dashboards are configured in dashboards.yml
