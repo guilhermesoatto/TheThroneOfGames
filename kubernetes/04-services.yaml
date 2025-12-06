@@ -1,0 +1,161 @@
+---
+# Service for API - LoadBalancer (production) or NodePort (development)
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-service
+  namespace: thethroneofgames
+  labels:
+    app: api
+    component: web
+  annotations:
+    description: "API service for external traffic"
+spec:
+  type: LoadBalancer  # Use NodePort for development
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  sessionAffinity: None
+
+---
+# Service for API - ClusterIP (internal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-internal-service
+  namespace: thethroneofgames
+  labels:
+    app: api
+    component: web
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSets
+  selector:
+    app: api
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      protocol: TCP
+
+---
+# Service for RabbitMQ
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: thethroneofgames
+  labels:
+    app: rabbitmq
+    component: messaging
+spec:
+  type: ClusterIP
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+      protocol: TCP
+    - name: management
+      port: 15672
+      targetPort: 15672
+      protocol: TCP
+    - name: clustering
+      port: 25672
+      targetPort: 25672
+      protocol: TCP
+
+---
+# Headless Service for RabbitMQ StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless-service
+  namespace: thethroneofgames
+  labels:
+    app: rabbitmq
+    component: messaging
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+    - name: management
+      port: 15672
+      targetPort: 15672
+    - name: clustering
+      port: 25672
+      targetPort: 25672
+
+---
+# Service for MSSQL
+apiVersion: v1
+kind: Service
+metadata:
+  name: mssql-service
+  namespace: thethroneofgames
+  labels:
+    app: mssql
+    component: database
+spec:
+  type: ClusterIP
+  selector:
+    app: mssql
+  ports:
+    - name: sql
+      port: 1433
+      targetPort: 1433
+      protocol: TCP
+
+---
+# Service for Prometheus
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-service
+  namespace: thethroneofgames
+  labels:
+    app: prometheus
+    component: monitoring
+spec:
+  type: ClusterIP
+  selector:
+    app: prometheus
+  ports:
+    - name: web
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+
+---
+# Service for Grafana
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-service
+  namespace: thethroneofgames
+  labels:
+    app: grafana
+    component: monitoring
+spec:
+  type: LoadBalancer  # Use NodePort for development
+  selector:
+    app: grafana
+  ports:
+    - name: web
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
