@@ -29,7 +29,7 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
-                name: {{ include "thethroneofgames.fullname" . }}-api-service
+                name: {{ include "thethroneofgames.fullname" $ }}-api-service
                 port:
                   number: 80
           {{- end }}

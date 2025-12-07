@@ -93,6 +93,34 @@ function Ensure-Helm {
         Write-Log "Failed to download or install Helm: $_" "ERROR"
     }
 
+    # Manual download fallback with user-local directory
+    Write-Log "Falling back to manual Helm download (user-local)..."
+    $helmVersion = "v3.12.0"  # fallback version; update if needed
+    $zipName = "helm-$helmVersion-windows-amd64.zip"
+    $downloadUrl = "https://get.helm.sh/$zipName"
+    $tmp = Join-Path $env:TEMP "helm-install"
+    if (-not (Test-Path $tmp)) { New-Item -ItemType Directory -Path $tmp | Out-Null }
+    $zipPath = Join-Path $tmp $zipName
+
+    try {
+        Write-Log "Downloading Helm $helmVersion from $downloadUrl"
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+        Expand-Archive -Path $zipPath -DestinationPath $tmp -Force
+        $helmExe = Join-Path $tmp "windows-amd64\helm.exe"
+        if (Test-Path $helmExe) {
+            # Use user-local directory instead of Program Files
+            $dest = Join-Path $env:USERPROFILE "AppData\Local\helm"
+            if (-not (Test-Path $dest)) { New-Item -ItemType Directory -Path $dest | Out-Null }
+            Copy-Item -Path $helmExe -Destination $dest -Force
+            $env:Path = "$dest;$env:Path"
+            Write-Log "Helm binary placed in $dest and PATH updated for this session."
+            if (Get-Command helm -ErrorAction SilentlyContinue) { Write-Log "Helm is available."; return $true }
+        }
+    }
+    catch {
+        Write-Log "Failed to download or install Helm: $_" "ERROR"
+    }
+
     Write-Log "Helm installation failed; please install Helm manually and re-run this script." "ERROR"
     return $false
 }

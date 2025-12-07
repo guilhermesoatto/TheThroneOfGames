@@ -30,7 +30,7 @@ spec:
         prometheus.io/port: "{{ .Values.api.service.targetPort }}"
         prometheus.io/path: "/metrics"
     spec:
-      serviceAccountName: {{ include "thethroneofgames.serviceAccountName" . }}-api
+      serviceAccountName: {{ include "thethroneofgames.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.api.securityContext | nindent 8 }}
       affinity:
