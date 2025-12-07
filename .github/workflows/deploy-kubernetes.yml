@@ -1,0 +1,172 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      helm_values:
+        description: 'Helm values file (values-dev, values-staging, values-prod)'
+        required: false
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  HELM_CHART_PATH: ./helm/thethroneofgames
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+      helm-values: ${{ steps.set-env.outputs.helm-values }}
+    
+    steps:
+      - name: Determine target environment
+        id: set-env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+            HELM_VALUES="${{ github.event.inputs.helm_values || format('values-{0}.yaml', github.event.inputs.environment) }}"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            ENV="production"
+            HELM_VALUES="values-prod.yaml"
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            ENV="staging"
+            HELM_VALUES="values-staging.yaml"
+          else
+            ENV="staging"
+            HELM_VALUES="values-staging.yaml"
+          fi
+          
+          echo "environment=${ENV}" >> $GITHUB_OUTPUT
+          echo "helm-values=${HELM_VALUES}" >> $GITHUB_OUTPUT
+          echo "Deploying to: ${ENV} with ${HELM_VALUES}"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    
+    permissions:
+      contents: read
+      packages: read
+    
+    environment:
+      name: ${{ needs.determine-environment.outputs.environment }}
+      url: https://api.${{ needs.determine-environment.outputs.environment == 'production' && 'thethroneofgames.com' || format('{0}.thethroneofgames.com', needs.determine-environment.outputs.environment) }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'latest'
+      
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+      
+      - name: Set up kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+      
+      - name: Get cluster info
+        run: kubectl cluster-info
+      
+      - name: Create namespace
+        run: |
+          kubectl create namespace thethroneofgames --dry-run=client -o yaml | kubectl apply -f -
+      
+      - name: Lint Helm chart
+        run: helm lint ${{ env.HELM_CHART_PATH }}
+      
+      - name: Validate Helm chart
+        run: |
+          helm template thethroneofgames ${{ env.HELM_CHART_PATH }} \
+            -f ${{ env.HELM_CHART_PATH }}/${{ needs.determine-environment.outputs.helm-values }} \
+            -n thethroneofgames | kubectl apply --dry-run=server -f -
+      
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install thethroneofgames ${{ env.HELM_CHART_PATH }} \
+            -f ${{ env.HELM_CHART_PATH }}/${{ needs.determine-environment.outputs.helm-values }} \
+            -n thethroneofgames \
+            --create-namespace \
+            --wait \
+            --timeout 10m \
+            --atomic \
+            --set image.tag=${{ github.sha }} \
+            --set global.environment=${{ needs.determine-environment.outputs.environment }}
+      
+      - name: Verify deployment
+        run: |
+          kubectl rollout status deployment/thethroneofgames-api -n thethroneofgames --timeout=5m
+          kubectl get all -n thethroneofgames
+      
+      - name: Run smoke tests
+        run: |
+          # Wait for API to be ready
+          kubectl wait --for=condition=ready pod \
+            -l app=api \
+            -n thethroneofgames \
+            --timeout=300s
+          
+          # Port forward to API
+          kubectl port-forward -n thethroneofgames svc/thethroneofgames-api-service 5000:80 &
+          sleep 5
+          
+          # Test health endpoint
+          curl -f http://localhost:5000/health || exit 1
+          curl -f http://localhost:5000/health/ready || exit 1
+      
+      - name: Get deployment info
+        if: always()
+        run: |
+          echo "=== Deployment Info ==="
+          kubectl get deployment -n thethroneofgames -o wide
+          kubectl get pods -n thethroneofgames -o wide
+          kubectl get svc -n thethroneofgames
+          kubectl get ingress -n thethroneofgames
+      
+      - name: Check for errors
+        if: failure()
+        run: |
+          echo "=== Pod Descriptions ==="
+          kubectl describe pods -n thethroneofgames
+          echo "=== Recent Events ==="
+          kubectl get events -n thethroneofgames --sort-by='.lastTimestamp'
+          echo "=== Pod Logs ==="
+          kubectl logs -n thethroneofgames -l app=api --tail=50
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    
+    steps:
+      - name: Send deployment notification
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          text: |
+            Deployment to ${{ needs.determine-environment.outputs.environment }} ${{ job.status }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            Link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
