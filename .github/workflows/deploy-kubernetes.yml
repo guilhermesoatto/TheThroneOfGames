@@ -124,14 +124,18 @@ jobs:
             -l app=api \
             -n thethroneofgames \
             --timeout=300s
-          
-          # Port forward to API
+
+          # Port forward to API (background)
           kubectl port-forward -n thethroneofgames svc/thethroneofgames-api-service 5000:80 &
+          PF_PID=$!
           sleep 5
-          
-          # Test health endpoint
-          curl -f http://localhost:5000/health || exit 1
-          curl -f http://localhost:5000/health/ready || exit 1
+
+          # Ensure smoke-test script is executable and run it
+          chmod +x ./scripts/smoke-test.sh
+          BASE_URL=http://localhost:5000 ./scripts/smoke-test.sh
+
+          # Kill port-forward
+          kill $PF_PID || true
       
       - name: Get deployment info
         if: always()
