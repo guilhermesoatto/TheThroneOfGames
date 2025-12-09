@@ -4,7 +4,7 @@ using GameStore.Catalogo.Application.Queries;
 using GameStore.Catalogo.Application.Handlers;
 using GameStore.Catalogo.Application.DTOs;
 using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Catalogo.Tests

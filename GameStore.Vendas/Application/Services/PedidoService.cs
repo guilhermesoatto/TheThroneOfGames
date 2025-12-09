@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
 
@@ -11,16 +11,16 @@ namespace GameStore.Vendas.Application
 {
     public class PedidoService
     {
-        private readonly IBaseRepository<Purchase> _purchaseRepository;
+        private readonly IBaseRepository<PurchaseEntity> _purchaseRepository;
         private readonly IEventBus _eventBus;
 
-        public PedidoService(IBaseRepository<Purchase> purchaseRepository, IEventBus eventBus)
+        public PedidoService(IBaseRepository<PurchaseEntity> purchaseRepository, IEventBus eventBus)
         {
             _purchaseRepository = purchaseRepository;
             _eventBus = eventBus;
         }
 
-        public async Task AddPurchaseAsync(Purchase purchase)
+        public async Task AddPurchaseAsync(PurchaseEntity purchase)
         {
             await _purchaseRepository.AddAsync(purchase);
             
@@ -28,18 +28,18 @@ namespace GameStore.Vendas.Application
             var pedidoFinalizadoEvent = new PedidoFinalizadoEvent(
                 PedidoId: purchase.Id,
                 UserId: purchase.UserId,
-                TotalPrice: 0m,  // Price not available in Purchase entity
-                ItemCount: 1  // One item per purchase in this simplified model
+                TotalPrice: 0m,
+                ItemCount: 1
             );
             await _eventBus.PublishAsync(pedidoFinalizadoEvent);
         }
 
-        public async Task<IEnumerable<Purchase>> GetAllPurchasesAsync()
+        public async Task<IEnumerable<PurchaseEntity>> GetAllPurchasesAsync()
         {
             return await _purchaseRepository.GetAllAsync();
         }
 
-        public async Task<Purchase?> GetByIdAsync(Guid id)
+        public async Task<PurchaseEntity?> GetByIdAsync(Guid id)
         {
             return await _purchaseRepository.GetByIdAsync(id);
         }

@@ -21,9 +21,10 @@ namespace GameStore.Common.Messaging
         private bool _disposed;
 
         // Mapeamento de tipos de eventos para filas
+        // `typeof(dynamic)` is invalid in C#; use `object` when a generic/any-event mapping is intended.
         private static readonly Dictionary<Type, string> EventQueueMapping = new()
         {
-            { typeof(dynamic), "usuario.eventos" },
+            { typeof(object), "usuario.eventos" },
         };
 
         public RabbitMqAdapter(

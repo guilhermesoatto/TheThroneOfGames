@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using Polly;
+using Polly.CircuitBreaker;
 using System.Net;
 using TheThroneOfGames.Application.Policies;
 

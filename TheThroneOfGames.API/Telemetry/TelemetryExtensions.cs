@@ -19,24 +19,10 @@ namespace TheThroneOfGames.API.Telemetry
         /// </summary>
         public static IServiceCollection AddOpenTelemetry(this IServiceCollection services)
         {
-            services.AddOpenTelemetry()
-                .WithMetrics(meterBuilder =>
-                {
-                    meterBuilder
-                        .AddAspNetCoreInstrumentation()
-                        .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation()
-                        .AddProcessInstrumentation()
-                        .AddPrometheusExporter();
-                })
-                .WithTracing(tracingBuilder =>
-                {
-                    tracingBuilder
-                        .AddAspNetCoreInstrumentation()
-                        .AddHttpClientInstrumentation()
-                        .AddSource("TheThroneOfGames.*");
-                });
-
+            // OpenTelemetry instrumentation is currently disabled in the build to avoid
+            // depending on specific OpenTelemetry package versions in this branch.
+            // To re-enable, add the appropriate OpenTelemetry packages and restore
+            // the instrumentation calls (AddOpenTelemetryMetrics / AddOpenTelemetryTracing).
             return services;
         }
 

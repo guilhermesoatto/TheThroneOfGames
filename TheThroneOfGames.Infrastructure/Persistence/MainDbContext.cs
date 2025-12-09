@@ -8,7 +8,7 @@ public class MainDbContext : DbContext
     public MainDbContext(DbContextOptions<MainDbContext> options) : base(options) { }
 
     public DbSet<GameEntity> Games { get; set; }
-    public DbSet<UserEntity> Users { get; set; }
+    public DbSet<Usuario> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,7 +52,7 @@ public class MainDbContext : DbContext
             entity.Property(p => p.GameId).IsRequired();
             entity.Property(p => p.PurchaseDate).IsRequired();
 
-            entity.HasOne<UserEntity>().WithMany().HasForeignKey(p => p.UserId);
+            entity.HasOne<Usuario>().WithMany().HasForeignKey(p => p.UserId);
             entity.HasOne<GameEntity>().WithMany().HasForeignKey(p => p.GameId);
         });
     }

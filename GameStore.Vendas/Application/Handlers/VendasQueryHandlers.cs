@@ -1,7 +1,7 @@
 using GameStore.Vendas.Application.Queries;
 using GameStore.Vendas.Application.DTOs;
 using GameStore.Vendas.Application.Mappers;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 using GameStore.CQRS.Abstractions;
 

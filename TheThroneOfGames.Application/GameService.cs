@@ -13,14 +13,14 @@ namespace TheThroneOfGames.Application
     public class GameService : IGameService
     {
         private readonly IBaseRepository<GameEntity> _gameRepository;
-        private readonly IBaseRepository<Purchase> _purchaseRepository;
+        private readonly IBaseRepository<TheThroneOfGames.Domain.Entities.PurchaseEntity> _purchaseRepository;
     private readonly IEventBus _eventBus;
 
-        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<Purchase> purchaseRepository, IEventBus eventBus)
+        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<TheThroneOfGames.Domain.Entities.PurchaseEntity> purchaseRepository, IEventBus eventBus)
         {
             _gameRepository = gameRepository;
             _purchaseRepository = purchaseRepository;
-    _eventBus = eventBus;
+            _eventBus = eventBus;
         }
 
         public async Task AddAsync(GameEntity entity)
@@ -54,11 +54,12 @@ namespace TheThroneOfGames.Application
             if (game == null)
                 throw new ArgumentException($"Game with ID {gameId} not found.");
 
-            var purchase = new Purchase
+            var purchase = new TheThroneOfGames.Domain.Entities.PurchaseEntity
             {
                 GameId = gameId,
                 UserId = userId,
-                PurchaseDate = DateTime.UtcNow
+                PurchaseDate = DateTime.UtcNow,
+                TotalPrice = game.Price
             };
 
             await _purchaseRepository.AddAsync(purchase);

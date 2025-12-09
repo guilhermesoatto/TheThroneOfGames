@@ -2,7 +2,7 @@ using GameStore.Catalogo.Application.Commands;
 using GameStore.Catalogo.Application.Validators;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Persistence;

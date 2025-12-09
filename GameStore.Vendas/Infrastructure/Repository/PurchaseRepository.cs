@@ -5,7 +5,7 @@ using TheThroneOfGames.Infrastructure.Repository;
 
 namespace GameStore.Vendas.Infrastructure.Repository;
 
-public class PurchaseRepository : BaseRepository<Purchase>, IBaseRepository<Purchase>
+public class PurchaseRepository : BaseRepository<PurchaseEntity>, IBaseRepository<PurchaseEntity>
 {
     public PurchaseRepository(MainDbContext context) : base(context)
     {

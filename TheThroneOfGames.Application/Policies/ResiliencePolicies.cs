@@ -22,16 +22,12 @@ namespace TheThroneOfGames.Application.Policies
                 .Or<OperationCanceledException>()
                 .OrResult(r => r == null)
                 .WaitAndRetryAsync(
-                    retryCount: 3,
-                    sleepDurationProvider: retryAttempt =>
+                    3,
+                    retryAttempt =>
                     {
                         var exponentialBackoff = Math.Pow(2, retryAttempt);
                         var jitterMs = new Random().Next(0, 1000);
                         return TimeSpan.FromMilliseconds(exponentialBackoff * 100 + jitterMs);
-                    },
-                    onRetry: (outcome, timespan, retryCount, context) =>
-                    {
-                        Console.WriteLine($"Retry #{retryCount} after {timespan.TotalMilliseconds}ms. Reason: {outcome.Exception?.Message ?? "Result was null"}");
                     }
                 );
         }
@@ -47,15 +43,7 @@ namespace TheThroneOfGames.Application.Policies
                 .OrResult(r => r == null)
                 .CircuitBreakerAsync(
                     handledEventsAllowedBeforeBreaking: 5,
-                    durationOfBreak: TimeSpan.FromSeconds(30),
-                    onBreak: (outcome, breakDuration, context) =>
-                    {
-                        Console.WriteLine($"Circuit breaker OPEN for {breakDuration.TotalSeconds}s. Reason: {outcome.Exception?.Message ?? "Result was null"}");
-                    },
-                    onReset: () =>
-                    {
-                        Console.WriteLine("Circuit breaker RESET");
-                    }
+                    durationOfBreak: TimeSpan.FromSeconds(30)
                 );
         }
 
@@ -67,12 +55,7 @@ namespace TheThroneOfGames.Application.Policies
         {
             return Policy.TimeoutAsync<T>(
                 TimeSpan.FromSeconds(5),
-                TimeoutStrategy.Optimistic,
-                onTimeoutAsync: (context, timespan, _, _) =>
-                {
-                    Console.WriteLine($"Timeout after {timespan.TotalSeconds}s");
-                    return Task.CompletedTask;
-                }
+                TimeoutStrategy.Optimistic
             );
         }
 
@@ -100,15 +83,11 @@ namespace TheThroneOfGames.Application.Policies
                 .Or<TimeoutException>()
                 .OrResult(r => r == null)
                 .WaitAndRetryAsync(
-                    retryCount: 2,
-                    sleepDurationProvider: retryAttempt =>
-                        TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * 50),
-                    onRetry: (outcome, timespan, retryCount, context) =>
-                    {
-                        Console.WriteLine($"Database retry #{retryCount} after {timespan.TotalMilliseconds}ms");
-                    }
+                    2,
+                    retryAttempt => TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * 50)
                 )
                 .WrapAsync(Policy.TimeoutAsync<T>(TimeSpan.FromSeconds(3)));
+
         }
 
         /// <summary>
@@ -121,16 +100,12 @@ namespace TheThroneOfGames.Application.Policies
                 .Handle<Exception>()
                 .OrResult(r => r == null)
                 .WaitAndRetryAsync(
-                    retryCount: 5,
-                    sleepDurationProvider: retryAttempt =>
+                    5,
+                    retryAttempt =>
                     {
                         var exponentialBackoff = Math.Pow(2, retryAttempt);
                         var jitterMs = new Random().Next(0, 2000);
                         return TimeSpan.FromMilliseconds(exponentialBackoff * 100 + jitterMs);
-                    },
-                    onRetry: (outcome, timespan, retryCount, context) =>
-                    {
-                        Console.WriteLine($"Message processing retry #{retryCount} after {timespan.TotalMilliseconds}ms. Reason: {outcome.Exception?.Message}");
                     }
                 );
         }

@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace GameStore.Catalogo.Tests
 {

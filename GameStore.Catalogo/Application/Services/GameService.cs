@@ -12,9 +12,9 @@ namespace GameStore.Catalogo.Application
     public class GameService : IGameService
     {
         private readonly IBaseRepository<GameEntity> _gameRepository;
-        private readonly IBaseRepository<Purchase> _purchaseRepository;
+        private readonly IBaseRepository<PurchaseEntity> _purchaseRepository;
 
-        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<Purchase> purchaseRepository)
+        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<PurchaseEntity> purchaseRepository)
         {
             _gameRepository = gameRepository;
             _purchaseRepository = purchaseRepository;
@@ -51,7 +51,7 @@ namespace GameStore.Catalogo.Application
             if (game == null)
                 throw new ArgumentException($"Game with ID {gameId} not found.");
 
-            var purchase = new Purchase
+            var purchase = new PurchaseEntity
             {
                 GameId = gameId,
                 UserId = userId,

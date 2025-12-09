@@ -5,7 +5,7 @@ using TheThroneOfGames.Domain.Events;
 
 namespace TheThroneOfGames.Application;
 
-public class UsuarioService //: IUsuarioService
+public class UsuarioService : IUsuarioService
 {
     private readonly IUsuarioRepository _userRepository;
     private readonly IEventBus _eventBus;

@@ -6,7 +6,7 @@ using GameStore.Catalogo.Application.Validators;
 using GameStore.Catalogo.Application.DTOs;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Catalogo.Tests

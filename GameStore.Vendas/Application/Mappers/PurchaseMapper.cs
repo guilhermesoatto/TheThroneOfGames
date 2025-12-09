@@ -1,6 +1,6 @@
 using GameStore.Vendas.Application.DTOs;
 using GameStore.Vendas.Domain.Entities;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace GameStore.Vendas.Application.Mappers
 {
@@ -14,7 +14,7 @@ namespace GameStore.Vendas.Application.Mappers
         /// <summary>
         /// Converte um Purchase para PurchaseDTO.
         /// </summary>
-        public static PurchaseDTO ToPurchaseDTO(Purchase purchase)
+        public static PurchaseDTO ToPurchaseDTO(PurchaseEntity purchase)
         {
             if (purchase == null)
                 throw new ArgumentNullException(nameof(purchase));
@@ -35,19 +35,19 @@ namespace GameStore.Vendas.Application.Mappers
         }
 
         /// <summary>
-        /// Converte um Purchase para PurchaseDTO (método legacy).
+        /// Converte um PurchaseEntity para PurchaseDTO (método legacy).
         /// </summary>
-        public static PurchaseDTO ToDTO(Purchase purchase) => ToPurchaseDTO(purchase);
+        public static PurchaseDTO ToDTO(PurchaseEntity purchase) => ToPurchaseDTO(purchase);
 
         /// <summary>
-        /// Converte um PurchaseDTO para Purchase.
+        /// Converte um PurchaseDTO para PurchaseEntity.
         /// </summary>
-        public static Purchase FromDTO(PurchaseDTO dto)
+        public static PurchaseEntity FromDTO(PurchaseDTO dto)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
 
-            return new Purchase
+            return new PurchaseEntity
             {
                 Id = dto.Id,
                 UserId = dto.UserId,
@@ -63,9 +63,9 @@ namespace GameStore.Vendas.Application.Mappers
         }
 
         /// <summary>
-        /// Converte uma coleção de Purchases para uma coleção de PurchaseDTOs.
+        /// Converte uma coleção de PurchaseEntity para uma coleção de PurchaseDTOs.
         /// </summary>
-        public static IEnumerable<PurchaseDTO> ToPurchaseDTOList(IEnumerable<Purchase> purchases)
+        public static IEnumerable<PurchaseDTO> ToPurchaseDTOList(IEnumerable<PurchaseEntity> purchases)
         {
             if (purchases == null)
                 throw new ArgumentNullException(nameof(purchases));
@@ -74,9 +74,9 @@ namespace GameStore.Vendas.Application.Mappers
         }
 
         /// <summary>
-        /// Converte uma coleção de Purchases para uma coleção de PurchaseDTOs (método legacy).
+        /// Converte uma coleção de PurchaseEntity para uma coleção de PurchaseDTOs (método legacy).
         /// </summary>
-        public static IEnumerable<PurchaseDTO> ToDTOList(IEnumerable<Purchase> purchases) => ToPurchaseDTOList(purchases);
+        public static IEnumerable<PurchaseDTO> ToDTOList(IEnumerable<PurchaseEntity> purchases) => ToPurchaseDTOList(purchases);
 
         /// <summary>
         /// Converte um Pedido (entidade local) para PedidoDTO.

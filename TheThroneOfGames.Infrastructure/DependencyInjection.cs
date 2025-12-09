@@ -7,6 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using TheThroneOfGames.Infrastructure.Data;
 using TheThroneOfGames.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using TheThroneOfGames.Infrastructure.Email;
+using TheThroneOfGames.Infrastructure.ExternalServices;
+using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Infrastructure.Repository;
 
@@ -16,19 +21,20 @@ namespace TheThroneOfGames.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            // Configuração do DbContext
+            // Configuração do DbContext (in-memory por padrão para testes/local)
             services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))); // Ou UseSqlite
+                options.UseInMemoryDatabase("TheThroneOfGamesDb"));
 
-            // Registro dos Repositórios
-            services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IGameRepository, GameRepository>();
-            services.AddScoped<IPurchaseRepository, PurchaseRepository>();
-            // ... registrar outros repositórios
+            // Registro dos Repositórios (usar nomes reais existentes)
+            services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+            services.AddScoped<IGameEntityRepository, GameEntityRepository>();
+            services.AddScoped<IPromotionRepository, PromotionRepository>();
+            // NOTE: Purchase repository may live in another project (GameStore.Vendas). Register it there when composing app.
 
             // Registro dos Serviços de E-mail
-            services.Configure<SmtpSettings>(configuration.GetSection("SmtpSettings"));
-            services.AddTransient<IEmailService, EmailService>(); // IEmailService deve ser uma interface no Domain
+            var smtpSection = configuration.GetSection("SmtpSettings");
+            services.Configure<SmtpSettings>(options => smtpSection.Bind(options));
+            services.AddTransient<EmailService>();
 
             // Registro de Background Services (se aplicável)
             // services.AddHostedService<PromotionNotificationService>();

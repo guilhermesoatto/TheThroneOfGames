@@ -2,7 +2,7 @@ using GameStore.Vendas.Application.Commands;
 using GameStore.Vendas.Application.Validators;
 using GameStore.Vendas.Application.DTOs;
 using GameStore.Vendas.Application.Mappers;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Persistence;
@@ -81,7 +81,7 @@ namespace GameStore.Vendas.Application.Handlers
                 }
 
                 // Criar purchase
-                var purchase = new Purchase
+                var purchase = new PurchaseEntity
                 {
                     Id = Guid.NewGuid(),
                     UserId = command.UserId,
