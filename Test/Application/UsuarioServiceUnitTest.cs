@@ -92,7 +92,7 @@ namespace Test.Application
             // Arrange
             var invalidToken = "invalidToken";
             _userRepositoryMock.Setup(x => x.GetByActivationTokenAsync(invalidToken))
-                .ReturnsAsync((Usuario)null);
+                .ReturnsAsync((Usuario)null!);
 
             // Act & Assert
             var ex = Assert.ThrowsAsync<Exception>(async () => 

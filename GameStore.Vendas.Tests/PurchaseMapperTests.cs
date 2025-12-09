@@ -12,7 +12,7 @@ namespace GameStore.Vendas.Tests
         public void PurchaseMapper_ToDTO_Converts_Purchase_To_PurchaseDTO()
         {
             // Arrange
-            var purchase = new Purchase
+            var purchase = new PurchaseEntity
             {
                 Id = Guid.NewGuid(),
                 UserId = Guid.NewGuid(),
@@ -64,7 +64,7 @@ namespace GameStore.Vendas.Tests
         public void PurchaseMapper_ToDTO_Throws_With_Null_Purchase()
         {
             // Act & Assert
-            Purchase? nullPurchase = null;
+            PurchaseEntity? nullPurchase = null;
             Assert.Throws<ArgumentNullException>(() => PurchaseMapper.ToDTO(nullPurchase!));
         }
 
@@ -82,9 +82,9 @@ namespace GameStore.Vendas.Tests
             // Arrange
             var purchases = new[]
             {
-                new Purchase { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), GameId = Guid.NewGuid(), PurchaseDate = DateTime.UtcNow },
-                new Purchase { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), GameId = Guid.NewGuid(), PurchaseDate = DateTime.UtcNow },
-                new Purchase { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), GameId = Guid.NewGuid(), PurchaseDate = DateTime.UtcNow }
+                new PurchaseEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), GameId = Guid.NewGuid(), PurchaseDate = DateTime.UtcNow },
+                new PurchaseEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), GameId = Guid.NewGuid(), PurchaseDate = DateTime.UtcNow },
+                new PurchaseEntity { Id = Guid.NewGuid(), UserId = Guid.NewGuid(), GameId = Guid.NewGuid(), PurchaseDate = DateTime.UtcNow }
             };
 
             // Act
