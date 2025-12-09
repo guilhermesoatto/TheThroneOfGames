@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj" />
+    <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -9,5 +10,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Polly" Version="8.2.1" />
+  </ItemGroup>
 
 </Project>

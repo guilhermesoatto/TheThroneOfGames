@@ -1,0 +1,107 @@
+# Production environment values
+# Override default values for production deployments
+
+global:
+  environment: "production"
+  domain: "thethroneofgames.com"
+
+api:
+  replicas: 3
+  image:
+    tag: "v1.0.0"  # Use specific version tag
+    pullPolicy: "IfNotPresent"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  service:
+    type: LoadBalancer
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 60
+    targetMemoryUtilizationPercentage: 70
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/rate-limit: "1000"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/enable-cors: "true"
+    hosts:
+      - host: "api.thethroneofgames.com"
+        paths:
+          - path: /
+            pathType: Prefix
+
+rabbitmq:
+  replicas: 3
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+  storage:
+    size: "50Gi"
+  clustering:
+    partitionHandling: "autoheal"
+
+mssql:
+  replicas: 1  # Use Always On AG for HA in production
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "4Gi"
+  storage:
+    dataSize: "100Gi"
+    logsSize: "20Gi"
+  edition: "Standard"
+
+prometheus:
+  storage:
+    size: "100Gi"
+    retention: "30d"
+  scrapeInterval: "15s"
+  evaluationInterval: "15s"
+
+grafana:
+  storage:
+    size: "10Gi"
+  service:
+    type: LoadBalancer
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    hosts:
+      - host: "grafana.thethroneofgames.com"
+
+networkPolicies:
+  enabled: true
+  defaultDeny: true
+
+rbac:
+  enabled: true
+
+secrets:
+  enabled: true
+  externalSecretOperator:
+    enabled: true
+    backend: "vault"
+    vaultAddress: "https://vault.thethroneofgames.com"
+
+commonLabels:
+  app: thethroneofgames
+  environment: production
+  managed-by: helm

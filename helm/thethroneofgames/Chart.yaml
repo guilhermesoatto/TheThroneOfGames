@@ -1,0 +1,40 @@
+apiVersion: v2
+name: thethroneofgames
+description: Helm chart for TheThroneOfGames microservices platform
+type: application
+
+version: 1.0.0
+appVersion: "1.0.0"
+
+home: https://github.com/guilhermesoatto/TheThroneOfGames
+sources:
+  - https://github.com/guilhermesoatto/TheThroneOfGames
+
+maintainers:
+  - name: Guilherme Soatto
+    email: guilherme@thethroneofgames.com
+    url: https://github.com/guilhermesoatto
+
+keywords:
+  - gaming
+  - platform
+  - microservices
+  - kubernetes
+  - dotnet
+
+categories:
+  - Integration
+  - Backend
+
+dependencies: []
+
+annotations:
+  # Artifact Hub annotations
+  artifacthub.io/license: MIT
+  artifacthub.io/prerelease: "false"
+  artifacthub.io/recommendations: "3"
+  artifacthub.io/links: |
+    - name: Documentation
+      url: https://github.com/guilhermesoatto/TheThroneOfGames/wiki
+    - name: Support
+      url: https://github.com/guilhermesoatto/TheThroneOfGames/issues

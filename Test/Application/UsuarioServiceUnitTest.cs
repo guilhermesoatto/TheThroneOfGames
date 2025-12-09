@@ -1,0 +1,103 @@
+using Moq;
+using NUnit.Framework;
+using TheThroneOfGames.Application;
+using TheThroneOfGames.Domain.Entities;
+using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Domain.Events;
+
+namespace Test.Application
+{
+    [TestFixture]
+    public class UsuarioServiceUnitTest
+    {
+        private Mock<IUsuarioRepository> _userRepositoryMock;
+    private Mock<IEventBus> _eventBusMock;
+        private UsuarioService _usuarioService;
+
+        [SetUp]
+        public void Setup()
+        {
+            _userRepositoryMock = new Mock<IUsuarioRepository>();
+        _eventBusMock = new Mock<IEventBus>();
+        _usuarioService = new UsuarioService(_userRepositoryMock.Object, _eventBusMock.Object);
+        }
+
+        [Test]
+        public async Task PreRegisterUserAsync_ValidInputs_ShouldCallAddAsync()
+        {
+            // Arrange
+            string email = "test@test.com";
+            string name = "Test User";
+            string password = "P@ssw0rd!";
+
+            // Act
+            var token = await _usuarioService.PreRegisterUserAsync(email, name, password);
+
+            // token should be returned
+            Assert.That(token, Is.Not.Null.And.Not.Empty);
+
+            // Assert
+            _userRepositoryMock.Verify(x => x.AddAsync(It.Is<Usuario>(u =>
+                u.Email == email &&
+                u.Name == name &&
+                !u.IsActive &&
+                u.Role == "User" &&
+                !string.IsNullOrEmpty(u.PasswordHash))), Times.Once);
+        }
+
+        [Test]
+        public void PreRegisterUserAsync_WhenRepositoryThrowsException_ShouldPropagateException()
+        {
+            // Arrange
+            string email = "test@test.com";
+            string name = "Test User";
+            _userRepositoryMock.Setup(x => x.AddAsync(It.IsAny<Usuario>()))
+                .ThrowsAsync(new Exception("Database error"));
+
+            // Act & Assert
+            // We need a valid password to reach the database error
+            _userRepositoryMock.Setup(x => x.AddAsync(It.IsAny<Usuario>()))
+                .ThrowsAsync(new Exception("Database error"));
+            Assert.ThrowsAsync<Exception>(async () => 
+                await _usuarioService.PreRegisterUserAsync(email, name, "P@ssw0rd!"));
+        }
+
+        [Test]
+        public async Task ActivateUserAsync_WhenTokenIsValid_ShouldActivateUser()
+        {
+            // Arrange
+            var activationToken = "validToken";
+            var user = new Usuario(
+                "Test User",
+                "test@test.com",
+                "hashSenha",
+                "User",
+                activationToken
+            );
+            
+            _userRepositoryMock.Setup(x => x.GetByActivationTokenAsync(activationToken))
+                .ReturnsAsync(user);
+
+            // Act
+            await _usuarioService.ActivateUserAsync(activationToken);
+
+            // Assert
+            Assert.That(user.IsActive, Is.True);
+            _userRepositoryMock.Verify(x => x.UpdateAsync(user), Times.Once);
+        }
+
+        [Test]
+        public void ActivateUserAsync_WhenTokenIsInvalid_ShouldThrowException()
+        {
+            // Arrange
+            var invalidToken = "invalidToken";
+            _userRepositoryMock.Setup(x => x.GetByActivationTokenAsync(invalidToken))
+                .ReturnsAsync((Usuario)null);
+
+            // Act & Assert
+            var ex = Assert.ThrowsAsync<Exception>(async () => 
+                await _usuarioService.ActivateUserAsync(invalidToken));
+            Assert.That(ex.Message, Is.EqualTo("Token inválido ou expirado."));
+        }
+    }
+}

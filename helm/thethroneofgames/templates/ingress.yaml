@@ -1,0 +1,115 @@
+{{- if .Values.api.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "thethroneofgames.fullname" . }}-api-ingress
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "thethroneofgames.labels" . | nindent 4 }}
+    app: api
+  {{- with .Values.api.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.api.ingress.className }}
+  ingressClassName: {{ .Values.api.ingress.className }}
+  {{- end }}
+  {{- with .Values.api.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.api.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ include "thethroneofgames.fullname" $ }}-api-service
+                port:
+                  number: 80
+          {{- end }}
+    {{- end }}
+{{- end }}
+
+{{- if .Values.prometheus.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "thethroneofgames.fullname" . }}-prometheus-ingress
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "thethroneofgames.labels" . | nindent 4 }}
+    app: prometheus
+  {{- with .Values.prometheus.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.prometheus.ingress.className }}
+  ingressClassName: {{ .Values.prometheus.ingress.className }}
+  {{- end }}
+  {{- with .Values.prometheus.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.prometheus.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: prometheus-service
+                port:
+                  number: {{ $.Values.prometheus.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+
+{{- if .Values.grafana.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "thethroneofgames.fullname" . }}-grafana-ingress
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "thethroneofgames.labels" . | nindent 4 }}
+    app: grafana
+  {{- with .Values.grafana.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.grafana.ingress.className }}
+  ingressClassName: {{ .Values.grafana.ingress.className }}
+  {{- end }}
+  {{- with .Values.grafana.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.grafana.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: {{ $.Values.grafana.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}

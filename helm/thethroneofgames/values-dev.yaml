@@ -1,0 +1,65 @@
+# Development environment values
+# Override default values for development deployments
+
+global:
+  environment: "development"
+  domain: "dev.thethroneofgames.local"
+
+api:
+  replicas: 1
+  image:
+    tag: "latest"
+    pullPolicy: "IfNotPresent"
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  service:
+    type: NodePort
+  autoscaling:
+    enabled: false
+  ingress:
+    enabled: false
+
+rabbitmq:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  storage:
+    size: "5Gi"
+
+mssql:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  storage:
+    dataSize: "10Gi"
+    logsSize: "2Gi"
+  edition: "Developer"
+
+prometheus:
+  storage:
+    size: "5Gi"
+    retention: "7d"
+
+grafana:
+  storage:
+    size: "2Gi"
+  service:
+    type: NodePort
+
+networkPolicies:
+  enabled: false

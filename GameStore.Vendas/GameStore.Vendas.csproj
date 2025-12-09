@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+  <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>GameStore.Vendas</AssemblyName>
+    <RootNamespace>GameStore.Vendas</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj" />
+    <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
+    <ProjectReference Include="..\TheThroneOfGames.Application\TheThroneOfGames.Application.csproj" />
+    <ProjectReference Include="..\GameStore.CQRS.Abstractions\GameStore.CQRS.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

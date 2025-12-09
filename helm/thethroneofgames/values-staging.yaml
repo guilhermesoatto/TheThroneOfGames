@@ -1,0 +1,72 @@
+# Staging environment values
+# Override default values for staging deployments
+
+global:
+  environment: "staging"
+  domain: "staging.thethroneofgames.com"
+
+api:
+  replicas: 2
+  image:
+    tag: "v1.0.0"  # Use specific version tag
+    pullPolicy: "IfNotPresent"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  service:
+    type: LoadBalancer
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+  ingress:
+    enabled: true
+    hosts:
+      - host: "api.staging.thethroneofgames.com"
+        paths:
+          - path: /
+            pathType: Prefix
+
+rabbitmq:
+  replicas: 2
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  storage:
+    size: "10Gi"
+
+mssql:
+  replicas: 1
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "1500m"
+      memory: "1.5Gi"
+  storage:
+    dataSize: "15Gi"
+    logsSize: "3Gi"
+  edition: "Standard"
+
+prometheus:
+  storage:
+    size: "10Gi"
+    retention: "15d"
+
+grafana:
+  storage:
+    size: "3Gi"
+  service:
+    type: LoadBalancer
+
+networkPolicies:
+  enabled: true
