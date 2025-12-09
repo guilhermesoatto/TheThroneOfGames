@@ -78,7 +78,7 @@
               echo "Image pushed with digest: ${{ steps.build.outputs.digest }}"
           
           - name: Create SBOM (SPDX)
-            uses: anchore/sbom-action@v0
+            uses: anchore/sbom-action@v1
             if: github.event_name != 'pull_request'
             with:
               image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
