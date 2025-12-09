@@ -29,7 +29,7 @@ const now = new Date().toISOString();
 const lines = [];
 lines.push('# YAML Workflow Validation Report');
 lines.push('');
-lines.push(`- File: \\`${workflowPath}\\``);
+lines.push(`- File: \`${workflowPath}\``);
 lines.push(`- Checked at (UTC): ${now}`);
 lines.push('');
 if (errors.length === 0) {
