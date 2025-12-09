@@ -137,6 +137,27 @@ jobs:
           # Kill port-forward
           kill $PF_PID || true
       
+      - name: Run smoke tests (PowerShell - Windows alternative)
+        shell: pwsh
+        run: |
+          # Wait for API to be ready
+          kubectl wait --for=condition=ready pod `
+            -l app=api `
+            -n thethroneofgames `
+            --timeout=300s
+
+          # Port forward to API (background)
+          $pf = Start-Process kubectl -ArgumentList "port-forward -n thethroneofgames svc/thethroneofgames-api-service 5000:80" -PassThru
+          Start-Sleep -Seconds 5
+
+          try {
+            # Run smoke-test PowerShell script
+            .\scripts\smoke-test.ps1 -BaseUrl "http://localhost:5000"
+          } finally {
+            # Kill port-forward
+            if ($pf) { Stop-Process -Id $pf.Id -Force -ErrorAction SilentlyContinue }
+          }
+      
       - name: Get deployment info
         if: always()
         run: |
