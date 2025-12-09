@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Data.Configurations
 {
@@ -15,9 +16,7 @@ namespace TheThroneOfGames.Infrastructure.Data.Configurations
             builder.Property(p => p.UserId).IsRequired();
             builder.Property(p => p.GameId).IsRequired();
             builder.Property(p => p.PurchaseDate).IsRequired();
-            builder.Property(p => p.Price).HasColumnType("decimal(18,2)").IsRequired();
+            builder.Property(p => p.TotalPrice).HasColumnType("decimal(18,2)").IsRequired();
         }
-    }
-    {
     }
 }

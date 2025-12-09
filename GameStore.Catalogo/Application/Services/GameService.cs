@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace GameStore.Catalogo.Application
 {

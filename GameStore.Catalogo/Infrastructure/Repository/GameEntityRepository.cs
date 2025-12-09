@@ -1,6 +1,6 @@
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Infrastructure.Persistence;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Infrastructure.Repository;
 
 namespace GameStore.Catalogo.Infrastructure.Repository;

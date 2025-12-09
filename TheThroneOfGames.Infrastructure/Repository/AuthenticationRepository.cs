@@ -1,4 +1,4 @@
-﻿using TheThroneOfGames.Infrastructure.Entities;
+﻿using TheThroneOfGames.Domain.Entities;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using TheThroneOfGames.Domain.Entities;

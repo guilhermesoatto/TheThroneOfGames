@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Infrastructure.Repository;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Application;
 
@@ -18,8 +18,8 @@ public static class ServiceCollectionExtensions
     // Register repositories
     services.AddScoped<IUsuarioRepository, UsuarioRepository>();
     services.AddScoped<IBaseRepository<GameEntity>, BaseRepository<GameEntity>>();
-    services.AddScoped<IBaseRepository<Purchase>, BaseRepository<Purchase>>();
-    services.AddScoped<IBaseRepository<Promotion>, BaseRepository<Promotion>>();
+    services.AddScoped<IBaseRepository<PurchaseEntity>, BaseRepository<PurchaseEntity>>();
+    services.AddScoped<IBaseRepository<PromotionEntity>, BaseRepository<PromotionEntity>>();
     services.AddScoped<IPromotionRepository, PromotionRepository>();
         
         return services;

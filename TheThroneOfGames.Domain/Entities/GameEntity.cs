@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TheThroneOfGames.Infrastructure.Entities
+namespace TheThroneOfGames.Domain.Entities
 {
     public class GameEntity
     {

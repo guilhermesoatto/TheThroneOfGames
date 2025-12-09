@@ -1,6 +1,6 @@
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Domain.Entities;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace GameStore.Catalogo.Application.Mappers
 {

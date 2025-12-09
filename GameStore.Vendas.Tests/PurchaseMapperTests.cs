@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using GameStore.Vendas.Application.DTOs;
 using GameStore.Vendas.Application.Mappers;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 using System;
 
 namespace GameStore.Vendas.Tests

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Data
 {
@@ -13,10 +13,10 @@ namespace TheThroneOfGames.Infrastructure.Data
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
         // DbSets para suas entidades
-        public DbSet<User> Users { get; set; }
-        public DbSet<Game> Games { get; set; }
-        public DbSet<Purchase> Purchases { get; set; }
-        public DbSet<Promotion> Promotions { get; set; }
+        public DbSet<UserEntity> Users { get; set; }
+        public DbSet<GameEntity> Games { get; set; }
+        public DbSet<PurchaseEntity> Purchases { get; set; }
+        public DbSet<PromotionEntity> Promotions { get; set; }
         // ... outros DbSets
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

@@ -1,8 +1,9 @@
 using System;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
+
 namespace TheThroneOfGames.Domain.Interfaces
 {
-    public interface IPromotionRepository : IBaseRepository<Promotion>
+    public interface IPromotionRepository : IBaseRepository<PromotionEntity>
     {
     }
 }

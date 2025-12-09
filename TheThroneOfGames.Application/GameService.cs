@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Application
 {

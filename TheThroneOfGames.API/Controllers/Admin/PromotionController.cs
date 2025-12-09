@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using TheThroneOfGames.API.Controllers.Base;
 using TheThroneOfGames.API.Models.DTO;
 using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.API.Controllers.Admin;
 
@@ -45,7 +45,7 @@ public class PromotionController : AdminControllerBase
         try
         {
             var p = await _promotionService.GetByIdAsync(id);
-            if (p == null) return NotFoundById<Promotion>(id);
+            if (p == null) return NotFoundById<PromotionEntity>(id);
 
             var dto = new PromotionDTO
             {
@@ -68,7 +68,7 @@ public class PromotionController : AdminControllerBase
     {
         try
         {
-            var p = new Promotion
+            var p = new PromotionEntity
             {
                 Discount = dto.Discount,
                 ValidUntil = dto.ValidUntil
@@ -93,7 +93,7 @@ public class PromotionController : AdminControllerBase
         try
         {
             var existing = await _promotionService.GetByIdAsync(id);
-            if (existing == null) return NotFoundById<Promotion>(id);
+            if (existing == null) return NotFoundById<PromotionEntity>(id);
 
             existing.Discount = dto.Discount;
             existing.ValidUntil = dto.ValidUntil;
@@ -117,7 +117,7 @@ public class PromotionController : AdminControllerBase
         try
         {
             var existing = await _promotionService.GetByIdAsync(id);
-            if (existing == null) return NotFoundById<Promotion>(id);
+            if (existing == null) return NotFoundById<PromotionEntity>(id);
 
             await _promotionService.DeleteAsync(id);
             return NoContent();
