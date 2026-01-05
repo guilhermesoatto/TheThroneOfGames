@@ -1,7 +1,7 @@
 # YAML Workflow Validation Report
 
 - File: `C:\Users\Guilherme\source\repos\TheThroneOfGames\.github\workflows\docker-build-push.yml`
-- Checked at (UTC): 2025-12-09T05:02:42.114Z
+- Checked at (UTC): 2026-01-05T16:22:30.086Z
 
 ## Result: No parse errors found
 
@@ -18,7 +18,6 @@
     
     env:
       REGISTRY: ghcr.io
-      IMAGE_NAME: ${{ github.repository }}
     
     jobs:
       build-and-push:
@@ -27,10 +26,12 @@
         permissions:
           contents: read
           packages: write
+          security-events: write # Necessário para upload do Trivy
         
         outputs:
           image-tag: ${{ steps.meta.outputs.tags }}
           image-digest: ${{ steps.build.outputs.digest }}
+          image-name-lower: ${{ steps.string.outputs.lowercase }}
         
         steps:
           - name: Checkout code
@@ -48,12 +49,19 @@
               registry: ${{ env.REGISTRY }}
               username: ${{ github.actor }}
               password: ${{ secrets.GITHUB_TOKEN }}
-          
+    
+          # CORREÇÃO 1: Normalizar o nome da imagem para minúsculo
+          - name: Lowercase Image Name
+            id: string
+            uses: ASzc/change-string-case-action@v5
+            with:
+              string: ${{ github.repository }}
+    
           - name: Extract metadata
             id: meta
             uses: docker/metadata-action@v5
             with:
-              images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+              images: ${{ env.REGISTRY }}/${{ steps.string.outputs.lowercase }}
               tags: |
                 type=ref,event=branch
                 type=semver,pattern={{version}}
@@ -77,11 +85,13 @@
             run: |
               echo "Image pushed with digest: ${{ steps.build.outputs.digest }}"
           
+          # CORREÇÃO 2 e 3: Sintaxe YAML corrigida e uso do DIGEST em vez de tag
           - name: Create SBOM (SPDX)
             uses: anchore/sbom-action@v1
             if: github.event_name != 'pull_request'
             with:
-              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+              # Usa o output direto do step de build (mais simples e confiável)
+              image: ${{ steps.build.outputs.image }}
               format: spdx
               output-file: sbom.spdx.json
           
@@ -96,12 +106,13 @@
             uses: aquasecurity/trivy-action@master
             if: github.event_name != 'pull_request'
             with:
-              image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+              # Usa o digest para scan
+              image-ref: ${{ env.REGISTRY }}/${{ steps.string.outputs.lowercase }}@${{ steps.build.outputs.digest }}
               format: 'sarif'
               output: 'trivy-results.sarif'
           
           - name: Upload Trivy scan results
-            uses: github/codeql-action/upload-sarif@v2
+            uses: github/codeql-action/upload-sarif@v3
             if: github.event_name != 'pull_request'
             with:
               sarif_file: 'trivy-results.sarif'
@@ -121,7 +132,7 @@
             uses: aquasecurity/trivy-action@master
             with:
               scan-type: 'image'
-              image-ref: ${{ needs.build-and-push.outputs.image-tag }}
+              # Usa a referência exata construída no job anterior
+              image-ref: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image-name-lower }}@${{ needs.build-and-push.outputs.image-digest }}
               format: 'table'
-              exit-code: '0'  # Don't fail on vulnerabilities, just report
-    
+              exit-code: '0'
