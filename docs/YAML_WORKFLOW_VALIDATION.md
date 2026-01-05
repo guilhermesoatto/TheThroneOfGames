@@ -1,7 +1,7 @@
 # YAML Workflow Validation Report
 
 - File: `C:\Users\Guilherme\source\repos\TheThroneOfGames\.github\workflows\docker-build-push.yml`
-- Checked at (UTC): 2026-01-05T16:22:30.086Z
+- Checked at (UTC): 2026-01-05T16:29:00.449Z
 
 ## Result: No parse errors found
 
@@ -87,7 +87,7 @@
           
           # CORREÇÃO 2 e 3: Sintaxe YAML corrigida e uso do DIGEST em vez de tag
           - name: Create SBOM (SPDX)
-            uses: anchore/sbom-action@v1
+            uses: anchore/sbom-action@v0.21.0
             if: github.event_name != 'pull_request'
             with:
               # Usa o output direto do step de build (mais simples e confiável)
