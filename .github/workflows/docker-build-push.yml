@@ -78,11 +78,11 @@ jobs:
       
       # CORREÇÃO 2 e 3: Sintaxe YAML corrigida e uso do DIGEST em vez de tag
       - name: Create SBOM (SPDX)
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@v1
         if: github.event_name != 'pull_request'
         with:
-          # Usa o digest exato da imagem que acabou de ser construída (garante que existe e é a correta)
-          image: ${{ env.REGISTRY }}/${{ steps.string.outputs.lowercase }}@${{ steps.build.outputs.digest }}
+          # Usa o output direto do step de build (mais simples e confiável)
+          image: ${{ steps.build.outputs.image }}
           format: spdx
           output-file: sbom.spdx.json
       
