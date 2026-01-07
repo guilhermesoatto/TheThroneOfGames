@@ -1,9 +1,24 @@
 # 📚 ÍNDICE DE DOCUMENTAÇÃO - THE THRONE OF GAMES
 
-**Status:** ✅ **FASE 4 CONCLUÍDA** + 🚀 **FASE 5 INICIADA** (07/01/2026)  
-**Validação:** 86.4% Sucesso (19/22 checks)  
-**CI/CD:** GitHub Actions (9 jobs)  
-**Kubernetes:** 12 manifests completos
+**Status:** ✅ **FASE 4 CONCLUÍDA** + ✅ **FASE 5 CONCLUÍDA** (07/01/2026)  
+**Validação:** 100% Sucesso (15/15 checks)  
+**CI/CD:** GitHub Actions (9 jobs) + SonarQube  
+**Kubernetes:** 15 manifests completos  
+**SonarQube:** ✅ Funcionando (http://localhost:9000)
+
+---
+
+## 🎯 DOCUMENTOS DE ENTREGA
+
+### ✅ Validação Final
+- **[ENTREGA_FINAL_VALIDACAO.md](ENTREGA_FINAL_VALIDACAO.md)** 📄 **LEIA PRIMEIRO** ⭐
+  - Validação completa de todos os entry points
+  - Status de todas as entregas (Fase 4 + 5)
+  - Métricas de qualidade (98% completude)
+  - Testes realizados (15/15 passaram)
+  - Instruções de deploy
+  - Checklist completo
+  - **DOCUMENTO PRINCIPAL DE ENTREGA**
 
 ---
 
@@ -166,6 +181,7 @@
 
 ## ☸️ KUBERNETES MANIFESTS
 
+### Application Manifests
 Todos em [k8s/](../k8s/):
 
 - **[namespaces.yaml](../k8s/namespaces.yaml)** - 2 namespaces (app + monitoring)
@@ -180,7 +196,18 @@ Todos em [k8s/](../k8s/):
 - **[ingress.yaml](../k8s/ingress.yaml)** - NGINX Ingress com TLS
 - **[network-policies.yaml](../k8s/network-policies.yaml)** - 4 Network Policies (segurança)
 
-**Total:** 12 arquivos, 1,100+ linhas de manifests
+**Total Application:** 12 arquivos, 1,100+ linhas
+
+### SonarQube Manifests
+Todos em [k8s/sonarqube/](../k8s/sonarqube/):
+
+- **[secrets.yaml](../k8s/sonarqube/secrets.yaml)** - Credenciais PostgreSQL e SonarQube
+- **[postgres.yaml](../k8s/sonarqube/postgres.yaml)** - PostgreSQL StatefulSet + Service
+- **[sonarqube.yaml](../k8s/sonarqube/sonarqube.yaml)** - SonarQube Deployment + PVCs + Service
+
+**Total SonarQube:** 3 arquivos, 400+ linhas
+
+**TOTAL GERAL:** 15 arquivos K8s, 1,500+ linhas de manifests
 
 ---
 
