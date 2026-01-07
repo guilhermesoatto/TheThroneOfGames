@@ -14,11 +14,12 @@ services:
       - mssql-data:/var/opt/mssql
     networks:
       - thethroneofgames-network
-    healthcheck:
-      test: [ "CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourSecurePassword123!", "-Q", "SELECT 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # healthcheck disabled - SQL Server 2019 doesn't have sqlcmd in expected path
+    # healthcheck:
+    #   test: [ "CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "YourSecurePassword123!", "-Q", "SELECT 1" ]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
 
   # RabbitMQ Message Broker
   rabbitmq:
@@ -174,7 +175,7 @@ services:
 
   # Prometheus Metrics Collector
   prometheus:
-    image: prom/prometheus:v2.48.0-alpine
+    image: prom/prometheus:latest
     container_name: thethroneofgames-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro

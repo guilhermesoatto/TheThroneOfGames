@@ -79,12 +79,7 @@ app.UseHttpMetrics();
 app.MapControllers();
 app.MapMetrics();
 
-// Migration and Seed
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var context = services.GetRequiredService<TheThroneOfGames.Infrastructure.Persistence.MainDbContext>();
-    context.Database.EnsureCreated();
-}
+// Migration and Seed - Removed: Microservice should not manage DB schema
+// Each microservice uses its own database context configured via Infrastructure extensions
 
 app.Run();
