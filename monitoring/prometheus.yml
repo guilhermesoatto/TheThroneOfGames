@@ -18,10 +18,26 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'api'
+  - job_name: 'api-monolithic'
     static_configs:
       - targets: ['api:80']
     metrics_path: '/metrics'
     scrape_interval: 5s
-    params:
-      format: ['prometheus']
+
+  - job_name: 'usuarios-api'
+    static_configs:
+      - targets: ['usuarios-api:9091']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'catalogo-api'
+    static_configs:
+      - targets: ['catalogo-api:9092']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'vendas-api'
+    static_configs:
+      - targets: ['vendas-api:9093']
+    metrics_path: '/metrics'
+    scrape_interval: 5s

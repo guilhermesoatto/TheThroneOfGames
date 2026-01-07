@@ -89,6 +89,7 @@ services:
       EventBus__RabbitMq__Password: "guest"
     ports:
       - "5001:80"
+      - "9091:9091"  # Prometheus metrics
     depends_on:
       mssql:
         condition: service_healthy
@@ -122,6 +123,7 @@ services:
       EventBus__RabbitMq__Password: "guest"
     ports:
       - "5002:80"
+      - "9092:9092"  # Prometheus metrics
     depends_on:
       mssql:
         condition: service_healthy
@@ -155,6 +157,7 @@ services:
       EventBus__RabbitMq__Password: "guest"
     ports:
       - "5003:80"
+      - "9093:9093"  # Prometheus metrics
     depends_on:
       mssql:
         condition: service_healthy
