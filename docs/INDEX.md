@@ -1,8 +1,9 @@
-# 📚 ÍNDICE DE DOCUMENTAÇÃO FASE 4 - THE THRONE OF GAMES
+# 📚 ÍNDICE DE DOCUMENTAÇÃO - THE THRONE OF GAMES
 
-**Status:** ✅ **FASE 4 CONCLUÍDA** (07/01/2026)  
+**Status:** ✅ **FASE 4 CONCLUÍDA** + 🚀 **FASE 5 INICIADA** (07/01/2026)  
 **Validação:** 86.4% Sucesso (19/22 checks)  
-**Commits:** 4 documentação + 1 correção
+**CI/CD:** GitHub Actions (9 jobs)  
+**Kubernetes:** 12 manifests completos
 
 ---
 
@@ -14,7 +15,12 @@
   - Checklist final de entrega
   - Resultados de validação (86.4%)
   - Métricas de performance esperadas
-  - **Leia isto primeiro** ✅
+  - **Leia isto primeiro para Fase 4** ✅
+
+- **[FASE4_EXECUTIVE_SUMMARY.md](FASE4_EXECUTIVE_SUMMARY.md)** 📄
+  - Resumo executivo para stakeholders
+  - Destaques técnicos e business value
+  - ROI e métricas de qualidade
 
 ### 🏗️ Arquitetura Técnica
 
@@ -49,8 +55,30 @@
   - Próximos passos (5 itens identificados)
   - **Inclui:** Tabelas status, análise de completude, riscos
 
-### 🚀 Próximas Fases
+### 🚀 Fase 5: Produção & DevOps
 
+#### 1. Deploy & Operations
+- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** 📄 **NOVO** ✨
+  - Guia completo de deployment
+  - 3 opções: Kubernetes Local, Azure AKS, AWS EKS, GCP GKE
+  - Script automatizado: `deploy-k8s-local.ps1`
+  - Configuração de CI/CD no GitHub Actions
+  - Comandos úteis e troubleshooting
+  - **Para:** Deploy em qualquer ambiente
+
+- **[KUBERNETES_BEST_PRACTICES.md](KUBERNETES_BEST_PRACTICES.md)** 📄 **NOVO** ✨
+  - Best practices de Kubernetes para produção
+  - Resource Management (requests/limits, QoS)
+  - High Availability (replicas, PDB, health probes)
+  - Security (Network Policies, RBAC, Secrets)
+  - Monitoring & Observability (Golden Signals, alerts)
+  - CI/CD & GitOps strategies
+  - Cost Optimization (VPA, Spot instances)
+  - Disaster Recovery (Velero, backups)
+  - Performance Tuning
+  - **Para:** Preparação para produção
+
+#### 2. Arquitetura & Roadmap
 - **[PROXIMOS_PASSOS_FASE5.md](PROXIMOS_PASSOS_FASE5.md)** 📄 (1000+ linhas)
   - Roadmap detalhado para Fase 5, 6 e 7
   - 18 tasks específicas com estimativas
@@ -63,7 +91,61 @@
 
 ---
 
-## 🛠️ SCRIPTS DE AUTOMAÇÃO
+## 🏗️ ARQUITETURA TÉCNICA
+
+### Comunicação Assíncrona
+- **[FASE4_ASYNC_FLOW.md](FASE4_ASYNC_FLOW.md)** 📄 (600+ linhas)
+  - Arquitetura Event-Driven completa
+  - 7 eventos documentados com payloads JSON
+  - RabbitMQ configuration (exchanges, queues, bindings)
+  - Retry mechanism detalhado (5s → 25s → 125s)
+  - Dead Letter Queue (DLQ) com 7-day TTL
+  - Exemplos de código C# para publishers e subscribers
+  - Troubleshooting guide
+  - **Inclui:** Implementação, configuração, monitoramento
+
+### Kubernetes & Orquestração
+- **[ARQUITETURA_K8s.md](ARQUITETURA_K8s.md)** 📄 (800+ linhas)
+  - Cluster design completo
+  - 24+ YAML manifests documentados
+  - Namespaces, Deployments, StatefulSets, Services, Ingress
+  - HPA configuration (3-10 replicas, CPU 70%, Memory 80%)
+  - Network Policies para segurança
+  - Scaling scenarios (Low/Normal/High load)
+  - Deployment checklist
+  - Fluxo de requisição end-to-end
+  - **Inclui:** Código YAML, diagramas, troubleshooting
+
+### Validação & Status
+- **[FASE4_VALIDATION_STATUS.md](FASE4_VALIDATION_STATUS.md)** 📄 (600+ linhas)
+  - Checklist de 12 itens de entrega
+  - Status de cada funcionalidade obrigatória
+  - Requisitos técnicos validados
+  - Próximos passos (5 itens identificados)
+  - **Inclui:** Tabelas status, análise de completude, riscos
+
+---
+
+## 🛠️ SCRIPTS & AUTOMAÇÃO
+
+### CI/CD Pipeline
+- **[.github/workflows/ci-cd.yml](../.github/workflows/ci-cd.yml)** 🔧 **NOVO** ✨
+  - Pipeline completo com 9 jobs
+  - Build → Test → Security Scan → Deploy (Dev/Staging/Prod)
+  - Blue-Green deployment para produção
+  - Performance testing automatizado
+  - Container registry: GitHub Container Registry (GHCR)
+  - **Uso:** Push para master/develop ou manual trigger
+
+### Deploy Kubernetes
+- **[scripts/deploy-k8s-local.ps1](../scripts/deploy-k8s-local.ps1)** 🔧 **NOVO** ✨
+  - Deploy automatizado em Kubernetes local
+  - Suporte: k3d, minikube, Docker Desktop
+  - Build de imagens Docker
+  - Deploy completo (namespace → ingress)
+  - Port forwarding automático (5001-5003, 15672)
+  - Health check verification
+  - **Uso:** `.\deploy-k8s-local.ps1 -ClusterType k3d -CreateCluster`
 
 ### Validação & Testes
 - **[scripts/validation-checklist.ps1](../scripts/validation-checklist.ps1)** 🔧
@@ -79,6 +161,26 @@
   - Geração de métricas (P50/P95/P99)
   - Relatório de performance
   - **Uso:** `.\load-test.ps1 -GenerateReport`
+
+---
+
+## ☸️ KUBERNETES MANIFESTS
+
+Todos em [k8s/](../k8s/):
+
+- **[namespaces.yaml](../k8s/namespaces.yaml)** - 2 namespaces (app + monitoring)
+- **[configmaps.yaml](../k8s/configmaps.yaml)** - 4 ConfigMaps (app-config + 3 APIs)
+- **[secrets.yaml](../k8s/secrets.yaml)** - 4 Secrets (JWT, DB, RabbitMQ, Grafana)
+- **[deployments/usuarios-api.yaml](../k8s/deployments/usuarios-api.yaml)** - Deployment + Service
+- **[deployments/catalogo-api.yaml](../k8s/deployments/catalogo-api.yaml)** - Deployment + Service
+- **[deployments/vendas-api.yaml](../k8s/deployments/vendas-api.yaml)** - Deployment + Service
+- **[statefulsets/sqlserver.yaml](../k8s/statefulsets/sqlserver.yaml)** - SQL Server 2022 + PVC
+- **[statefulsets/rabbitmq.yaml](../k8s/statefulsets/rabbitmq.yaml)** - RabbitMQ + Management UI
+- **[hpa.yaml](../k8s/hpa.yaml)** - 3 HorizontalPodAutoscalers (3-10 replicas)
+- **[ingress.yaml](../k8s/ingress.yaml)** - NGINX Ingress com TLS
+- **[network-policies.yaml](../k8s/network-policies.yaml)** - 4 Network Policies (segurança)
+
+**Total:** 12 arquivos, 1,100+ linhas de manifests
 
 ---
 
