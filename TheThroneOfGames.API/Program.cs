@@ -2,11 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Application;
-using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Repository;
 using TheThroneOfGames.Infrastructure.Events;
 using Microsoft.AspNetCore.Builder;
 using TheThroneOfGames.Infrastructure.Persistence;
@@ -52,7 +48,6 @@ eventBus.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
 eventBus.Subscribe<PedidoFinalizadoEvent>(new PedidoFinalizadoEventHandler());
 
 // Authentication & email
-builder.Services.AddScoped<TheThroneOfGames.API.Services.AuthenticationService>();
 builder.Services.AddScoped<TheThroneOfGames.Infrastructure.ExternalServices.EmailService>();
 
 // Command Handlers - CQRS Pattern
