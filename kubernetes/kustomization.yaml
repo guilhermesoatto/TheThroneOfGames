@@ -1,0 +1,70 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: thethroneofgames
+
+resources:
+  - namespaces/namespace.yaml
+  - database/mssql.yaml
+  - database/secrets.yaml
+  - rabbitmq/configmap.yaml
+  - rabbitmq/pvc.yaml
+  - rabbitmq/statefulset.yaml
+  - rabbitmq/service.yaml
+  - usuarios-api/usuarios-api.yaml
+  - catalogo-api/catalogo-api.yaml
+  - vendas-api/vendas-api.yaml
+  - ingress/ingress.yaml
+  - ingress/secrets.yaml
+  - monitoring/prometheus.yaml
+
+images:
+  - name: usuarios-api
+    newName: usuarios-api
+    newTag: latest
+  - name: catalogo-api
+    newName: catalogo-api
+    newTag: latest
+  - name: vendas-api
+    newName: vendas-api
+    newTag: latest
+  - name: mssql-server-linux
+    newName: mcr.microsoft.com/mssql/server
+    newTag: "2019-latest"
+  - name: rabbitmq
+    newName: rabbitmq
+    newTag: "3.12-management-alpine"
+  - name: prometheus
+    newName: prom/prometheus
+    newTag: latest
+
+replicas:
+  - name: usuarios-api
+    count: 3
+  - name: catalogo-api
+    count: 3
+  - name: vendas-api
+    count: 3
+
+labels:
+  - key: managed-by
+    value: kustomize
+  - key: environment
+    value: production
+  - key: platform
+    value: thethroneofgames
+  - key: version
+    value: "1.0"
+
+commonAnnotations:
+  deployment.kubernetes.io/revision: "1"
+  deployment.kubernetes.io/platform: "TheThroneOfGames"
+
+vars:
+  - name: NAMESPACE
+    objref:
+      kind: Namespace
+      name: thethroneofgames
+      apiVersion: v1
+    fieldref:
+      fieldpath: metadata.name

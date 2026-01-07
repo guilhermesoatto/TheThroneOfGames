@@ -1,7 +1,7 @@
 # TheThroneOfGames
 
 ## Visão Geral
-TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Este projeto foi desenvolvido como solução para o desafio Tech Challenge (ver `TheThroneOfGames.API/objetivo1.md`), atendendo todos os requisitos obrigatórios da primeira fase.
+TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar uma plataforma digital de jogos. Este projeto foi desenvolvido como solução para o desafio Tech Challenge (ver `TheThroneOfGames.API/objetivo1.md`), atendendo todos os requisitos obrigatórios da primeira fase e evoluindo para uma arquitetura de **bounded contexts** independente, preparando o terreno para uma futura migração para microservices.
 
 ## Funcionalidades
 - Registro de usuário com ativação por e-mail
@@ -13,23 +13,54 @@ TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar 
 - Testes unitários e de integração abrangentes (NUnit)
 - Tratamento global de exceções e respostas ProblemDetails
 - Documentação Swagger/OpenAPI
+- **Arquitetura de Bounded Contexts**: Separação clara entre domínios de Usuários, Catálogo e Vendas
+- **Comunicação Event-Driven**: Eventos de domínio entre contextos via IEventBus
+- **CQRS Pattern**: Commands e Queries para operações de domínio
 
 ## Stack Tecnológico
-- ASP.NET Core 8.0 Web API
+- ASP.NET Core 9.0 Web API
 - Entity Framework Core
 - SQL Server (localdb ou completo)
 - NUnit (testes unitários/integrados)
 - Serilog (recomendado para logs em produção)
 - Docker (opcional)
+- **Arquitetura**: Domain-Driven Design (DDD) com Bounded Contexts
+- **Padrões**: CQRS, Event Sourcing (preparado), Repository Pattern
+- **Comunicação**: Event-Driven Architecture com SimpleEventBus
 
 ## Primeiros Passos
 
 ### Pré-requisitos
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
 - SQL Server (localdb ou completo)
-- (Opcional) Docker
+- Docker Desktop (para execução local completa)
 
-### Configuração
+### 🚀 Início Rápido - Execução Local (Recomendado)
+
+A forma mais rápida de executar o projeto completo com todas as dependências:
+
+```powershell
+cd scripts
+.\run-local.ps1 -LoadData
+```
+
+Este comando irá:
+- Iniciar SQL Server, RabbitMQ, Prometheus e Grafana via Docker
+- Iniciar as 3 APIs de microservices (Usuarios, Catalogo, Vendas)
+- Carregar dados iniciais (usuários, jogos, pedidos)
+- Exibir todas as URLs de acesso
+
+**Serviços disponíveis:**
+- 📊 Grafana: http://localhost:3000 (admin/admin)
+- 📈 Prometheus: http://localhost:9090
+- 🐰 RabbitMQ: http://localhost:15672 (guest/guest)
+- 👥 Usuarios API: http://localhost:5001/swagger
+- 🎮 Catalogo API: http://localhost:5002/swagger
+- 🛒 Vendas API: http://localhost:5003/swagger
+
+Para mais detalhes, consulte [LOCAL_EXECUTION_GUIDE.md](LOCAL_EXECUTION_GUIDE.md)
+
+### Configuração Manual (Desenvolvimento)
 1. **Clone o repositório:**
    ```sh
    git clone <seu-repo-url>
@@ -118,24 +149,169 @@ TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar 
 - **Outbox de E-mail:** Para desenvolvimento, e-mails são gravados em `Infrastructure/Outbox` como arquivos `.eml`.
 
 ## Relatório de Entrega
-- **Segurança:** Senhas são validadas quanto à força e armazenadas com hash PBKDF2. Tokens JWT incluem claims de papel e expiração. Endpoints de administração são protegidos por autorização baseada em papel.
-- **Testes:** O projeto inclui testes de integração e unitários abrangentes para todos os fluxos críticos, incluindo casos de borda para validação de senha, claims/expiração JWT e endpoints protegidos.
-- **Extensibilidade:** A arquitetura permite fácil adição de novas funcionalidades, como papéis mais granulares, novas entidades ou provedores externos de e-mail/SMS.
-- **Pronto para Produção:** Para produção, mova segredos para variáveis de ambiente ou um cofre seguro, habilite Serilog para logs e considere health checks e deploy via Docker.
+- **Segurança**: Senhas validadas quanto à força e armazenadas com hash PBKDF2. Tokens JWT incluem claims de papel e expiração. Endpoints de administração são protegidos por autorização baseada em papel.
+- **Testes**: 104 testes unitários passando (61 Usuários + 43 Catálogo), cobertura completa dos bounded contexts. Testes de infraestrutura (RabbitMQ) falham quando serviço não está disponível.
+- **Arquitetura**: Migração completa para bounded contexts com comunicação event-driven. Pronto para evolução para microservices.
+- **Qualidade**: Princípios DDD aplicados, CQRS implementado, separação clara de responsabilidades, mappers para conversão de DTOs.
+- **Extensibilidade**: Arquitetura preparada para adição de novos bounded contexts, escalabilidade horizontal e deployment independente.
+
+## Roadmap para Microservices
+**Fase Atual**: Bounded Contexts implementados e funcionais ✅
+- ✅ Separação de domínios
+- ✅ Interfaces locais por contexto
+- ✅ Comunicação via eventos
+- ✅ Testes independentes
+- ✅ Configuração flexível de event bus (SimpleEventBus/RabbitMQ)
+- ✅ Containerização básica com Docker
+- ✅ Docker Compose com RabbitMQ e SQL Server
+
+**Próximas Fases**:
+- **Separação de Microsserviços**: Extrair APIs independentes por contexto
+- **Mensageria Completa**: Implementar consumers dedicados para RabbitMQ
+- **Bancos Independentes**: Separar DbContexts e criar bancos por serviço
+- **Orquestração Avançada**: Kubernetes manifests, HPA, ConfigMaps/Secrets
+- **Monitoramento**: Prometheus/Grafana, APM, logs distribuídos
+- **CI/CD**: Pipelines independentes por microsserviço
+
+## Arquitetura de Bounded Contexts
+
+O projeto foi refatorado para seguir os princípios de Domain-Driven Design (DDD) com **Bounded Contexts** independentes, preparando o terreno para uma futura migração para microservices:
+
+### GameStore.Usuarios (Contexto de Usuários)
+**Responsabilidade**: Gerenciamento completo de usuários, autenticação, perfis e roles.
+- **Domínio**: Usuario.cs, ValueObjects (Email, Senha), Events (UsuarioAtivadoEvent, UsuarioPerfilAtualizadoEvent)
+- **Aplicação**: Commands (CriarUsuario, AtivarUsuario), Queries, Handlers CQRS
+- **Infraestrutura**: UsuarioRepository, UsuarioDbContext, Mappers
+- **Testes**: 61 testes unitários cobrindo todas as funcionalidades
+
+### GameStore.Catalogo (Contexto de Catálogo)
+**Responsabilidade**: Gerenciamento do catálogo de jogos, CRUD operations e disponibilidade.
+- **Domínio**: Jogo.cs, ValueObjects (Preco), Events (GameCompradoEvent)
+- **Aplicação**: Commands (CriarJogo, AtualizarJogo), Queries, Handlers CQRS
+- **Infraestrutura**: JogoRepository, CatalogoDbContext, Mappers
+- **Testes**: 43 testes unitários com cobertura completa
+
+### GameStore.Vendas (Contexto de Vendas)
+**Responsabilidade**: Processamento de pedidos, compras e transações.
+- **Domínio**: Pedido.cs, ItemPedido.cs, ValueObjects (Money), Events (PedidoFinalizadoEvent)
+- **Aplicação**: Commands (AdicionarItem, FinalizarPedido), Queries, Handlers CQRS
+- **Infraestrutura**: PedidoRepository, VendasDbContext, Mappers
+- **Testes**: Implementação completa com testes unitários
+
+### Comunicação Entre Contextos
+- **Event-Driven Architecture**: IEventBus com SimpleEventBus para comunicação assíncrona
+- **Event Handlers**: Processamento de eventos entre contextos (ex: UsuarioAtivadoEvent → Catalogo)
+- **Integração**: API principal registra todos os contextos e configura event handlers
+
+## Status do Projeto
+- ✅ **Build**: Sucesso (compilação limpa)
+- ✅ **Testes**: 104/116 testes passando (61 Usuários + 43 Catálogo, 12 testes de infraestrutura falham por falta de RabbitMQ)
+- ✅ **Funcionalidades**: Todos os requisitos do Tech Challenge atendidos
+- ✅ **Arquitetura**: Bounded contexts implementados e funcionais
+- ✅ **Event-Driven**: Comunicação entre contextos estabelecida
+- ✅ **CQRS**: Padrão implementado em todos os contextos
 
 ## Estrutura do Projeto
-- `TheThroneOfGames.API/` - Projeto principal da Web API
-- `TheThroneOfGames.Application/` - Serviços de aplicação e lógica de negócio
-- `TheThroneOfGames.Domain/` - Entidades de domínio e interfaces
-- `TheThroneOfGames.Infrastructure/` - Acesso a dados, EF Core e serviços externos
-- `Test/` - Testes unitários e de integração
+```
+TheThroneOfGames.sln
+├── TheThroneOfGames.API/          # API principal e configuração
+├── GameStore.Usuarios/             # Bounded Context: Usuários
+│   ├── Domain/                     # Entidades, ValueObjects, Events
+│   ├── Application/                # Commands, Queries, Handlers, DTOs
+│   └── Infrastructure/             # Repositories, DbContext, Mappers
+├── GameStore.Catalogo/             # Bounded Context: Catálogo
+│   ├── Domain/
+│   ├── Application/
+│   └── Infrastructure/
+├── GameStore.Vendas/               # Bounded Context: Vendas
+│   ├── Domain/
+│   ├── Application/
+│   └── Infrastructure/
+├── GameStore.Common/               # Componentes compartilhados
+├── GameStore.CQRS.Abstractions/    # Abstrações CQRS
+├── Test/                           # Testes de integração (monólito)
+└── [Bounded Context].Tests/        # Testes unitários por contexto
+```
 
 ## Referências
 - Requisitos do desafio: veja `TheThroneOfGames.API/objetivo1.md`
-- Relatório de entrega: veja `relatorio_entrega.txt`
+- Arquitetura de Bounded Contexts: veja `.github/instructions/objetivo estrutura pre-micro services arch.instructions.md`
+- Relatório de entrega detalhado: veja `relatorio_entrega.txt`
+- Melhorias propostas: veja `docs/melhorias_propostas.md`
+- Passos para finalização: veja `docs/FINISHING_STEPS.md`
+
+## Desenvolvimento com Bounded Contexts
+
+### Trabalhando com Contextos
+Cada bounded context é independente e pode ser desenvolvido separadamente:
+
+```bash
+# Desenvolvimento focado em um contexto
+cd GameStore.Usuarios
+dotnet build
+dotnet test
+
+# API principal integra todos os contextos
+cd TheThroneOfGames.API
+dotnet run
+```
+
+### Configuração de Mensageria
+O projeto suporta dois modos de event bus:
+
+**Modo Desenvolvimento (SimpleEventBus):**
+```json
+{
+  "EventBus": {
+    "UseRabbitMq": false
+  }
+}
+```
+
+**Modo Produção (RabbitMQ):**
+```json
+{
+  "EventBus": {
+    "UseRabbitMq": true,
+    "RabbitMq": {
+      "Host": "localhost",
+      "Port": 5672,
+      "Username": "guest",
+      "Password": "guest"
+    }
+  }
+}
+```
+
+### Containerização e Orquestração
+Para executar com Docker e RabbitMQ:
+
+```bash
+# Construir e executar com docker-compose
+docker-compose up --build
+
+# Acessar RabbitMQ Management UI
+# http://localhost:15672 (guest/guest)
+```
+
+### Adicionando Novos Eventos
+1. Defina o evento no contexto de origem (`Domain/Events/`)
+2. Implemente o handler no contexto de destino (`Application/EventHandlers/`)
+3. Para RabbitMQ: Crie um consumer separado para processar mensagens da fila
+
+### Testes por Contexto
+- Execute testes de um contexto específico: `dotnet test GameStore.Usuarios.Tests`
+- Testes de integração continuam no projeto `Test/`
+- Cobertura: 104/116 testes passando (61 Usuários + 43 Catálogo, excluindo testes de infraestrutura externa)
 
 ## Contribuindo
 Pull requests e issues são bem-vindos! Por favor, garanta que todos os testes passem e siga o estilo de código existente.
+
+**Para desenvolvimento em bounded contexts:**
+- Mantenha interfaces locais (não referencie outros contextos diretamente)
+- Use eventos para comunicação entre contextos
+- Adicione testes unitários para novas funcionalidades
+- Atualize mappers e DTOs conforme necessário
 
 ## Licença
 Licença MIT

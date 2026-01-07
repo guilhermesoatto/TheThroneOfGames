@@ -20,11 +20,17 @@ namespace GameStore.Common.Messaging
         private readonly string _dlqExchangeName;
         private bool _disposed;
 
-        // Mapeamento de tipos de eventos para filas
-        // `typeof(dynamic)` is invalid in C#; use `object` when a generic/any-event mapping is intended.
+        // Mapeamento de tipos de eventos para filas específicas
         private static readonly Dictionary<Type, string> EventQueueMapping = new()
         {
-            { typeof(object), "usuario.eventos" },
+            // Eventos publicados pelo contexto Usuarios
+            { typeof(TheThroneOfGames.Domain.Events.UsuarioAtivadoEvent), "catalogo.usuario-ativado" },
+
+            // Eventos publicados pelo contexto Catalogo
+            { typeof(TheThroneOfGames.Domain.Events.GameCompradoEvent), "usuarios.game-comprado" },
+
+            // Eventos publicados pelo contexto Vendas
+            { typeof(TheThroneOfGames.Domain.Events.PedidoFinalizadoEvent), "usuarios.pedido-finalizado" },
         };
 
         public RabbitMqAdapter(
@@ -77,7 +83,7 @@ namespace GameStore.Common.Messaging
             // Declarar exchange principal
             _channel.ExchangeDeclare(
                 exchange: _exchangeName,
-                type: ExchangeType.Topic,
+                type: ExchangeType.Direct,
                 durable: true,
                 autoDelete: false
             );
@@ -85,26 +91,65 @@ namespace GameStore.Common.Messaging
             // Declarar exchange DLQ
             _channel.ExchangeDeclare(
                 exchange: _dlqExchangeName,
-                type: ExchangeType.Topic,
+                type: ExchangeType.Direct,
                 durable: true,
                 autoDelete: false
             );
 
-            // Declarar fila DLQ
-            _channel.QueueDeclare(
-                queue: "thethroneofgames.dlq.queue",
-                durable: true,
-                exclusive: false,
-                autoDelete: false
-            );
+            // Declarar filas específicas para cada tipo de evento
+            foreach (var kvp in EventQueueMapping)
+            {
+                var queueName = kvp.Value;
 
-            _channel.QueueBind(
-                queue: "thethroneofgames.dlq.queue",
-                exchange: _dlqExchangeName,
-                routingKey: "#"
-            );
+                // Declarar fila principal
+                _channel.QueueDeclare(
+                    queue: queueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false
+                );
 
-            _logger.LogInformation("RabbitMQ exchanges and queues initialized");
+                // Bind da fila ao exchange principal
+                _channel.QueueBind(
+                    queue: queueName,
+                    exchange: _exchangeName,
+                    routingKey: queueName
+                );
+
+                // Declarar fila DLQ específica para este tipo de evento
+                var dlqQueueName = $"{queueName}.dlq";
+                _channel.QueueDeclare(
+                    queue: dlqQueueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false
+                );
+
+                // Bind da fila DLQ ao exchange DLQ
+                _channel.QueueBind(
+                    queue: dlqQueueName,
+                    exchange: _dlqExchangeName,
+                    routingKey: queueName
+                );
+
+                // Configurar dead letter exchange na fila principal
+                var queueArgs = new Dictionary<string, object>
+                {
+                    { "x-dead-letter-exchange", _dlqExchangeName },
+                    { "x-dead-letter-routing-key", queueName }
+                };
+
+                // Re-declarar fila com argumentos de DLQ
+                _channel.QueueDeclare(
+                    queue: queueName,
+                    durable: true,
+                    exclusive: false,
+                    autoDelete: false,
+                    arguments: queueArgs
+                );
+            }
+
+            _logger.LogInformation("RabbitMQ exchanges and queues initialized for {QueueCount} event types", EventQueueMapping.Count);
         }
 
         /// <summary>
@@ -192,6 +237,13 @@ namespace GameStore.Common.Messaging
         /// </summary>
         private string GetRoutingKey(Type eventType)
         {
+            // Primeiro tenta usar o mapeamento específico
+            if (EventQueueMapping.TryGetValue(eventType, out var queueName))
+            {
+                return queueName;
+            }
+
+            // Fallback para geração automática se não houver mapeamento
             var eventName = eventType.Name;
             // Converte UsuarioAtivadoEvent -> usuario.ativado
             var words = System.Text.RegularExpressions.Regex.Matches(eventName, "[A-Z][a-z]*");

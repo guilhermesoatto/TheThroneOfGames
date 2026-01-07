@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalogo-api-config
+  namespace: thethroneofgames
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:80"
+  ConnectionStrings__DefaultConnection: "Server=mssql-service,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+  Jwt__Issuer: "TheThroneOfGames"
+  Jwt__Audience: "TheThroneOfGamesClient"
+  Jwt__ExpirationMinutes: "60"
+  EventBus__UseRabbitMq: "true"
+  EventBus__RabbitMq__HostName: "rabbitmq-service"
+  EventBus__RabbitMq__Port: "5672"
+  EventBus__RabbitMq__UserName: "guest"
+  EventBus__RabbitMq__Password: "guest"
+  Logging__LogLevel__Default: "Information"
+  Logging__LogLevel__Microsoft_AspNetCore: "Warning"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalogo-api
+  namespace: thethroneofgames
+  labels:
+    app: catalogo-api
+    tier: api
+    service: catalogo
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: catalogo-api
+  template:
+    metadata:
+      labels:
+        app: catalogo-api
+        tier: api
+        service: catalogo
+    spec:
+      serviceAccountName: catalogo-api
+      containers:
+      - name: catalogo-api
+        image: catalogo-api:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        envFrom:
+        - configMapRef:
+            name: catalogo-api-config
+        env:
+        - name: Jwt__Key
+          valueFrom:
+            secretKeyRef:
+              name: jwt-secret
+              key: key
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /swagger
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /swagger
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - catalogo-api
+              topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: catalogo-api
+  namespace: thethroneofgames
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogo-api-service
+  namespace: thethroneofgames
+  labels:
+    app: catalogo-api
+    tier: api
+spec:
+  type: ClusterIP
+  selector:
+    app: catalogo-api
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: catalogo-api-hpa
+  namespace: thethroneofgames
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: catalogo-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

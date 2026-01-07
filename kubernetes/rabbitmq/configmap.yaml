@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: thethroneofgames
+data:
+  rabbitmq.conf: |
+    vm_memory_high_watermark.relative = 0.6
+    disk_free_limit.absolute = 2GB
+    management.load_definitions = /etc/rabbitmq/definitions.json

@@ -63,7 +63,7 @@ namespace GameStore.Catalogo.Application.Mappers
 
             return new JogoDTO
             {
-                Id = jogo.Id,
+                Id = 0, // JogoDTO usa int, mas nossa entidade usa Guid - mapeamento temporário
                 Nome = jogo.Nome,
                 Preco = jogo.Preco
             };
@@ -77,12 +77,19 @@ namespace GameStore.Catalogo.Application.Mappers
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
 
-            return new Jogo
-            {
-                Id = dto.Id,
-                Nome = dto.Nome,
-                Preco = dto.Preco
-            };
+            // Create a basic Jogo entity - this would need to be updated with full data
+            return new Jogo(
+                id: Guid.NewGuid(), // JogoDTO usa int, nossa entidade usa Guid
+                nome: dto.Nome,
+                descricao: "Descrição não disponível",
+                preco: dto.Preco,
+                genero: "Gênero não especificado",
+                desenvolvedora: "Desenvolvedora não especificada",
+                dataLancamento: DateTime.Now,
+                imagemUrl: "",
+                estoque: 0,
+                disponivel: true
+            );
         }
 
         /// <summary>

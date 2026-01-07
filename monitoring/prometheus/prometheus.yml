@@ -1,0 +1,46 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'thethroneofgames-local'
+    environment: 'development'
+
+scrape_configs:
+  # Usuarios API
+  - job_name: 'usuarios-api'
+    static_configs:
+      - targets: ['usuarios-api:80']
+        labels:
+          service: 'usuarios'
+          api: 'usuarios-api'
+    metrics_path: '/metrics'
+
+  # Catalogo API
+  - job_name: 'catalogo-api'
+    static_configs:
+      - targets: ['catalogo-api:80']
+        labels:
+          service: 'catalogo'
+          api: 'catalogo-api'
+    metrics_path: '/metrics'
+
+  # Vendas API
+  - job_name: 'vendas-api'
+    static_configs:
+      - targets: ['vendas-api:80']
+        labels:
+          service: 'vendas'
+          api: 'vendas-api'
+    metrics_path: '/metrics'
+
+  # RabbitMQ
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+        labels:
+          service: 'rabbitmq'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

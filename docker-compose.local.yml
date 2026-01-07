@@ -1,0 +1,167 @@
+version: '3.8'
+
+services:
+  # SQL Server Database
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: thethroneofgames-sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourSecurePassword123!
+      - MSSQL_PID=Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - thethroneofgames-network
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: thethroneofgames-rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    networks:
+      - thethroneofgames-network
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: thethroneofgames-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - thethroneofgames-network
+    depends_on:
+      - usuarios-api
+      - catalogo-api
+      - vendas-api
+
+  # Grafana Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: thethroneofgames-grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - thethroneofgames-network
+    depends_on:
+      - prometheus
+
+  # Usuarios API
+  usuarios-api:
+    build:
+      context: .
+      dockerfile: GameStore.Usuarios.API/Dockerfile
+    container_name: thethroneofgames-usuarios-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False;TrustServerCertificate=True
+      - Jwt__Key=your-jwt-secret-key-minimum-32-characters-long-change-in-production!
+      - Jwt__Issuer=TheThroneOfGames
+      - Jwt__Audience=TheThroneOfGamesClient
+      - Jwt__ExpirationMinutes=60
+      - EventBus__UseRabbitMq=true
+      - EventBus__RabbitMq__HostName=rabbitmq
+      - EventBus__RabbitMq__Port=5672
+      - EventBus__RabbitMq__UserName=guest
+      - EventBus__RabbitMq__Password=guest
+    ports:
+      - "5001:80"
+    networks:
+      - thethroneofgames-network
+    depends_on:
+      - sqlserver
+      - rabbitmq
+
+  # Catalogo API
+  catalogo-api:
+    build:
+      context: .
+      dockerfile: GameStore.Catalogo.API/Dockerfile
+    container_name: thethroneofgames-catalogo-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False;TrustServerCertificate=True
+      - Jwt__Key=your-jwt-secret-key-minimum-32-characters-long-change-in-production!
+      - Jwt__Issuer=TheThroneOfGames
+      - Jwt__Audience=TheThroneOfGamesClient
+      - Jwt__ExpirationMinutes=60
+      - EventBus__UseRabbitMq=true
+      - EventBus__RabbitMq__HostName=rabbitmq
+      - EventBus__RabbitMq__Port=5672
+      - EventBus__RabbitMq__UserName=guest
+      - EventBus__RabbitMq__Password=guest
+    ports:
+      - "5002:80"
+    networks:
+      - thethroneofgames-network
+    depends_on:
+      - sqlserver
+      - rabbitmq
+
+  # Vendas API
+  vendas-api:
+    build:
+      context: .
+      dockerfile: GameStore.Vendas.API/Dockerfile
+    container_name: thethroneofgames-vendas-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False;TrustServerCertificate=True
+      - Jwt__Key=your-jwt-secret-key-minimum-32-characters-long-change-in-production!
+      - Jwt__Issuer=TheThroneOfGames
+      - Jwt__Audience=TheThroneOfGamesClient
+      - Jwt__ExpirationMinutes=60
+      - EventBus__UseRabbitMq=true
+      - EventBus__RabbitMq__HostName=rabbitmq
+      - EventBus__RabbitMq__Port=5672
+      - EventBus__RabbitMq__UserName=guest
+      - EventBus__RabbitMq__Password=guest
+    ports:
+      - "5003:80"
+    networks:
+      - thethroneofgames-network
+    depends_on:
+      - sqlserver
+      - rabbitmq
+
+networks:
+  thethroneofgames-network:
+    driver: bridge
+
+volumes:
+  sqlserver-data:
+  rabbitmq-data:
+  prometheus-data:
+  grafana-data:

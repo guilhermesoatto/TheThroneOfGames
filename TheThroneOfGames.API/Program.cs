@@ -9,11 +9,9 @@ using TheThroneOfGames.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using GameStore.Catalogo.Application.EventHandlers;
 using GameStore.Usuarios.Application.EventHandlers;
-using GameStore.Vendas.Application.EventHandlers;
 // handler namespaces intentionally referenced by fully-qualified names to avoid ambiguity with Query handlers
 using GameStore.Usuarios.Application.Queries;
 using GameStore.Catalogo.Application.Queries;
-using GameStore.Vendas.Application.Queries;
 using CQRS = GameStore.CQRS.Abstractions;
 using GameStore.Usuarios.Application.Commands;
 using GameStore.Catalogo.Application.Commands;
@@ -22,6 +20,10 @@ using GameStore.Usuarios.Application.DTOs;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Vendas.Application.DTOs;
 using GameStore.Usuarios.Infrastructure.Extensions;
+using GameStore.Catalogo.Infrastructure.Extensions;
+using GameStore.Vendas.Application.Extensions;
+using GameStore.Vendas.Infrastructure.Extensions;
+using TheThroneOfGames.API.Extensions;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,20 +34,25 @@ builder.Services.AddDbContext<MainDbContext>(options =>
 // Add bounded contexts
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 builder.Services.AddUsuariosContext(connectionString);
+builder.Services.AddCatalogoContext(connectionString);
+builder.Services.AddVendasApplication();
+builder.Services.AddVendasInfrastructure(builder.Configuration);
 
 // Event Bus - Barramento de eventos de domínio
-builder.Services.AddSingleton<IEventBus, SimpleEventBus>();
+builder.Services.AddEventBus(builder.Configuration);
 
-// Register event handlers for cross-context communication
-var eventBus = new SimpleEventBus();
-builder.Services.AddSingleton<IEventBus>(eventBus);
+// Register event handlers for cross-context communication (only for SimpleEventBus)
+var useRabbitMq = builder.Configuration.GetValue<bool>("EventBus:UseRabbitMq", false);
+if (!useRabbitMq)
+{
+    var eventBus = new SimpleEventBus();
+    builder.Services.AddSingleton<IEventBus>(eventBus);
 
-// Subscribe handlers to events
-// Subscribe both catalog and usuarios handlers explicitly to avoid ambiguous type references
-eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
-eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
-eventBus.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
-eventBus.Subscribe<PedidoFinalizadoEvent>(new PedidoFinalizadoEventHandler());
+    // Subscribe handlers to events
+    eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
+    eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
+    eventBus.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
+}
 
 // Authentication & email
 builder.Services.AddScoped<TheThroneOfGames.Infrastructure.ExternalServices.EmailService>();
@@ -60,10 +67,6 @@ builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Catalogo.Application.Commands.UpdateGameCommand>, GameStore.Catalogo.Application.Handlers.UpdateGameCommandHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Catalogo.Application.Commands.RemoveGameCommand>, GameStore.Catalogo.Application.Handlers.RemoveGameCommandHandler>();
 
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Vendas.Application.Commands.CreatePurchaseCommand>, GameStore.Vendas.Application.Handlers.CreatePurchaseCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Vendas.Application.Commands.FinalizePurchaseCommand>, GameStore.Vendas.Application.Handlers.FinalizePurchaseCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Vendas.Application.Commands.CancelPurchaseCommand>, GameStore.Vendas.Application.Handlers.CancelPurchaseCommandHandler>();
-
 // Query Handlers - CQRS Pattern
 // Query Handlers - CQRS Pattern
 // NOTE: user Query types/handlers currently live under the separate folder `GameStore.Usuarios.Application` and
@@ -77,14 +80,6 @@ builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.C
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetAvailableGamesQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetAvailableGamesQueryHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGamesByPriceRangeQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetGamesByPriceRangeQueryHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.SearchGamesQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.SearchGamesQueryHandler>();
-
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchaseByIdQuery, GameStore.Vendas.Application.DTOs.PurchaseDTO?>, GameStore.Vendas.Application.Handlers.GetPurchaseByIdQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchasesByUserQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetPurchasesByUserQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetAllPurchasesQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetAllPurchasesQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchasesByStatusQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetPurchasesByStatusQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchasesByDateRangeQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetPurchasesByDateRangeQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchasesByGameQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetPurchasesByGameQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetSalesStatsQuery, GameStore.Vendas.Application.Queries.SalesStatsDTO>, GameStore.Vendas.Application.Handlers.GetSalesStatsQueryHandler>();
 
 
 // JWT Authentication

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: thethroneofgames
+  labels:
+    name: thethroneofgames
+    environment: production
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: thethroneofgames-monitoring
+  labels:
+    name: thethroneofgames-monitoring
+    environment: production

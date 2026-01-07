@@ -40,7 +40,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # TheThroneOfGames API
+  # TheThroneOfGames API (Monolithic - for backward compatibility)
   api:
     build:
       context: .
@@ -68,6 +68,106 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Usuarios Microservice
+  usuarios-api:
+    build:
+      context: .
+      dockerfile: GameStore.Usuarios.API/Dockerfile
+    container_name: usuarios-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORT: 80
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+      Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
+      Jwt__Issuer: "TheThroneOfGames"
+      Jwt__Audience: "TheThroneOfGamesClient"
+      EventBus__UseRabbitMq: "true"
+      EventBus__RabbitMq__HostName: "rabbitmq"
+      EventBus__RabbitMq__Port: "5672"
+      EventBus__RabbitMq__UserName: "guest"
+      EventBus__RabbitMq__Password: "guest"
+    ports:
+      - "5001:80"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - thethroneofgames-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/swagger" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Catalogo Microservice
+  catalogo-api:
+    build:
+      context: .
+      dockerfile: GameStore.Catalogo.API/Dockerfile
+    container_name: catalogo-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORT: 80
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+      Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
+      Jwt__Issuer: "TheThroneOfGames"
+      Jwt__Audience: "TheThroneOfGamesClient"
+      EventBus__UseRabbitMq: "true"
+      EventBus__RabbitMq__HostName: "rabbitmq"
+      EventBus__RabbitMq__Port: "5672"
+      EventBus__RabbitMq__UserName: "guest"
+      EventBus__RabbitMq__Password: "guest"
+    ports:
+      - "5002:80"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - thethroneofgames-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/swagger" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Vendas Microservice
+  vendas-api:
+    build:
+      context: .
+      dockerfile: GameStore.Vendas.API/Dockerfile
+    container_name: vendas-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORT: 80
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+      Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
+      Jwt__Issuer: "TheThroneOfGames"
+      Jwt__Audience: "TheThroneOfGamesClient"
+      EventBus__UseRabbitMq: "true"
+      EventBus__RabbitMq__HostName: "rabbitmq"
+      EventBus__RabbitMq__Port: "5672"
+      EventBus__RabbitMq__UserName: "guest"
+      EventBus__RabbitMq__Password: "guest"
+    ports:
+      - "5003:80"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - thethroneofgames-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/swagger" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 
   # Prometheus Metrics Collector
   prometheus:
