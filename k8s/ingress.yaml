@@ -1,0 +1,69 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: thethroneofgames-ingress
+  namespace: thethroneofgames
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - thethroneofgames.com
+    - www.thethroneofgames.com
+    - api.thethroneofgames.com
+    secretName: thethroneofgames-tls
+  rules:
+  - host: api.thethroneofgames.com
+    http:
+      paths:
+      - path: /usuarios(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: usuarios-api
+            port:
+              number: 5001
+      - path: /catalogo(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: catalogo-api
+            port:
+              number: 5002
+      - path: /vendas(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: vendas-api
+            port:
+              number: 5003
+  - host: thethroneofgames.com
+    http:
+      paths:
+      - path: /api/usuarios(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: usuarios-api
+            port:
+              number: 5001
+      - path: /api/catalogo(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: catalogo-api
+            port:
+              number: 5002
+      - path: /api/vendas(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: vendas-api
+            port:
+              number: 5003
