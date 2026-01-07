@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using GameStore.Catalogo.Infrastructure.Extensions;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,9 @@ builder.Services.AddCatalogoContext(connectionString);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Prometheus Metrics
+builder.Services.AddSingleton<IMetricServer>(new KestrelMetricServer(port: 9092));
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -54,6 +58,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Start Prometheus Metrics Server
+var metricsServer = app.Services.GetRequiredService<IMetricServer>();
+_ = metricsServer; // Ensures server is started
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -64,14 +72,12 @@ app.UseHttpsRedirection();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
 
-app.Run();
+// Add Prometheus middleware for request/response metrics
+app.UseHttpMetrics();
 
-app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
 app.MapControllers();
+app.MapMetrics();
 
 // Migration and Seed
 using (var scope = app.Services.CreateScope())
