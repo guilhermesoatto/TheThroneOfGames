@@ -160,17 +160,10 @@ services:
       - "5003:80"
       - "9093:9093"  # Prometheus metrics
     depends_on:
-      mssql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - mssql
+      - rabbitmq
     networks:
       - thethroneofgames-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/swagger" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 
   # Prometheus Metrics Collector
