@@ -25,7 +25,7 @@ using GameStore.Vendas.Application.Commands;
 using GameStore.Usuarios.Application.DTOs;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Vendas.Application.DTOs;
-using GameStore.Common.Messaging;
+using GameStore.Usuarios.Infrastructure.Extensions;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -33,38 +33,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<MainDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-#region Injeção de dependencias
-// Add application services
-builder.Services.AddApplicationServices();
+// Add bounded contexts
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+builder.Services.AddUsuariosContext(connectionString);
 
-// Event Bus - Barramento de eventos de domínio (with fallback to SimpleEventBus if RabbitMQ unavailable)
-IEventBus eventBusInstance;
-try
-{
-    // Try to use RabbitMQ adapter
-    builder.Services.AddRabbitMqEventBus(builder.Configuration);
-    var provider = builder.Services.BuildServiceProvider();
-    eventBusInstance = provider.GetRequiredService<IEventBus>();
-    Console.WriteLine("✓ RabbitMQ adapter registered successfully");
-}
-catch (Exception ex)
-{
-    // Fallback to SimpleEventBus for development/testing
-    Console.WriteLine($"⚠ RabbitMQ connection failed: {ex.Message}. Using SimpleEventBus fallback.");
-    var simpleEventBus = new SimpleEventBus();
-    builder.Services.AddSingleton<IEventBus>(simpleEventBus);
-    eventBusInstance = simpleEventBus;
-}
+// Event Bus - Barramento de eventos de domínio
+builder.Services.AddSingleton<IEventBus, SimpleEventBus>();
 
-// Register event handlers for cross-context communication (only if using SimpleEventBus)
-if (eventBusInstance is SimpleEventBus simpleEventBusInstance)
-{
-    simpleEventBusInstance.Subscribe<UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
-    simpleEventBusInstance.Subscribe<UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
-    simpleEventBusInstance.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
-    simpleEventBusInstance.Subscribe<PedidoFinalizadoEvent>(new PedidoFinalizadoEventHandler());
-    Console.WriteLine("✓ SimpleEventBus handlers registered");
-}
+// Register event handlers for cross-context communication
+var eventBus = new SimpleEventBus();
+builder.Services.AddSingleton<IEventBus>(eventBus);
+
+// Subscribe handlers to events
+// Subscribe both catalog and usuarios handlers explicitly to avoid ambiguous type references
+eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
+eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
+eventBus.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
+eventBus.Subscribe<PedidoFinalizadoEvent>(new PedidoFinalizadoEventHandler());
 
 // Authentication & email
 builder.Services.AddScoped<TheThroneOfGames.API.Services.AuthenticationService>();
@@ -85,6 +70,11 @@ builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Vendas.Application.Commands.CancelPurchaseCommand>, GameStore.Vendas.Application.Handlers.CancelPurchaseCommandHandler>();
 
 // Query Handlers - CQRS Pattern
+// Query Handlers - CQRS Pattern
+// NOTE: user Query types/handlers currently live under the separate folder `GameStore.Usuarios.Application` and
+// are not included in the `GameStore.Usuarios` project referenced by the API. Skip registering those handlers
+// here until those types are compiled into a referenced project. See docs/ for guidance.
+
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGameByIdQuery, GameStore.Catalogo.Application.DTOs.GameDTO?>, GameStore.Catalogo.Application.Queries.GetGameByIdQueryHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGameByNameQuery, GameStore.Catalogo.Application.DTOs.GameDTO?>, GameStore.Catalogo.Application.Queries.GetGameByNameQueryHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetAllGamesQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetAllGamesQueryHandler>();
@@ -100,7 +90,6 @@ builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.V
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchasesByDateRangeQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetPurchasesByDateRangeQueryHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetPurchasesByGameQuery, IEnumerable<GameStore.Vendas.Application.DTOs.PurchaseDTO>>, GameStore.Vendas.Application.Handlers.GetPurchasesByGameQueryHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Vendas.Application.Queries.GetSalesStatsQuery, GameStore.Vendas.Application.Queries.SalesStatsDTO>, GameStore.Vendas.Application.Handlers.GetSalesStatsQueryHandler>();
-#endregion
 
 
 // JWT Authentication
@@ -130,27 +119,30 @@ builder.Services.AddControllers(); // Adiciona suporte a controllers
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    // Opcional: Personalizar a documenta��o do Swagger
+    // Voc� pode adicionar informa��es sobre sua API aqui.
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "TheThroneOfGames API",
-        Version = "v1",
-        Description = "API para gerenciar usuários, catálogo de jogos e vendas.",
-        TermsOfService = new Uri("https://example.com/terms"),
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        Title = "Minha Super Minimal API", // T�tulo da sua API
+        Version = "v1", // Vers�o da API
+        Description = "Uma API de exemplo para gerenciar produtos e clientes.", // Descri��o
+        TermsOfService = new Uri("https://example.com/terms"), // Termos de Servi�o (opcional)
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact // Contato (opcional)
         {
-            Name = "Support",
-            Email = "support@example.com"
+            Name = "Seu Nome",
+            Email = "seu.email@example.com"
         },
-        License = new Microsoft.OpenApi.Models.OpenApiLicense
+        License = new Microsoft.OpenApi.Models.OpenApiLicense // Licen�a (opcional)
         {
-            Name = "MIT",
+            Name = "Licen�a MIT",
             Url = new Uri("https://opensource.org/licenses/MIT")
         }
-    });
 
+    });
+    // Add JWT Bearer authentication to Swagger (Authorize button)
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "Insira o token JWT no campo: 'Bearer {token}'",
+        Description = "Insira o token JWT no campo: 'Bearer {token}'\n\nExemplo: 'Bearer eyJhbGci...'.",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
@@ -175,19 +167,25 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
-
+// Configure o pipeline HTTP para usar Swagger
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
+    app.UseSwagger(); 
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TheThroneOfGames API v1"));
 }
 
 app.UseHttpsRedirection();
+
+// Global exception handling middleware
 app.UseMiddleware<TheThroneOfGames.API.Middleware.ExceptionMiddleware>();
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
 
-app.Run();
+app.MapControllers(); // Garante que os controllers sejam mapeados
+
+app.Run(); // Mantém a aplicação rodando
 
 public partial class Program { }
+
+

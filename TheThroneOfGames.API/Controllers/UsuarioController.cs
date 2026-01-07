@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
 using TheThroneOfGames.API.Models.DTO;
-using TheThroneOfGames.Application.Interface;
+using GameStore.Usuarios.Application.Interfaces;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -13,10 +13,10 @@ namespace TheThroneOfGames.API.Controllers
     public class UsuarioController : ControllerBase
     {
         private readonly IUsuarioService _userService;
-        private readonly Services.AuthenticationService _authService;
+        private readonly GameStore.Usuarios.Application.Services.AuthenticationService _authService;
         private readonly TheThroneOfGames.Infrastructure.ExternalServices.EmailService _emailService;
 
-        public UsuarioController(IUsuarioService userService, Services.AuthenticationService authService, TheThroneOfGames.Infrastructure.ExternalServices.EmailService emailService)
+        public UsuarioController(IUsuarioService userService, GameStore.Usuarios.Application.Services.AuthenticationService authService, TheThroneOfGames.Infrastructure.ExternalServices.EmailService emailService)
         {
             _userService = userService;
             _authService = authService;

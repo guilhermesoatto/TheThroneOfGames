@@ -1,9 +1,10 @@
 using GameStore.Usuarios.Domain.Interfaces;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Usuarios.Domain.Entities;
+using GameStore.Usuarios.Application.Interfaces;
 
-namespace GameStore.Usuarios.Application;
+namespace GameStore.Usuarios.Application.Services;
 
-public class UsuarioService
+public class UsuarioService : IUsuarioService
 {
     private readonly IUsuarioRepository _userRepository;
 

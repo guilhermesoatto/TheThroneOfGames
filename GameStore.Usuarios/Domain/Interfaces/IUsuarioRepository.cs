@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Usuarios.Domain.Entities;
 
 namespace GameStore.Usuarios.Domain.Interfaces
 {
