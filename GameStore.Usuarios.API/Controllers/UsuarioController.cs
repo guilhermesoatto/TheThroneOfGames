@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GameStore.Usuarios.Application.Interfaces;
-using TheThroneOfGames.Infrastructure.ExternalServices;
 using System.Text.RegularExpressions;
 
 namespace GameStore.Usuarios.API.Controllers
@@ -12,16 +11,13 @@ namespace GameStore.Usuarios.API.Controllers
     {
         private readonly IUsuarioService _usuarioService;
         private readonly GameStore.Usuarios.Application.Services.AuthenticationService _authService;
-        private readonly EmailService _emailService;
 
         public UsuarioController(
             IUsuarioService usuarioService, 
-            GameStore.Usuarios.Application.Services.AuthenticationService authService, 
-            EmailService emailService)
+            GameStore.Usuarios.Application.Services.AuthenticationService authService)
         {
             _usuarioService = usuarioService;
             _authService = authService;
-            _emailService = emailService;
         }
 
         /// <summary>
@@ -42,17 +38,9 @@ namespace GameStore.Usuarios.API.Controllers
             {
                 var activationToken = await _usuarioService.PreRegisterUserAsync(request.Email, request.Name, request.Password, request.Role ?? "User");
                 var activationLink = $"{Request.Scheme}://{Request.Host}/api/usuario/activate?activationToken={activationToken}";
-                var subject = "Ativação de conta - TheThroneOfGames";
-                var body = $"Olá {request.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
                 
-                try
-                {
-                    await _emailService.SendEmailAsync(request.Email, subject, body);
-                }
-                catch
-                {
-                    // Log email error but don't fail registration
-                }
+                // Note: Email service removed for microservice independence
+                // In production, implement async email via message queue
 
                 return Ok(new { message = "Usuário pré-registrado com sucesso! E-mail de ativação enviado.", activationToken });
             }

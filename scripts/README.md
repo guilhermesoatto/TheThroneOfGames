@@ -1,10 +1,214 @@
-# TheThroneOfGames Helper Scripts
+# Scripts de Automação - The Throne of Games
 
-This directory contains utility scripts for validating, testing, and deploying the TheThroneOfGames platform.
+Este diretório contém scripts PowerShell para automação de tarefas comuns do projeto.
 
 ## Available Scripts
 
-### 1. `helm-dryrun.ps1` — Helm Chart Validation (PowerShell)
+### 1. `run-local.ps1` — Gerenciamento do Ambiente Local (PowerShell)
+
+**Purpose**: Gerenciar ambiente Docker Compose completo com monitoramento.
+
+**Features**:
+- Inicia/para/reinicia todos os serviços Docker
+- 7 containers: SQL Server, RabbitMQ, Prometheus, Grafana, 3 APIs
+- Aguarda healthcheck dos serviços
+- Opção para carga automática de dados iniciais
+- Exibe URLs de acesso ao final
+
+**Prerequisites**:
+- PowerShell 5.1+ (Windows)
+- Docker Desktop instalado e em execução
+- docker-compose disponível
+
+**Usage**:
+
+```powershell
+# Iniciar todos os serviços
+.\run-local.ps1
+
+# Iniciar e carregar dados
+.\run-local.ps1 -LoadData
+
+# Parar todos os serviços
+.\run-local.ps1 -Action stop
+
+# Reiniciar ambiente
+.\run-local.ps1 -Action restart
+
+# Ver logs
+.\run-local.ps1 -Action logs
+
+# Verificar status
+.\run-local.ps1 -Action status
+```
+
+**Services**:
+- SQL Server (localhost:1433)
+- RabbitMQ (localhost:5672, management: localhost:15672)
+- Prometheus (localhost:9090)
+- Grafana (localhost:3000, admin/admin)
+- API Usuários (localhost:5001)
+- API Catálogo (localhost:5002)
+- API Vendas (localhost:5003)
+
+---
+
+### 2. `load-initial-data.ps1` — Carga de Dados Iniciais (PowerShell)
+
+**Purpose**: Popular banco de dados com dados de teste para desenvolvimento.
+
+**Features**:
+- Cria 5 usuários (1 admin + 4 clientes)
+- Cria 10 jogos variados
+- Cria 10 pedidos de teste
+- Ativa usuários automaticamente
+- Logs detalhados de progresso
+
+**Prerequisites**:
+- PowerShell 5.1+
+- Ambiente local rodando (run-local.ps1)
+- APIs acessíveis (portas 5001, 5002, 5003)
+
+**Usage**:
+
+```powershell
+# Executar carga de dados
+.\load-initial-data.ps1
+```
+
+**Credentials Created**:
+- Admin: admin@thethroneofgames.com / Admin@123
+- User1: user1@thethroneofgames.com / User@123
+- User2: user2@thethroneofgames.com / User@123
+- User3: user3@thethroneofgames.com / User@123
+- User4: user4@thethroneofgames.com / User@123
+
+---
+
+### 3. `load-test.ps1` — Teste de Carga Automatizado ⭐ (PowerShell)
+
+**Purpose**: Executar testes de performance com dados aleatórios e 100% de cobertura de endpoints.
+
+**Features**:
+- Gera dados aleatórios (usuários, jogos, pedidos)
+- Testa TODOS os 8 endpoints das 3 APIs
+- Coleta métricas detalhadas: latência, taxa de sucesso, P50/P95/P99
+- Testes concorrentes com múltiplas threads
+- Gera relatório completo em arquivo
+- Métricas individuais por endpoint
+
+**Prerequisites**:
+- PowerShell 5.1+
+- Ambiente local rodando (run-local.ps1)
+- APIs acessíveis e funcionais
+
+**Usage**:
+
+```powershell
+# Teste rápido (sanidade - 5/10/10)
+.\load-test.ps1 -NumUsuarios 5 -NumJogos 10 -NumPedidos 10 -ConcurrentUsers 2
+
+# Teste padrão (50/100/200)
+.\load-test.ps1
+
+# Teste com relatório
+.\load-test.ps1 -GenerateReport
+
+# Teste médio (100/200/500)
+.\load-test.ps1 -NumUsuarios 100 -NumJogos 200 -NumPedidos 500 -ConcurrentUsers 20 -GenerateReport
+
+# Teste de estresse (500/1000/2000)
+.\load-test.ps1 -NumUsuarios 500 -NumJogos 1000 -NumPedidos 2000 -ConcurrentUsers 50 -GenerateReport
+
+# Teste apenas leitura (sem criar dados)
+.\load-test.ps1 -SkipDataCreation -ConcurrentUsers 20
+```
+
+**Parameters**:
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `-NumUsuarios` | 50 | Número de usuários a criar |
+| `-NumJogos` | 100 | Número de jogos a criar |
+| `-NumPedidos` | 200 | Número de pedidos a criar |
+| `-ConcurrentUsers` | 10 | Threads concorrentes |
+| `-BaseUrlUsuarios` | http://localhost:5001 | URL da API de Usuários |
+| `-BaseUrlCatalogo` | http://localhost:5002 | URL da API de Catálogo |
+| `-BaseUrlVendas` | http://localhost:5003 | URL da API de Vendas |
+| `-SkipDataCreation` | false | Pula criação de dados |
+| `-GenerateReport` | false | Gera arquivo de relatório |
+
+**Endpoint Coverage (100%)**:
+| API | Method | Endpoint |
+|-----|--------|----------|
+| Usuarios | POST | /api/Usuario/pre-register |
+| Usuarios | POST | /api/Usuario/activate |
+| Usuarios | POST | /api/Usuario/login |
+| Catalogo | POST | /api/Game |
+| Catalogo | GET | /api/Game |
+| Catalogo | GET | /api/Game/{id} |
+| Vendas | POST | /api/Pedido |
+| Vendas | GET | /api/Pedido |
+
+**Metrics Collected**:
+- Total requests, success/failure rate
+- Response times: min, avg, max
+- Percentiles: P50, P95, P99
+- Per-endpoint breakdown
+
+**Example Output**:
+```
+======================================================================
+                    RELATORIO DE TESTE DE CARGA
+======================================================================
+
+METRICAS GERAIS:
+  Total de requisicoes: 1247
+  Requisicoes bem-sucedidas: 1198 (96.07%)
+  Requisicoes falhadas: 49 (3.93%)
+
+TEMPOS DE RESPOSTA:
+  Minimo: 23.45 ms
+  Medio: 156.78 ms
+  Maximo: 2345.67 ms
+  P50 (Mediana): 134.23 ms
+  P95: 478.90 ms
+  P99: 1234.56 ms
+
+METRICAS POR ENDPOINT:
+Endpoint              Total Success Failed Success % Avg (ms) P95 (ms)
+--------              ----- ------- ------ ---------- -------- --------
+Usuario/PreRegister      50      48      2       96.0   178.45   345.67
+Usuario/Activate         50      48      2       96.0   123.89   289.12
+Usuario/Login            48      47      1       97.9    89.34   156.78
+Game/Create             100      98      2       98.0   234.56   567.89
+Game/List                20      20      0      100.0    67.89   123.45
+Game/GetById             30      30      0      100.0    56.78   101.23
+Pedido/Create           200     192      8       96.0   289.45   789.01
+```
+
+**Interpreting Results**:
+- **Success Rate**: >95% excellent, 90-95% good, <90% investigate
+- **Avg Time**: <200ms optimal, 200-500ms acceptable, >500ms attention needed
+- **P95**: <500ms optimal, 500-1000ms acceptable, >1000ms problem
+- **P99**: <1000ms optimal, 1000-2000ms acceptable, >2000ms critical
+
+---
+
+### 4. `load-test-example.ps1` — Guia de Uso do Load Test (PowerShell)
+
+**Purpose**: Exibir exemplos de uso e interpretação de resultados do load-test.
+
+**Usage**:
+
+```powershell
+.\load-test-example.ps1
+```
+
+**Output**: Mostra exemplos de comandos, interpretação de métricas, cobertura de endpoints e próximos passos.
+
+---
+
+### 5. `helm-dryrun.ps1` — Helm Chart Validation (PowerShell)
 
 **Purpose**: Validate the Helm chart locally before deploying to a Kubernetes cluster.
 
