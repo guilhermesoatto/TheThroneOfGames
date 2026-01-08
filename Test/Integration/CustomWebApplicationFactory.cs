@@ -22,18 +22,17 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
     {
         builder.ConfigureServices(services =>
         {
-            // Remove ALL Entity Framework services to avoid provider conflicts
+            // Remove only DbContext registrations
             var descriptorsToRemove = services
-                .Where(d => d.ServiceType.FullName != null && 
-                           (d.ServiceType.FullName.Contains("Microsoft.EntityFrameworkCore") ||
-                            d.ServiceType == typeof(MainDbContext) ||
-                            d.ServiceType == typeof(UsuariosDbContext) ||
-                            d.ServiceType == typeof(CatalogoDbContext) ||
-                            d.ServiceType == typeof(VendasDbContext) ||
-                            d.ServiceType == typeof(DbContextOptions<MainDbContext>) ||
-                            d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>) ||
-                            d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>) ||
-                            d.ServiceType == typeof(DbContextOptions<VendasDbContext>)))
+                .Where(d => 
+                    d.ServiceType == typeof(DbContextOptions<MainDbContext>) ||
+                    d.ServiceType == typeof(MainDbContext) ||
+                    d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>) ||
+                    d.ServiceType == typeof(UsuariosDbContext) ||
+                    d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>) ||
+                    d.ServiceType == typeof(CatalogoDbContext) ||
+                    d.ServiceType == typeof(DbContextOptions<VendasDbContext>) ||
+                    d.ServiceType == typeof(VendasDbContext))
                 .ToList();
                 
             foreach (var descriptor in descriptorsToRemove)
@@ -54,25 +53,29 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             _connectionVendas = new SqliteConnection("DataSource=:memory:");
             _connectionVendas.Open();
 
-            // Add all DbContexts with SQLite in-memory provider
-            services.AddDbContext<MainDbContext>(options =>
+            // Add all DbContexts with isolated SQLite provider to avoid conflicts
+            services.AddDbContext<MainDbContext>((sp, options) =>
             {
-                options.UseSqlite(_connectionMain);
+                options.UseSqlite(_connectionMain)
+                       .UseInternalServiceProvider(null); // Use isolated provider
             });
             
-            services.AddDbContext<UsuariosDbContext>(options =>
+            services.AddDbContext<UsuariosDbContext>((sp, options) =>
             {
-                options.UseSqlite(_connectionUsuarios);
+                options.UseSqlite(_connectionUsuarios)
+                       .UseInternalServiceProvider(null);
             });
             
-            services.AddDbContext<CatalogoDbContext>(options =>
+            services.AddDbContext<CatalogoDbContext>((sp, options) =>
             {
-                options.UseSqlite(_connectionCatalogo);
+                options.UseSqlite(_connectionCatalogo)
+                       .UseInternalServiceProvider(null);
             });
             
-            services.AddDbContext<VendasDbContext>(options =>
+            services.AddDbContext<VendasDbContext>((sp, options) =>
             {
-                options.UseSqlite(_connectionVendas);
+                options.UseSqlite(_connectionVendas)
+                       .UseInternalServiceProvider(null);
             });
 
             // Build the service provider and ensure all DBs are created
