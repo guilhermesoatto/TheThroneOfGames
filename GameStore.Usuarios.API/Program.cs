@@ -6,6 +6,9 @@ using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on port 80
+builder.WebHost.UseUrls("http://*:80");
+
 // Add configuration
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
