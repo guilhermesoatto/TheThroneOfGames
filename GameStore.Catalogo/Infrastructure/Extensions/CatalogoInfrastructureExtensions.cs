@@ -12,7 +12,7 @@ namespace GameStore.Catalogo.Infrastructure.Extensions
     {
         public static IServiceCollection AddCatalogoContext(this IServiceCollection services, string connectionString)
         {
-            // Register DbContext
+            // Register DbContext - sempre usar SQL Server
             services.AddDbContext<CatalogoDbContext>(options =>
                 options.UseSqlServer(connectionString));
 

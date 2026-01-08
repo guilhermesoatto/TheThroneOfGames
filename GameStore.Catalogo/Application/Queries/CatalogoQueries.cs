@@ -1,7 +1,7 @@
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
-using TheThroneOfGames.Domain.Entities;
-using TheThroneOfGames.Domain.Interfaces;
+using GameStore.Catalogo.Domain.Entities;
+using GameStore.Catalogo.Domain.Interfaces;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Catalogo.Application.Queries
@@ -46,19 +46,19 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class GetGameByIdQueryHandler : IQueryHandler<GetGameByIdQuery, GameDTO?>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GetGameByIdQueryHandler(IGameRepository gameRepository)
+        public GetGameByIdQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<GameDTO?> HandleAsync(GetGameByIdQuery query)
         {
             try
             {
-                var game = await _gameRepository.GetByIdAsync(query.GameId);
-                return game != null ? GameMapper.ToDTO(game) : null;
+                var jogo = await _jogoRepository.GetByIdAsync(query.GameId);
+                return jogo != null ? GameMapper.ToDTO(jogo) : null;
             }
             catch
             {
@@ -72,19 +72,20 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class GetGameByNameQueryHandler : IQueryHandler<GetGameByNameQuery, GameDTO?>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GetGameByNameQueryHandler(IGameRepository gameRepository)
+        public GetGameByNameQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<GameDTO?> HandleAsync(GetGameByNameQuery query)
         {
             try
             {
-                var game = await _gameRepository.GetByNameAsync(query.Name);
-                return game != null ? GameMapper.ToDTO(game) : null;
+                var jogos = await _jogoRepository.GetByNomeAsync(query.Name);
+                var jogo = jogos.FirstOrDefault();
+                return jogo != null ? GameMapper.ToDTO(jogo) : null;
             }
             catch
             {
@@ -98,19 +99,19 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class GetAllGamesQueryHandler : IQueryHandler<GetAllGamesQuery, IEnumerable<GameDTO>>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GetAllGamesQueryHandler(IGameRepository gameRepository)
+        public GetAllGamesQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<IEnumerable<GameDTO>> HandleAsync(GetAllGamesQuery query)
         {
             try
             {
-                var games = await _gameRepository.GetAllAsync();
-                return GameMapper.ToDTOList(games);
+                var jogos = await _jogoRepository.GetAllAsync();
+                return GameMapper.ToDTOList(jogos);
             }
             catch
             {
@@ -124,19 +125,19 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class GetGamesByGenreQueryHandler : IQueryHandler<GetGamesByGenreQuery, IEnumerable<GameDTO>>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GetGamesByGenreQueryHandler(IGameRepository gameRepository)
+        public GetGamesByGenreQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<IEnumerable<GameDTO>> HandleAsync(GetGamesByGenreQuery query)
         {
             try
             {
-                var games = await _gameRepository.GetByGenreAsync(query.Genre);
-                return GameMapper.ToDTOList(games);
+                var jogos = await _jogoRepository.GetByGeneroAsync(query.Genre);
+                return GameMapper.ToDTOList(jogos);
             }
             catch
             {
@@ -150,19 +151,19 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class GetAvailableGamesQueryHandler : IQueryHandler<GetAvailableGamesQuery, IEnumerable<GameDTO>>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GetAvailableGamesQueryHandler(IGameRepository gameRepository)
+        public GetAvailableGamesQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<IEnumerable<GameDTO>> HandleAsync(GetAvailableGamesQuery query)
         {
             try
             {
-                var games = await _gameRepository.GetAvailableGamesAsync();
-                return GameMapper.ToDTOList(games);
+                var jogos = await _jogoRepository.GetDisponiveisAsync();
+                return GameMapper.ToDTOList(jogos);
             }
             catch
             {
@@ -176,19 +177,19 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class GetGamesByPriceRangeQueryHandler : IQueryHandler<GetGamesByPriceRangeQuery, IEnumerable<GameDTO>>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GetGamesByPriceRangeQueryHandler(IGameRepository gameRepository)
+        public GetGamesByPriceRangeQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<IEnumerable<GameDTO>> HandleAsync(GetGamesByPriceRangeQuery query)
         {
             try
             {
-                var games = await _gameRepository.GetByPriceRangeAsync(query.MinPrice, query.MaxPrice);
-                return GameMapper.ToDTOList(games);
+                var jogos = await _jogoRepository.GetByFaixaPrecoAsync(query.MinPrice, query.MaxPrice);
+                return GameMapper.ToDTOList(jogos);
             }
             catch
             {
@@ -202,19 +203,24 @@ namespace GameStore.Catalogo.Application.Queries
     /// </summary>
     public class SearchGamesQueryHandler : IQueryHandler<SearchGamesQuery, IEnumerable<GameDTO>>
     {
-        private readonly IGameRepository _gameRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public SearchGamesQueryHandler(IGameRepository gameRepository)
+        public SearchGamesQueryHandler(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
+            _jogoRepository = jogoRepository;
         }
 
         public async Task<IEnumerable<GameDTO>> HandleAsync(SearchGamesQuery query)
         {
             try
             {
-                var games = await _gameRepository.SearchGamesAsync(query.SearchTerm);
-                return GameMapper.ToDTOList(games);
+                // Buscar por nome e por gênero
+                var jogosPorNome = await _jogoRepository.GetByNomeAsync(query.SearchTerm);
+                var jogosPorGenero = await _jogoRepository.GetByGeneroAsync(query.SearchTerm);
+                
+                // Combinar e remover duplicados
+                var jogos = jogosPorNome.Union(jogosPorGenero).Distinct();
+                return GameMapper.ToDTOList(jogos);
             }
             catch
             {

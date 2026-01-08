@@ -1,56 +1,53 @@
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Domain.Entities;
-using TheThroneOfGames.Domain.Entities;
 
 namespace GameStore.Catalogo.Application.Mappers
 {
     /// <summary>
-    /// Mapper para converter entre GameEntity (monolith) e GameDTO.
-    /// Também mapeia para JogoDTO (entidade local) quando necessário.
+    /// Mapper para converter entre Jogo (bounded context) e GameDTO.
     /// Responsável por mapeamentos bidirecionais mantendo a integridade dos dados.
     /// </summary>
     public static class GameMapper
     {
         /// <summary>
-        /// Converte um GameEntity para GameDTO.
+        /// Converte um Jogo para GameDTO.
         /// </summary>
-        public static GameDTO ToDTO(GameEntity game)
+        public static GameDTO ToDTO(Jogo jogo)
         {
-            if (game == null)
-                throw new ArgumentNullException(nameof(game));
+            if (jogo == null)
+                throw new ArgumentNullException(nameof(jogo));
 
             return new GameDTO
             {
-                Id = game.Id,
-                Name = game.Name,
-                Genre = game.Genre,
-                Price = game.Price,
-                Description = game.Description,
-                IsAvailable = game.IsAvailable,
-                CreatedAt = game.CreatedAt,
-                UpdatedAt = game.UpdatedAt
+                Id = jogo.Id,
+                Name = jogo.Nome,
+                Genre = jogo.Genero,
+                Price = jogo.Preco,
+                Description = jogo.Descricao,
+                IsAvailable = jogo.Disponivel,
+                CreatedAt = jogo.DataLancamento, // Usando DataLancamento como CreatedAt
+                UpdatedAt = jogo.DataLancamento
             };
         }
 
         /// <summary>
-        /// Converte um GameDTO para GameEntity.
+        /// Converte um GameDTO para Jogo.
         /// </summary>
-        public static GameEntity FromDTO(GameDTO dto)
+        public static Jogo FromDTO(GameDTO dto)
         {
             if (dto == null)
                 throw new ArgumentNullException(nameof(dto));
 
-            return new GameEntity
-            {
-                Id = dto.Id,
-                Name = dto.Name,
-                Genre = dto.Genre,
-                Price = dto.Price,
-                Description = dto.Description,
-                IsAvailable = dto.IsAvailable,
-                CreatedAt = dto.CreatedAt,
-                UpdatedAt = dto.UpdatedAt
-            };
+            return new Jogo(
+                nome: dto.Name,
+                descricao: dto.Description ?? "Sem descrição",
+                preco: dto.Price,
+                genero: dto.Genre,
+                desenvolvedora: "Unknown", // Valor padrão
+                dataLancamento: dto.CreatedAt,
+                imagemUrl: "", // Valor padrão
+                estoque: 100 // Valor padrão
+            );
         }
 
         /// <summary>
@@ -93,14 +90,14 @@ namespace GameStore.Catalogo.Application.Mappers
         }
 
         /// <summary>
-        /// Converte uma coleção de GameEntities para uma coleção de GameDTOs.
+        /// Converte uma coleção de Jogos para uma coleção de GameDTOs.
         /// </summary>
-        public static IEnumerable<GameDTO> ToDTOList(IEnumerable<GameEntity>? games)
+        public static IEnumerable<GameDTO> ToDTOList(IEnumerable<Jogo>? jogos)
         {
-            if (games == null)
+            if (jogos == null)
                 return Enumerable.Empty<GameDTO>();
 
-            return games.Select(g => ToDTO(g) ?? new GameDTO()).ToList();
+            return jogos.Select(g => ToDTO(g) ?? new GameDTO()).ToList();
         }
 
         /// <summary>

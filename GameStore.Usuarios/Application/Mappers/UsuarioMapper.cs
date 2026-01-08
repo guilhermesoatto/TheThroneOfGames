@@ -1,5 +1,5 @@
 using GameStore.Usuarios.Application.DTOs;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Usuarios.Domain.Entities;
 using System.Linq;
 using System.Collections.Generic;
 using System;

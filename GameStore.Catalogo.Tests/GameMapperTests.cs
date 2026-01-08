@@ -1,24 +1,33 @@
 using NUnit.Framework;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Catalogo.Domain.Entities;
 using System;
+using System.Linq;
 
 namespace GameStore.Catalogo.Tests
 {
     public class GameMapperTests
     {
+        private Jogo CreateTestJogo(string nome = "Test Game", decimal preco = 49.99m, string genero = "Strategy")
+        {
+            return new Jogo(
+                nome: nome,
+                descricao: "Descrição de teste",
+                preco: preco,
+                genero: genero,
+                desenvolvedora: "Test Developer",
+                dataLancamento: DateTime.UtcNow,
+                imagemUrl: "http://test.com/image.jpg",
+                estoque: 100
+            );
+        }
+
         [Test]
-        public void GameMapper_ToDTO_Converts_GameEntity_To_GameDTO()
+        public void GameMapper_ToDTO_Converts_Jogo_To_GameDTO()
         {
             // Arrange
-            var game = new GameEntity
-            {
-                Id = Guid.NewGuid(),
-                Name = "The Throne of Games",
-                Genre = "Strategy",
-                Price = 49.99m
-            };
+            var game = CreateTestJogo("The Throne of Games", 49.99m, "Strategy");
 
             // Act
             var dto = GameMapper.ToDTO(game);
@@ -32,7 +41,7 @@ namespace GameStore.Catalogo.Tests
         }
 
         [Test]
-        public void GameMapper_FromDTO_Converts_GameDTO_To_GameEntity()
+        public void GameMapper_FromDTO_Converts_GameDTO_To_Jogo()
         {
             // Arrange
             var gameId = Guid.NewGuid();
@@ -51,16 +60,16 @@ namespace GameStore.Catalogo.Tests
 
             // Assert
             Assert.AreEqual(gameId, game.Id);
-            Assert.AreEqual("Elden Ring", game.Name);
-            Assert.AreEqual("RPG", game.Genre);
-            Assert.AreEqual(59.99m, game.Price);
+            Assert.AreEqual("Elden Ring", game.Nome);
+            Assert.AreEqual("RPG", game.Genero);
+            Assert.AreEqual(59.99m, game.Preco);
         }
 
         [Test]
-        public void GameMapper_ToDTO_Throws_With_Null_GameEntity()
+        public void GameMapper_ToDTO_Throws_With_Null_Jogo()
         {
             // Act & Assert
-            GameEntity? nullGame = null;
+            Jogo? nullGame = null;
             Assert.Throws<ArgumentNullException>(() => GameMapper.ToDTO(nullGame!));
         }
 
@@ -78,9 +87,9 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var games = new[]
             {
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 1", Genre = "Action", Price = 39.99m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 2", Genre = "Adventure", Price = 49.99m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 3", Genre = "Puzzle", Price = 19.99m }
+                CreateTestJogo("Game 1", 39.99m, "Action"),
+                CreateTestJogo("Game 2", 49.99m, "Adventure"),
+                CreateTestJogo("Game 3", 19.99m, "Puzzle")
             };
 
             // Act
@@ -94,3 +103,4 @@ namespace GameStore.Catalogo.Tests
         }
     }
 }
+

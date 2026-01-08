@@ -2,10 +2,10 @@ using GameStore.Usuarios.Application.Commands;
 using GameStore.Usuarios.Application.Validators;
 using GameStore.Usuarios.Application.DTOs;
 using GameStore.Usuarios.Application.Mappers;
-using TheThroneOfGames.Domain.Entities;
-using TheThroneOfGames.Domain.Interfaces;
+using GameStore.Usuarios.Domain.Entities;
+using GameStore.Usuarios.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Persistence;
+using GameStore.Usuarios.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using GameStore.CQRS.Abstractions;
 

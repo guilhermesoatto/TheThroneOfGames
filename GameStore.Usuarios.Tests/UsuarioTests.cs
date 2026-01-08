@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using GameStore.Usuarios.Application.DTOs;
 using GameStore.Usuarios.Application.Mappers;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Usuarios.Domain.Entities;
 using System;
 
 namespace GameStore.Usuarios.Tests
@@ -221,3 +221,4 @@ namespace GameStore.Usuarios.Tests
         }
     }
 }
+

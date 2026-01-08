@@ -2,7 +2,7 @@ using NUnit.Framework;
 using Moq;
 using GameStore.Usuarios.Application.Mappers;
 using GameStore.Usuarios.Application.DTOs;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Usuarios.Domain.Entities;
 
 namespace GameStore.Usuarios.Tests
 {
@@ -147,3 +147,4 @@ namespace GameStore.Usuarios.Tests
         #endregion
     }
 }
+

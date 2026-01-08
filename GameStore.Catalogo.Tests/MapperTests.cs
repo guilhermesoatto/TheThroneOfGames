@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Catalogo.Domain.Entities;
 
 namespace GameStore.Catalogo.Tests
 {
@@ -14,7 +14,7 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_ToDTO_ValidGame_ShouldMapCorrectly()
         {
             // Arrange
-            var game = new GameEntity
+            var game = new Jogo
             {
                 Id = Guid.NewGuid(),
                 Name = "Test Game",
@@ -45,7 +45,7 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_ToDTO_NullGame_ShouldThrowArgumentNullException()
         {
             // Arrange
-            GameEntity game = null!;
+            Jogo game = null!;
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() => GameMapper.ToDTO(game));
@@ -55,9 +55,9 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_ToDTOList_ValidList_ShouldMapCorrectly()
         {
             // Arrange
-            var games = new List<GameEntity>
+            var games = new List<Jogo>
             {
-                new GameEntity
+                new Jogo
                 {
                     Id = Guid.NewGuid(),
                     Name = "Action Game",
@@ -65,7 +65,7 @@ namespace GameStore.Catalogo.Tests
                     Price = 59.99m,
                     IsAvailable = true
                 },
-                new GameEntity
+                new Jogo
                 {
                     Id = Guid.NewGuid(),
                     Name = "RPG Game",
@@ -99,7 +99,7 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_ToDTOList_EmptyList_ShouldReturnEmpty()
         {
             // Arrange
-            var games = new List<GameEntity>();
+            var games = new List<Jogo>();
 
             // Act
             var result = GameMapper.ToDTOList(games);
@@ -113,7 +113,7 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_ToDTOList_NullList_ShouldReturnEmpty()
         {
             // Arrange
-            List<GameEntity> games = null!;
+            List<Jogo> games = null!;
 
             // Act
             var result = GameMapper.ToDTOList(games);
@@ -173,3 +173,4 @@ namespace GameStore.Catalogo.Tests
         #endregion
     }
 }
+

@@ -12,7 +12,7 @@ namespace GameStore.Usuarios.Infrastructure.Extensions
     {
         public static IServiceCollection AddUsuariosContext(this IServiceCollection services, string connectionString)
         {
-            // Register DbContext
+            // Register DbContext - sempre usar SQL Server
             services.AddDbContext<UsuariosDbContext>(options =>
                 options.UseSqlServer(connectionString));
 

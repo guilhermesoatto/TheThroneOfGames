@@ -4,9 +4,9 @@ using GameStore.Catalogo.Application.Commands;
 using GameStore.Catalogo.Application.Handlers;
 using GameStore.Catalogo.Application.Validators;
 using GameStore.Catalogo.Application.DTOs;
-using TheThroneOfGames.Domain.Interfaces;
+using GameStore.Catalogo.Domain.Interfaces;
+using GameStore.Catalogo.Domain.Entities;
 using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Domain.Entities;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Catalogo.Tests
@@ -14,14 +14,28 @@ namespace GameStore.Catalogo.Tests
     [TestFixture]
     public class CommandHandlerTests
     {
-        private Mock<IGameRepository> _mockGameRepository = null!;
+        private Mock<IJogoRepository> _mockJogoRepository = null!;
         private Mock<IEventBus> _mockEventBus = null!;
 
         [SetUp]
         public void Setup()
         {
-            _mockGameRepository = new Mock<IGameRepository>();
+            _mockJogoRepository = new Mock<IJogoRepository>();
             _mockEventBus = new Mock<IEventBus>();
+        }
+        
+        private Jogo CreateTestJogo(string nome = "Test Game", decimal preco = 59.99m, string genero = "Action")
+        {
+            return new Jogo(
+                nome: nome,
+                descricao: "Descrição de teste",
+                preco: preco,
+                genero: genero,
+                desenvolvedora: "Test Developer",
+                dataLancamento: DateTime.UtcNow,
+                imagemUrl: "http://test.com/image.jpg",
+                estoque: 100
+            );
         }
 
         #region CreateGameCommandHandler Tests
@@ -31,11 +45,11 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var command = new CreateGameCommand("Test Game", "Action", 59.99m, "Test Description");
-            var handler = new CreateGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new CreateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByNameAsync("Test Game"))
-                .ReturnsAsync((GameEntity?)null);
-            _mockGameRepository.Setup(r => r.AddAsync(It.IsAny<GameEntity>()))
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("Test Game"))
+                .ReturnsAsync(new List<Jogo>());
+            _mockJogoRepository.Setup(r => r.AddAsync(It.IsAny<Jogo>()))
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -48,28 +62,21 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Data, Is.Not.Null);
             Assert.That(((GameDTO)result.Data!).Name, Is.EqualTo("Test Game"));
 
-            _mockGameRepository.Verify(r => r.AddAsync(It.Is<GameEntity>(
-                g => g.Name == "Test Game" && g.Genre == "Action" && g.Price == 59.99m)), Times.Once);
+            _mockJogoRepository.Verify(r => r.AddAsync(It.Is<Jogo>(
+                j => j.Nome == "Test Game" && j.Genero == "Action" && j.Preco == 59.99m)), Times.Once);
         }
 
         [Test]
         public async Task CreateGameCommandHandler_GameAlreadyExists_ShouldReturnError()
         {
             // Arrange
-            var existingGame = new GameEntity
-            {
-                Id = Guid.NewGuid(),
-                Name = "Test Game",
-                Genre = "Action",
-                Price = 49.99m,
-                IsAvailable = true
-            };
+            var existingGame = CreateTestJogo("Test Game");
 
             var command = new CreateGameCommand("Test Game", "Action", 59.99m);
-            var handler = new CreateGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new CreateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByNameAsync("Test Game"))
-                .ReturnsAsync(existingGame);
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("Test Game"))
+                .ReturnsAsync(new List<Jogo> { existingGame });
 
             // Act
             var result = await handler.HandleAsync(command);
@@ -79,7 +86,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Message, Is.EqualTo("Jogo já existe"));
             Assert.That(result.Errors, Contains.Item("Jogo 'Test Game' já está cadastrado"));
 
-            _mockGameRepository.Verify(r => r.AddAsync(It.IsAny<GameEntity>()), Times.Never);
+            _mockJogoRepository.Verify(r => r.AddAsync(It.IsAny<Jogo>()), Times.Never);
         }
 
         [Test]
@@ -87,7 +94,7 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var command = new CreateGameCommand("Test Game", "Action", -10m);
-            var handler = new CreateGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new CreateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
             // Act
             var result = await handler.HandleAsync(command);
@@ -97,7 +104,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Message, Is.EqualTo("Validação falhou"));
             Assert.That(result.Errors, Contains.Item("Preço deve ser maior que zero."));
 
-            _mockGameRepository.Verify(r => r.GetByNameAsync(It.IsAny<string>()), Times.Never);
+            _mockJogoRepository.Verify(r => r.GetByNomeAsync(It.IsAny<string>()), Times.Never);
         }
 
         #endregion
@@ -109,23 +116,16 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var gameId = Guid.NewGuid();
-            var existingGame = new GameEntity
-            {
-                Id = gameId,
-                Name = "Old Name",
-                Genre = "RPG",
-                Price = 49.99m,
-                IsAvailable = true
-            };
+            var existingGame = CreateTestJogo();
 
             var command = new UpdateGameCommand(gameId, "New Name", "Action", 59.99m, "Updated Description");
-            var handler = new UpdateGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new UpdateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
                 .ReturnsAsync(existingGame);
-            _mockGameRepository.Setup(r => r.GetByNameAsync("New Name"))
-                .ReturnsAsync((GameEntity?)null);
-            _mockGameRepository.Setup(r => r.UpdateAsync(It.IsAny<GameEntity>()))
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("New Name"))
+                .ReturnsAsync((Jogo?)null);
+            _mockJogoRepository.Setup(r => r.UpdateAsync(It.IsAny<Jogo>()))
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -140,7 +140,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(existingGame.Price, Is.EqualTo(59.99m));
             Assert.That(existingGame.Description, Is.EqualTo("Updated Description"));
 
-            _mockGameRepository.Verify(r => r.UpdateAsync(It.Is<GameEntity>(
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.Is<Jogo>(
                 g => g.Name == "New Name" && g.Genre == "Action")), Times.Once);
         }
 
@@ -150,10 +150,10 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var gameId = Guid.NewGuid();
             var command = new UpdateGameCommand(gameId, "New Name", "Action", 59.99m);
-            var handler = new UpdateGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new UpdateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
-                .ReturnsAsync((GameEntity?)null);
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync((Jogo?)null);
 
             // Act
             var result = await handler.HandleAsync(command);
@@ -163,7 +163,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Message, Is.EqualTo("Jogo não encontrado"));
             Assert.That(result.Errors, Contains.Item($"Jogo com ID {gameId} não encontrado"));
 
-            _mockGameRepository.Verify(r => r.UpdateAsync(It.IsAny<GameEntity>()), Times.Never);
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
         }
 
         [Test]
@@ -171,15 +171,15 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var gameId = Guid.NewGuid();
-            var existingGame = new GameEntity { Id = gameId, Name = "Game 1", Genre = "RPG", Price = 49.99m };
-            var otherGame = new GameEntity { Id = Guid.NewGuid(), Name = "Game 2", Genre = "Action", Price = 59.99m };
+            var existingGame = CreateTestJogo();
+            var otherGame = CreateTestJogo();
 
             var command = new UpdateGameCommand(gameId, "Game 2", "Action", 59.99m);
-            var handler = new UpdateGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new UpdateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
                 .ReturnsAsync(existingGame);
-            _mockGameRepository.Setup(r => r.GetByNameAsync("Game 2"))
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("Game 2"))
                 .ReturnsAsync(otherGame);
 
             // Act
@@ -190,7 +190,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Message, Is.EqualTo("Nome já está em uso"));
             Assert.That(result.Errors, Contains.Item("Jogo 'Game 2' já está cadastrado com outro ID"));
 
-            _mockGameRepository.Verify(r => r.UpdateAsync(It.IsAny<GameEntity>()), Times.Never);
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
         }
 
         #endregion
@@ -202,23 +202,16 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var gameId = Guid.NewGuid();
-            var existingGame = new GameEntity
-            {
-                Id = gameId,
-                Name = "Test Game",
-                Genre = "Action",
-                Price = 59.99m,
-                IsAvailable = true
-            };
+            var existingGame = CreateTestJogo();
 
             var command = new RemoveGameCommand(gameId);
-            var handler = new RemoveGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new RemoveGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
                 .ReturnsAsync(existingGame);
-            _mockGameRepository.Setup(r => r.HasActivePurchasesAsync(gameId))
+            _mockJogoRepository.Setup(r => r.HasActivePurchasesAsync(gameId))
                 .ReturnsAsync(false);
-            _mockGameRepository.Setup(r => r.UpdateAsync(It.IsAny<GameEntity>()))
+            _mockJogoRepository.Setup(r => r.UpdateAsync(It.IsAny<Jogo>()))
                 .Returns(Task.CompletedTask);
 
             // Act
@@ -230,7 +223,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.EntityId, Is.EqualTo(gameId));
             Assert.That(existingGame.IsAvailable, Is.False); // Soft delete
 
-            _mockGameRepository.Verify(r => r.UpdateAsync(It.Is<GameEntity>(g => !g.IsAvailable)), Times.Once);
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.Is<Jogo>(g => !g.IsAvailable)), Times.Once);
         }
 
         [Test]
@@ -239,10 +232,10 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var gameId = Guid.NewGuid();
             var command = new RemoveGameCommand(gameId);
-            var handler = new RemoveGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new RemoveGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
-                .ReturnsAsync((GameEntity?)null);
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync((Jogo?)null);
 
             // Act
             var result = await handler.HandleAsync(command);
@@ -252,7 +245,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Message, Is.EqualTo("Jogo não encontrado"));
             Assert.That(result.Errors, Contains.Item($"Jogo com ID {gameId} não encontrado"));
 
-            _mockGameRepository.Verify(r => r.UpdateAsync(It.IsAny<GameEntity>()), Times.Never);
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
         }
 
         [Test]
@@ -260,21 +253,14 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var gameId = Guid.NewGuid();
-            var existingGame = new GameEntity
-            {
-                Id = gameId,
-                Name = "Test Game",
-                Genre = "Action",
-                Price = 59.99m,
-                IsAvailable = true
-            };
+            var existingGame = CreateTestJogo();
 
             var command = new RemoveGameCommand(gameId);
-            var handler = new RemoveGameCommandHandler(_mockGameRepository.Object, _mockEventBus.Object);
+            var handler = new RemoveGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
                 .ReturnsAsync(existingGame);
-            _mockGameRepository.Setup(r => r.HasActivePurchasesAsync(gameId))
+            _mockJogoRepository.Setup(r => r.HasActivePurchasesAsync(gameId))
                 .ReturnsAsync(true);
 
             // Act
@@ -285,7 +271,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Message, Is.EqualTo("Jogo não pode ser removido"));
             Assert.That(result.Errors, Contains.Item("Jogo possui compras ativas e não pode ser removido"));
 
-            _mockGameRepository.Verify(r => r.UpdateAsync(It.IsAny<GameEntity>()), Times.Never);
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
         }
 
         #endregion
@@ -379,3 +365,5 @@ namespace GameStore.Catalogo.Tests
         #endregion
     }
 }
+
+

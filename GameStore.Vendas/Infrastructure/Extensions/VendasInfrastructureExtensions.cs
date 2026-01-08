@@ -13,7 +13,7 @@ namespace GameStore.Vendas.Infrastructure.Extensions
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            // DbContext
+            // DbContext - sempre usar SQL Server
             services.AddDbContext<VendasDbContext>(options =>
                 options.UseSqlServer(
                     configuration.GetConnectionString("VendasConnection") ??

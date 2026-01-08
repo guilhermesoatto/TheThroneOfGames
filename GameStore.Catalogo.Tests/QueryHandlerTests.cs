@@ -3,21 +3,34 @@ using Moq;
 using GameStore.Catalogo.Application.Queries;
 using GameStore.Catalogo.Application.Handlers;
 using GameStore.Catalogo.Application.DTOs;
-using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Catalogo.Domain.Interfaces;
+using GameStore.Catalogo.Domain.Entities;
 using GameStore.CQRS.Abstractions;
 
-namespace GameStore.Catalogo.Tests
-{
-    [TestFixture]
-    public class QueryHandlerTests
+namespace GameStore.Catalogo.Tests{[TestFixture]public class QueryHandlerTests
     {
-        private Mock<IGameRepository> _mockGameRepository = null!;
+        private Jogo CreateTestJogo(string nome = "Test Game", decimal preco = 49.99m, string genero = "Strategy", int estoque = 100, bool? disponivel = null)
+        {
+            var jogo = new Jogo(
+                nome: nome,
+                descricao: "Descrição de teste",
+                preco: preco,
+                genero: genero,
+                desenvolvedora: "Test Developer",
+                dataLancamento: DateTime.UtcNow,
+                imagemUrl: "http://test.com/image.jpg",
+                estoque: estoque
+            );
+            if (disponivel.HasValue && !disponivel.Value) { jogo.Indisponibilizar(); }
+            return jogo;
+        }
+
+        private Mock<IJogoRepository> _mockJogoRepository = null!;
 
         [SetUp]
         public void Setup()
         {
-            _mockGameRepository = new Mock<IGameRepository>();
+            _mockJogoRepository = new Mock<IJogoRepository>();
         }
 
         #region GetGameByIdQueryHandler Tests
@@ -27,7 +40,7 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var gameId = Guid.NewGuid();
-            var game = new GameEntity
+            var game = new Jogo
             {
                 Id = gameId,
                 Name = "Test Game",
@@ -40,9 +53,9 @@ namespace GameStore.Catalogo.Tests
             };
 
             var query = new GetGameByIdQuery(gameId);
-            var handler = new GetGameByIdQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGameByIdQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
                 .ReturnsAsync(game);
 
             // Act
@@ -55,7 +68,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Price, Is.EqualTo(59.99m));
             Assert.That(result.IsAvailable, Is.True);
 
-            _mockGameRepository.Verify(r => r.GetByIdAsync(gameId), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByIdAsync(gameId), Times.Once);
         }
 
         [Test]
@@ -64,17 +77,17 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var gameId = Guid.NewGuid();
             var query = new GetGameByIdQuery(gameId);
-            var handler = new GetGameByIdQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGameByIdQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByIdAsync(gameId))
-                .ReturnsAsync((GameEntity?)null);
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync((Jogo?)null);
 
             // Act
             var result = await handler.HandleAsync(query);
 
             // Assert
             Assert.That(result, Is.Null);
-            _mockGameRepository.Verify(r => r.GetByIdAsync(gameId), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByIdAsync(gameId), Times.Once);
         }
 
         #endregion
@@ -86,7 +99,7 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var gameName = "Test Game";
-            var game = new GameEntity
+            var game = new Jogo
             {
                 Id = Guid.NewGuid(),
                 Name = gameName,
@@ -96,9 +109,9 @@ namespace GameStore.Catalogo.Tests
             };
 
             var query = new GetGameByNameQuery(gameName);
-            var handler = new GetGameByNameQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGameByNameQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByNameAsync(gameName))
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync(gameName))
                 .ReturnsAsync(game);
 
             // Act
@@ -109,7 +122,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result!.Name, Is.EqualTo(gameName));
             Assert.That(result.Price, Is.EqualTo(59.99m));
 
-            _mockGameRepository.Verify(r => r.GetByNameAsync(gameName), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByNomeAsync(gameName), Times.Once);
         }
 
         [Test]
@@ -118,17 +131,17 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var gameName = "Non-existent Game";
             var query = new GetGameByNameQuery(gameName);
-            var handler = new GetGameByNameQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGameByNameQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByNameAsync(gameName))
-                .ReturnsAsync((GameEntity?)null);
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync(gameName))
+                .ReturnsAsync((Jogo?)null);
 
             // Act
             var result = await handler.HandleAsync(query);
 
             // Assert
             Assert.That(result, Is.Null);
-            _mockGameRepository.Verify(r => r.GetByNameAsync(gameName), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByNomeAsync(gameName), Times.Once);
         }
 
         #endregion
@@ -139,17 +152,17 @@ namespace GameStore.Catalogo.Tests
         public async Task GetAllGamesQueryHandler_HasGames_ShouldReturnAll()
         {
             // Arrange
-            var games = new List<GameEntity>
+            var games = new List<Jogo>
             {
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 1", Genre = "Action", Price = 59.99m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 2", Genre = "RPG", Price = 49.99m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 3", Genre = "Strategy", Price = 39.99m }
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 1", Genre = "Action", Price = 59.99m },
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 2", Genre = "RPG", Price = 49.99m },
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 3", Genre = "Strategy", Price = 39.99m }
             };
 
             var query = new GetAllGamesQuery();
-            var handler = new GetAllGamesQueryHandler(_mockGameRepository.Object);
+            var handler = new GetAllGamesQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetAllAsync())
+            _mockJogoRepository.Setup(r => r.GetAllAsync())
                 .ReturnsAsync(games);
 
             // Act
@@ -162,7 +175,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Any(g => g.Name == "Game 2"), Is.True);
             Assert.That(result.Any(g => g.Name == "Game 3"), Is.True);
 
-            _mockGameRepository.Verify(r => r.GetAllAsync(), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetAllAsync(), Times.Once);
         }
 
         [Test]
@@ -170,10 +183,10 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var query = new GetAllGamesQuery();
-            var handler = new GetAllGamesQueryHandler(_mockGameRepository.Object);
+            var handler = new GetAllGamesQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetAllAsync())
-                .ReturnsAsync(new List<GameEntity>());
+            _mockJogoRepository.Setup(r => r.GetAllAsync())
+                .ReturnsAsync(new List<Jogo>());
 
             // Act
             var result = await handler.HandleAsync(query);
@@ -181,7 +194,7 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
-            _mockGameRepository.Verify(r => r.GetAllAsync(), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetAllAsync(), Times.Once);
         }
 
         #endregion
@@ -193,16 +206,16 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var genre = "Action";
-            var games = new List<GameEntity>
+            var games = new List<Jogo>
             {
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 1", Genre = genre, Price = 59.99m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 2", Genre = genre, Price = 49.99m }
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 1", Genre = genre, Price = 59.99m },
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 2", Genre = genre, Price = 49.99m }
             };
 
             var query = new GetGamesByGenreQuery(genre);
-            var handler = new GetGamesByGenreQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGamesByGenreQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByGenreAsync(genre))
+            _mockJogoRepository.Setup(r => r.GetByGenreAsync(genre))
                 .ReturnsAsync(games);
 
             // Act
@@ -213,7 +226,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Count(), Is.EqualTo(2));
             Assert.That(result.All(g => g.Genre == genre), Is.True);
 
-            _mockGameRepository.Verify(r => r.GetByGenreAsync(genre), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByGenreAsync(genre), Times.Once);
         }
 
         [Test]
@@ -222,10 +235,10 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var genre = "NonExistentGenre";
             var query = new GetGamesByGenreQuery(genre);
-            var handler = new GetGamesByGenreQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGamesByGenreQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByGenreAsync(genre))
-                .ReturnsAsync(new List<GameEntity>());
+            _mockJogoRepository.Setup(r => r.GetByGenreAsync(genre))
+                .ReturnsAsync(new List<Jogo>());
 
             // Act
             var result = await handler.HandleAsync(query);
@@ -233,7 +246,7 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
-            _mockGameRepository.Verify(r => r.GetByGenreAsync(genre), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByGenreAsync(genre), Times.Once);
         }
 
         #endregion
@@ -244,16 +257,16 @@ namespace GameStore.Catalogo.Tests
         public async Task GetAvailableGamesQueryHandler_HasAvailableGames_ShouldReturnAvailableGames()
         {
             // Arrange
-            var availableGames = new List<GameEntity>
+            var availableGames = new List<Jogo>
             {
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 1", IsAvailable = true, Price = 59.99m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 2", IsAvailable = true, Price = 49.99m }
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 1", IsAvailable = true, Price = 59.99m },
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 2", IsAvailable = true, Price = 49.99m }
             };
 
             var query = new GetAvailableGamesQuery();
-            var handler = new GetAvailableGamesQueryHandler(_mockGameRepository.Object);
+            var handler = new GetAvailableGamesQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetAvailableGamesAsync())
+            _mockJogoRepository.Setup(r => r.GetAvailableGamesAsync())
                 .ReturnsAsync(availableGames);
 
             // Act
@@ -264,7 +277,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Count(), Is.EqualTo(2));
             Assert.That(result.All(g => g.IsAvailable), Is.True);
 
-            _mockGameRepository.Verify(r => r.GetAvailableGamesAsync(), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetAvailableGamesAsync(), Times.Once);
         }
 
         [Test]
@@ -272,10 +285,10 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var query = new GetAvailableGamesQuery();
-            var handler = new GetAvailableGamesQueryHandler(_mockGameRepository.Object);
+            var handler = new GetAvailableGamesQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetAvailableGamesAsync())
-                .ReturnsAsync(new List<GameEntity>());
+            _mockJogoRepository.Setup(r => r.GetAvailableGamesAsync())
+                .ReturnsAsync(new List<Jogo>());
 
             // Act
             var result = await handler.HandleAsync(query);
@@ -283,7 +296,7 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
-            _mockGameRepository.Verify(r => r.GetAvailableGamesAsync(), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetAvailableGamesAsync(), Times.Once);
         }
 
         #endregion
@@ -296,17 +309,17 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var minPrice = 20m;
             var maxPrice = 60m;
-            var games = new List<GameEntity>
+            var games = new List<Jogo>
             {
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 1", Price = 25m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 2", Price = 45m },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Game 3", Price = 55m }
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 1", Price = 25m },
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 2", Price = 45m },
+                new Jogo { Id = Guid.NewGuid(), Name = "Game 3", Price = 55m }
             };
 
             var query = new GetGamesByPriceRangeQuery(minPrice, maxPrice);
-            var handler = new GetGamesByPriceRangeQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGamesByPriceRangeQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByPriceRangeAsync(minPrice, maxPrice))
+            _mockJogoRepository.Setup(r => r.GetByPriceRangeAsync(minPrice, maxPrice))
                 .ReturnsAsync(games);
 
             // Act
@@ -317,7 +330,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Count(), Is.EqualTo(3));
             Assert.That(result.All(g => g.Price >= minPrice && g.Price <= maxPrice), Is.True);
 
-            _mockGameRepository.Verify(r => r.GetByPriceRangeAsync(minPrice, maxPrice), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByPriceRangeAsync(minPrice, maxPrice), Times.Once);
         }
 
         [Test]
@@ -327,10 +340,10 @@ namespace GameStore.Catalogo.Tests
             var minPrice = 100m;
             var maxPrice = 200m;
             var query = new GetGamesByPriceRangeQuery(minPrice, maxPrice);
-            var handler = new GetGamesByPriceRangeQueryHandler(_mockGameRepository.Object);
+            var handler = new GetGamesByPriceRangeQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.GetByPriceRangeAsync(minPrice, maxPrice))
-                .ReturnsAsync(new List<GameEntity>());
+            _mockJogoRepository.Setup(r => r.GetByPriceRangeAsync(minPrice, maxPrice))
+                .ReturnsAsync(new List<Jogo>());
 
             // Act
             var result = await handler.HandleAsync(query);
@@ -338,7 +351,7 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
-            _mockGameRepository.Verify(r => r.GetByPriceRangeAsync(minPrice, maxPrice), Times.Once);
+            _mockJogoRepository.Verify(r => r.GetByPriceRangeAsync(minPrice, maxPrice), Times.Once);
         }
 
         #endregion
@@ -350,16 +363,16 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var searchTerm = "Action";
-            var games = new List<GameEntity>
+            var games = new List<Jogo>
             {
-                new GameEntity { Id = Guid.NewGuid(), Name = "Action Game 1", Genre = "Action" },
-                new GameEntity { Id = Guid.NewGuid(), Name = "Super Action", Genre = "Adventure" }
+                new Jogo { Id = Guid.NewGuid(), Name = "Action Game 1", Genre = "Action" },
+                new Jogo { Id = Guid.NewGuid(), Name = "Super Action", Genre = "Adventure" }
             };
 
             var query = new SearchGamesQuery(searchTerm);
-            var handler = new SearchGamesQueryHandler(_mockGameRepository.Object);
+            var handler = new SearchGamesQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.SearchGamesAsync(searchTerm))
+            _mockJogoRepository.Setup(r => r.SearchGamesAsync(searchTerm))
                 .ReturnsAsync(games);
 
             // Act
@@ -370,7 +383,7 @@ namespace GameStore.Catalogo.Tests
             Assert.That(result.Count(), Is.EqualTo(2));
             Assert.That(result.Any(g => g.Name.Contains(searchTerm) || g.Genre.Contains(searchTerm)), Is.True);
 
-            _mockGameRepository.Verify(r => r.SearchGamesAsync(searchTerm), Times.Once);
+            _mockJogoRepository.Verify(r => r.SearchGamesAsync(searchTerm), Times.Once);
         }
 
         [Test]
@@ -379,10 +392,10 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var searchTerm = "NonExistentGame";
             var query = new SearchGamesQuery(searchTerm);
-            var handler = new SearchGamesQueryHandler(_mockGameRepository.Object);
+            var handler = new SearchGamesQueryHandler(_mockJogoRepository.Object);
 
-            _mockGameRepository.Setup(r => r.SearchGamesAsync(searchTerm))
-                .ReturnsAsync(new List<GameEntity>());
+            _mockJogoRepository.Setup(r => r.SearchGamesAsync(searchTerm))
+                .ReturnsAsync(new List<Jogo>());
 
             // Act
             var result = await handler.HandleAsync(query);
@@ -390,9 +403,12 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
-            _mockGameRepository.Verify(r => r.SearchGamesAsync(searchTerm), Times.Once);
+            _mockJogoRepository.Verify(r => r.SearchGamesAsync(searchTerm), Times.Once);
         }
 
         #endregion
     }
 }
+
+
+

@@ -27,12 +27,15 @@ using TheThroneOfGames.API.Extensions;
 
 
 var builder = WebApplication.CreateBuilder(args);
-// Register application services
+
+// Get connection string
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection is not configured.");
+
+// Register application services - sempre usar SQL Server (inclusive em testes)
 builder.Services.AddDbContext<MainDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(connectionString));
 
 // Add bounded contexts
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection is not configured.");
 builder.Services.AddUsuariosContext(connectionString);
 builder.Services.AddCatalogoContext(connectionString);
 builder.Services.AddVendasApplication();
