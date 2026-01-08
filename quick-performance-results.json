@@ -1,0 +1,50 @@
+﻿{
+    "environment":  "CI/CD",
+    "testDate":  "2026-01-07 21:55:43",
+    "microservices":  [
+                          {
+                              "url":  "http://localhost:5001/swagger",
+                              "successRate":  100,
+                              "failedRequests":  0,
+                              "totalRequests":  95,
+                              "passed":  true,
+                              "name":  "Usuarios API",
+                              "throughput":  3.01,
+                              "successfulRequests":  95,
+                              "latency":  {
+                                              "average":  138.77,
+                                              "max":  385
+                                          }
+                          },
+                          {
+                              "url":  "http://localhost:5002/swagger",
+                              "successRate":  100,
+                              "failedRequests":  0,
+                              "totalRequests":  95,
+                              "passed":  true,
+                              "name":  "Catalogo API",
+                              "throughput":  3.12,
+                              "successfulRequests":  95,
+                              "latency":  {
+                                              "average":  137.92,
+                                              "max":  281
+                                          }
+                          },
+                          {
+                              "url":  "http://localhost:5003/swagger",
+                              "successRate":  100,
+                              "failedRequests":  0,
+                              "totalRequests":  95,
+                              "passed":  true,
+                              "name":  "Vendas API",
+                              "throughput":  3.07,
+                              "successfulRequests":  95,
+                              "latency":  {
+                                              "average":  142.08,
+                                              "max":  253
+                                          }
+                          }
+                      ],
+    "concurrentUsers":  5,
+    "duration":  30
+}
