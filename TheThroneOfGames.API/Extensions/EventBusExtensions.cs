@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Events;
+using GameStore.Common.Events;
 using GameStore.Common.Messaging;
 using GameStore.Catalogo.Application.EventConsumers;
 using GameStore.Usuarios.Application.EventConsumers;

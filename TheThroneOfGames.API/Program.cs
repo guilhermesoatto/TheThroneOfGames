@@ -52,13 +52,13 @@ builder.Services.AddEventBus(builder.Configuration);
 var useRabbitMq = builder.Configuration.GetValue<bool>("EventBus:UseRabbitMq", false);
 if (!useRabbitMq)
 {
-    var eventBus = new SimpleEventBus();
-    builder.Services.AddSingleton<IEventBus>(eventBus);
+    var eventBus = new GameStore.Common.Messaging.SimpleEventBus();
+    builder.Services.AddSingleton<GameStore.Common.Events.IEventBus>(eventBus);
 
     // Subscribe handlers to events
-    eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
-    eventBus.Subscribe<UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
-    eventBus.Subscribe<GameCompradoEvent>(new GameCompradoEventHandler());
+    eventBus.Subscribe<GameStore.Common.Events.UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
+    eventBus.Subscribe<GameStore.Common.Events.UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
+    eventBus.Subscribe<GameStore.Common.Events.GameCompradoEvent>(new GameStore.Usuarios.Application.EventHandlers.GameCompradoEventHandler());
 }
 
 // Authentication & email
