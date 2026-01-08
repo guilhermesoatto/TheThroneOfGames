@@ -41,19 +41,26 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             var dbVendas = scopedServices.GetRequiredService<VendasDbContext>();
             dbVendas.Database.Migrate(); // Executa migrations dos bounded contexts
             
-            // Seed admin user for testing in MainDbContext (apenas se não existir)
-            if (!dbMain.Users.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
+            // Limpar dados de testes anteriores
+            dbUsuarios.Usuarios.RemoveRange(dbUsuarios.Usuarios);
+            dbUsuarios.SaveChanges();
+            
+            dbCatalogo.Jogos.RemoveRange(dbCatalogo.Jogos);
+            dbCatalogo.SaveChanges();
+            
+            // Seed admin user for testing in UsuariosDbContext (bounded context)
+            if (!dbUsuarios.Usuarios.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
             {
-                var adminUser = new TheThroneOfGames.Domain.Entities.Usuario(
+                var adminUser = new GameStore.Usuarios.Domain.Entities.Usuario(
                     name: "Admin User",
                     email: "admin@test.com",
-                    passwordHash: TheThroneOfGames.Application.UsuarioService.HashPassword("Admin@123!"),
+                    passwordHash: GameStore.Usuarios.Application.Services.UsuarioService.HashPassword("Admin@123!"),
                     role: "Admin",
                     activeToken: Guid.NewGuid().ToString()
                 );
                 adminUser.Activate();
-                dbMain.Users.Add(adminUser);
-                dbMain.SaveChanges();
+                dbUsuarios.Usuarios.Add(adminUser);
+                dbUsuarios.SaveChanges();
             }
         }
     }
