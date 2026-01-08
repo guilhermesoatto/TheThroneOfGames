@@ -22,11 +22,24 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
     {
         builder.ConfigureServices(services =>
         {
-            // Remove all existing DbContext registrations
-            RemoveDbContext<MainDbContext>(services);
-            RemoveDbContext<UsuariosDbContext>(services);
-            RemoveDbContext<CatalogoDbContext>(services);
-            RemoveDbContext<VendasDbContext>(services);
+            // Remove ALL Entity Framework services to avoid provider conflicts
+            var descriptorsToRemove = services
+                .Where(d => d.ServiceType.FullName != null && 
+                           (d.ServiceType.FullName.Contains("Microsoft.EntityFrameworkCore") ||
+                            d.ServiceType == typeof(MainDbContext) ||
+                            d.ServiceType == typeof(UsuariosDbContext) ||
+                            d.ServiceType == typeof(CatalogoDbContext) ||
+                            d.ServiceType == typeof(VendasDbContext) ||
+                            d.ServiceType == typeof(DbContextOptions<MainDbContext>) ||
+                            d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>) ||
+                            d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>) ||
+                            d.ServiceType == typeof(DbContextOptions<VendasDbContext>)))
+                .ToList();
+                
+            foreach (var descriptor in descriptorsToRemove)
+            {
+                services.Remove(descriptor);
+            }
 
             // Create in-memory SQLite connections for each context
             _connectionMain = new SqliteConnection("DataSource=:memory:");
