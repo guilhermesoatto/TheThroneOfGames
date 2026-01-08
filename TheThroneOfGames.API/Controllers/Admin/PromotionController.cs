@@ -70,6 +70,9 @@ public class PromotionController : AdminControllerBase
         {
             var p = new PromotionEntity
             {
+                Title = "Promotion", // Default value for backward compatibility
+                Description = "Discount promotion", // Default value
+                GameIds = new List<Guid>(), // Default empty list
                 Discount = dto.Discount,
                 ValidUntil = dto.ValidUntil
             };

@@ -14,6 +14,8 @@ public class AuthorizationTests : IDisposable
 
     private string _userToken;
     private string _adminToken;
+    private string _userEmail; // Store user email for profile tests
+    private string _adminEmail; // Store admin email for profile tests
 
     public AuthorizationTests()
     {
@@ -39,16 +41,16 @@ public class AuthorizationTests : IDisposable
 
         // Generate unique emails per test run to avoid conflicts
         var uniqueId = Guid.NewGuid().ToString("N").Substring(0, 8);
-        var testUserEmail = $"testuser{uniqueId}@example.com";
-        var testAdminEmail = $"testadmin{uniqueId}@example.com";
+        _userEmail = $"testuser{uniqueId}@example.com";
+        _adminEmail = $"testadmin{uniqueId}@example.com";
 
         // Create and activate test users with unique emails
-        await CreateAndActivateUser(testUserEmail, "TestUser", "User");
-        await CreateAndActivateUser(testAdminEmail, "TestAdmin", "Admin");
+        await CreateAndActivateUser(_userEmail, "TestUser", "User");
+        await CreateAndActivateUser(_adminEmail, "TestAdmin", "Admin");
 
         // Get tokens for both users
-        _userToken = await GetUserToken(testUserEmail, "Test@123!");
-        _adminToken = await GetUserToken(testAdminEmail, "Test@123!");
+        _userToken = await GetUserToken(_userEmail, "Test@123!");
+        _adminToken = await GetUserToken(_adminEmail, "Test@123!");
     }
 
     private async Task CreateAndActivateUser(string email, string name, string role)
@@ -161,7 +163,7 @@ public class AuthorizationTests : IDisposable
         var updateDto = new UserUpdateDTO
         {
             Name = "Updated Test User",
-            Email = "testuser@example.com" // Same email as original user
+            Email = _userEmail // Use stored email from SetUp
         };
 
         // Act
