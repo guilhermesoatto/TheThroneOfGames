@@ -39,14 +39,16 @@ namespace GameStore.Catalogo.Application.Mappers
                 throw new ArgumentNullException(nameof(dto));
 
             return new Jogo(
-                nome: dto.Name,
+                id: dto.Id,
+                nome: dto.Name ?? "Sem nome",
                 descricao: dto.Description ?? "Sem descrição",
                 preco: dto.Price,
-                genero: dto.Genre,
+                genero: dto.Genre ?? "Indefinido",
                 desenvolvedora: "Unknown", // Valor padrão
                 dataLancamento: dto.CreatedAt,
                 imagemUrl: "", // Valor padrão
-                estoque: 100 // Valor padrão
+                estoque: 100, // Valor padrão
+                disponivel: dto.IsAvailable
             );
         }
 

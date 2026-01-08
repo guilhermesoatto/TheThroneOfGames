@@ -2,11 +2,61 @@
 
 **Branch:** `refactor/clean-architecture`  
 **Data Início:** 08/01/2026  
-**Status:** � FASE 2 COMPLETA
+**Status:** 🟢 FASE 3 COMPLETA - Avançando para FASE 4
 
 ---
 
-## ✅ FASE 2 CONCLUÍDA: Migração de Código Compartilhado
+## ✅ FASE 3 CONCLUÍDA: Migração de Admin Controllers
+
+### Conquistas:
+1. ✅ **Admin Controllers migrados** para GameStore.Catalogo.API
+   - ✅ [Controllers/Admin/GameController.cs](../GameStore.Catalogo.API/Controllers/Admin/GameController.cs) - CQRS pattern
+   - ✅ [Controllers/Admin/PromotionController.cs](../GameStore.Catalogo.API/Controllers/Admin/PromotionController.cs) - Placeholder
+   - ✅ [Controllers/Base/AdminControllerBase.cs](../GameStore.Catalogo.API/Controllers/Base/AdminControllerBase.cs) - Base class
+
+2. ✅ **CQRS Handlers registrados** no DI
+   - Command Handlers: CreateGame, UpdateGame, RemoveGame
+   - Query Handlers: GetAllGames, GetGameById, GetByName, GetByGenre, GetAvailable, GetByPriceRange, SearchGames
+   - EventBus registrado (SimpleEventBus in-memory)
+
+3. ✅ **Namespaces limpos** em toda API legada
+   - EventBusExtensions.cs: TheThroneOfGames.Domain.Events → GameStore.Common.Events
+   - Program.cs: Fully qualified names para eventos
+
+4. ✅ **Compilação bem-sucedida**:
+   - ✅ GameStore.Catalogo
+   - ✅ GameStore.Catalogo.API
+   - ✅ TheThroneOfGames.API
+
+### Arquitetura Implementada:
+```
+GameStore.Catalogo.API/
+├── Controllers/
+│   ├── GameController.cs (Public API)
+│   ├── Admin/
+│   │   ├── GameController.cs ✅ (CQRS)
+│   │   └── PromotionController.cs ✅
+│   └── Base/
+│       └── AdminControllerBase.cs ✅
+└── Program.cs (JWT + Swagger + Metrics)
+
+GameStore.Catalogo/
+└── Infrastructure/Extensions/
+    └── CatalogoInfrastructureExtensions.cs ✅
+        ├── Command Handlers (3)
+        ├── Query Handlers (7)
+        └── EventBus
+```
+
+### ⚠️ Issue Identificado:
+**Testes ainda apontam para TheThroneOfGames.API**
+- AdminGameManagementTests retorna 500 InternalServerError
+- CustomWebApplicationFactory usa TheThroneOfGames.API
+- Solução: FASE 4 reorganizará testes por bounded context
+
+---
+
+## 🔄 FASE 4 EM ANDAMENTO: Reorganização de Testes
 
 ### Conquistas:
 1. ✅ Eventos movidos para `GameStore.Common.Events/`

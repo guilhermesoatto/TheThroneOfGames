@@ -1,8 +1,7 @@
 using NUnit.Framework;
 using Moq;
 using GameStore.Catalogo.Application.EventHandlers;
-using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Domain.Interfaces;
+using GameStore.Common.Events;
 
 namespace GameStore.Catalogo.Tests
 {
@@ -16,11 +15,11 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var userEvent = new UsuarioAtivadoEvent
-            {
-                UserId = userId,
-                Timestamp = DateTime.UtcNow
-            };
+            var userEvent = new UsuarioAtivadoEvent(
+                UsuarioId: userId,
+                Email: "test@example.com",
+                Nome: "Test User"
+            );
 
             var handler = new UsuarioAtivadoEventHandler();
 
@@ -36,11 +35,11 @@ namespace GameStore.Catalogo.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var userEvent = new UsuarioAtivadoEvent
-            {
-                UserId = userId,
-                Timestamp = DateTime.UtcNow
-            };
+            var userEvent = new UsuarioAtivadoEvent(
+                UsuarioId: userId,
+                Email: "test@example.com",
+                Nome: "Test User"
+            );
 
             var handler = new UsuarioAtivadoEventHandler();
 

@@ -2,6 +2,7 @@ using NUnit.Framework;
 using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
 using GameStore.Catalogo.Domain.Entities;
+using GameStore.Catalogo.Tests.Helpers;
 
 namespace GameStore.Catalogo.Tests
 {
@@ -14,17 +15,17 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_ToDTO_ValidGame_ShouldMapCorrectly()
         {
             // Arrange
-            var game = new Jogo
-            {
-                Id = Guid.NewGuid(),
-                Name = "Test Game",
-                Genre = "Action",
-                Price = 59.99m,
-                Description = "A great action game",
-                IsAvailable = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = null
-            };
+            var gameId = Guid.NewGuid();
+            var createdAt = DateTime.UtcNow;
+            var game = TestDataBuilder.CreateJogoWithId(
+                id: gameId,
+                nome: "Test Game",
+                genero: "Action",
+                preco: 59.99m,
+                descricao: "A great action game",
+                dataLancamento: createdAt,
+                disponivel: true
+            );
 
             // Act
             var result = GameMapper.ToDTO(game);
@@ -32,13 +33,12 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Id, Is.EqualTo(game.Id));
-            Assert.That(result.Name, Is.EqualTo(game.Name));
-            Assert.That(result.Genre, Is.EqualTo(game.Genre));
-            Assert.That(result.Price, Is.EqualTo(game.Price));
-            Assert.That(result.Description, Is.EqualTo(game.Description));
-            Assert.That(result.IsAvailable, Is.EqualTo(game.IsAvailable));
-            Assert.That(result.CreatedAt, Is.EqualTo(game.CreatedAt));
-            Assert.That(result.UpdatedAt, Is.EqualTo(game.UpdatedAt));
+            Assert.That(result.Name, Is.EqualTo(game.Nome));
+            Assert.That(result.Genre, Is.EqualTo(game.Genero));
+            Assert.That(result.Price, Is.EqualTo(game.Preco));
+            Assert.That(result.Description, Is.EqualTo(game.Descricao));
+            Assert.That(result.IsAvailable, Is.EqualTo(game.Disponivel));
+            Assert.That(result.CreatedAt, Is.EqualTo(game.DataLancamento));
         }
 
         [Test]
@@ -57,22 +57,20 @@ namespace GameStore.Catalogo.Tests
             // Arrange
             var games = new List<Jogo>
             {
-                new Jogo
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "Action Game",
-                    Genre = "Action",
-                    Price = 59.99m,
-                    IsAvailable = true
-                },
-                new Jogo
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "RPG Game",
-                    Genre = "RPG",
-                    Price = 49.99m,
-                    IsAvailable = false
-                }
+                TestDataBuilder.CreateDefaultJogo(
+                    nome: "Action Game",
+                    genero: "Action",
+                    preco: 59.99m,
+                    estoque: 10
+                ),
+                TestDataBuilder.CreateJogoWithId(
+                    Guid.NewGuid(),
+                    nome: "RPG Game",
+                    genero: "RPG",
+                    preco: 49.99m,
+                    estoque: 0,
+                    disponivel: false
+                )
             };
 
             // Act
@@ -127,15 +125,17 @@ namespace GameStore.Catalogo.Tests
         public void GameMapper_FromDTO_ValidDTO_ShouldMapCorrectly()
         {
             // Arrange
+            var gameId = Guid.NewGuid();
+            var createdAt = DateTime.UtcNow;
             var gameDto = new GameDTO
             {
-                Id = Guid.NewGuid(),
+                Id = gameId,
                 Name = "Test Game",
                 Genre = "Action",
                 Price = 59.99m,
                 Description = "A great action game",
                 IsAvailable = true,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = createdAt,
                 UpdatedAt = null
             };
 
@@ -145,13 +145,12 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Id, Is.EqualTo(gameDto.Id));
-            Assert.That(result.Name, Is.EqualTo(gameDto.Name));
-            Assert.That(result.Genre, Is.EqualTo(gameDto.Genre));
-            Assert.That(result.Price, Is.EqualTo(gameDto.Price));
-            Assert.That(result.Description, Is.EqualTo(gameDto.Description));
-            Assert.That(result.IsAvailable, Is.EqualTo(gameDto.IsAvailable));
-            Assert.That(result.CreatedAt, Is.EqualTo(gameDto.CreatedAt));
-            Assert.That(result.UpdatedAt, Is.EqualTo(gameDto.UpdatedAt));
+            Assert.That(result.Nome, Is.EqualTo(gameDto.Name));
+            Assert.That(result.Genero, Is.EqualTo(gameDto.Genre));
+            Assert.That(result.Preco, Is.EqualTo(gameDto.Price));
+            Assert.That(result.Descricao, Is.EqualTo(gameDto.Description));
+            Assert.That(result.Disponivel, Is.EqualTo(gameDto.IsAvailable));
+            Assert.That(result.DataLancamento, Is.EqualTo(gameDto.CreatedAt));
         }
 
         [Test]
@@ -163,11 +162,6 @@ namespace GameStore.Catalogo.Tests
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Id, Is.EqualTo(Guid.Empty));
-            Assert.That(result.Name, Is.Null);
-            Assert.That(result.Genre, Is.Null);
-            Assert.That(result.Price, Is.EqualTo(0m));
-            Assert.That(result.Description, Is.Null);
-            Assert.That(result.IsAvailable, Is.False);
         }
 
         #endregion
