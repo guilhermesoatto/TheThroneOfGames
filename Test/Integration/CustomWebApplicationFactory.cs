@@ -103,11 +103,17 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
     private void RemoveDbContext<TContext>(IServiceCollection services) where TContext : DbContext
     {
-        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<TContext>));
-        if (descriptor != null) services.Remove(descriptor);
-
-        var contextDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(TContext));
-        if (contextDescriptor != null) services.Remove(contextDescriptor);
+        // Remove all registrations related to this DbContext
+        var descriptorsToRemove = services
+            .Where(d => d.ServiceType == typeof(DbContextOptions<TContext>) ||
+                       d.ServiceType == typeof(TContext) ||
+                       d.ImplementationType == typeof(TContext))
+            .ToList();
+            
+        foreach (var descriptor in descriptorsToRemove)
+        {
+            services.Remove(descriptor);
+        }
     }
 
     protected override void Dispose(bool disposing)

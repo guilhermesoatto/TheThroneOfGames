@@ -76,10 +76,10 @@ namespace TheThroneOfGames.Application.Tests.Policies
             // Act & Assert - Use TimeoutRejectedException which is what Polly throws
             var exception = Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(async () =>
             {
-                await policy.ExecuteAsync(async (ct) =>
+                await policy.ExecuteAsync(async () =>
                 {
                     // Simulate long-running operation
-                    await Task.Delay(15000, ct); // Longer than timeout, observes cancellation
+                    await Task.Delay(15000); // Longer than timeout
                     return "Should not complete";
                 });
             });
@@ -117,9 +117,9 @@ namespace TheThroneOfGames.Application.Tests.Policies
             // Act & Assert - Use TimeoutRejectedException which is what Polly throws
             var exception = Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(async () =>
             {
-                await policy.ExecuteAsync(async (ct) =>
+                await policy.ExecuteAsync(async () =>
                 {
-                    await Task.Delay(10000, ct); // Longer than database timeout, observes cancellation
+                    await Task.Delay(10000); // Longer than database timeout
                     return "Should timeout";
                 });
             });

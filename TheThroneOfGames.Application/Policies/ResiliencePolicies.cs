@@ -55,7 +55,7 @@ namespace TheThroneOfGames.Application.Policies
         {
             return Policy.TimeoutAsync<T>(
                 TimeSpan.FromSeconds(5),
-                TimeoutStrategy.Optimistic
+                TimeoutStrategy.Pessimistic
             );
         }
 
@@ -86,7 +86,7 @@ namespace TheThroneOfGames.Application.Policies
                     2,
                     retryAttempt => TimeSpan.FromMilliseconds(Math.Pow(2, retryAttempt) * 50)
                 )
-                .WrapAsync(Policy.TimeoutAsync<T>(TimeSpan.FromSeconds(3)));
+                .WrapAsync(Policy.TimeoutAsync<T>(TimeSpan.FromSeconds(3), TimeoutStrategy.Pessimistic));
 
         }
 
