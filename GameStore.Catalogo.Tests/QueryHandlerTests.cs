@@ -13,7 +13,7 @@ namespace GameStore.Catalogo.Tests{[TestFixture]public class QueryHandlerTests
         {
             var jogo = new Jogo(
                 nome: nome,
-                descricao: "Descrição de teste",
+                descricao: "Descriï¿½ï¿½o de teste",
                 preco: preco,
                 genero: genero,
                 desenvolvedora: "Test Developer",

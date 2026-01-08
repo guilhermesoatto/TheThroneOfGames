@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Catalogo.Application.EventHandlers
 {

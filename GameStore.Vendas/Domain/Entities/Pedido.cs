@@ -1,5 +1,5 @@
 using GameStore.Vendas.Domain.ValueObjects;
-using GameStore.Vendas.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Vendas.Domain.Entities
 {

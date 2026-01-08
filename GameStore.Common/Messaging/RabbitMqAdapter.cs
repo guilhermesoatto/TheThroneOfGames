@@ -2,7 +2,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Common.Messaging
 {

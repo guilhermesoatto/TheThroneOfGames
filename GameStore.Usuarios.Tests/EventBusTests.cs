@@ -1,6 +1,6 @@
 using NUnit.Framework;
-using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Events;
+using GameStore.Common.Events;
+using GameStore.Common.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

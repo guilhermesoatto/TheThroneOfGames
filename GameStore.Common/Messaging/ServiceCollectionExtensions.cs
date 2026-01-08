@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Common.Messaging
 {

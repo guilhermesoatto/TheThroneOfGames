@@ -7,8 +7,8 @@ using GameStore.Usuarios.Application.DTOs;
 using GameStore.Usuarios.Application.Mappers;
 using GameStore.Usuarios.Domain.Entities;
 using GameStore.Usuarios.Domain.Interfaces;
-using TheThroneOfGames.Domain.Events;
-using TheThroneOfGames.Infrastructure.Events;
+using GameStore.Common.Events;
+using GameStore.Common.Messaging;
 
 namespace GameStore.Usuarios.Tests
 {

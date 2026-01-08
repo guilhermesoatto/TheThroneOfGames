@@ -1,6 +1,6 @@
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
-namespace GameStore.Usuarios.Domain.Events
+namespace GameStore.Common.Events
 {
     /// <summary>
     /// Evento publicado quando um usuário é ativado com sucesso.
@@ -14,5 +14,6 @@ namespace GameStore.Usuarios.Domain.Events
     {
         public Guid EventId { get; } = Guid.NewGuid();
         public DateTime OccurredAt { get; } = DateTime.UtcNow;
+        public string EventName => nameof(UsuarioAtivadoEvent);
     }
 }

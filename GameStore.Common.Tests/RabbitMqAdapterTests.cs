@@ -2,7 +2,7 @@ using GameStore.Common.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Common.Tests
 {

@@ -1,6 +1,6 @@
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Usuarios.Application.EventConsumers
 {

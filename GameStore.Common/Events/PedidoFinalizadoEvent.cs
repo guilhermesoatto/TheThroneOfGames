@@ -1,6 +1,4 @@
-using TheThroneOfGames.Domain.Events;
-
-namespace GameStore.Vendas.Domain.Events
+namespace GameStore.Common.Events
 {
     /// <summary>
     /// Evento publicado quando um pedido é finalizado com sucesso.
@@ -15,5 +13,6 @@ namespace GameStore.Vendas.Domain.Events
     {
         public Guid EventId { get; } = Guid.NewGuid();
         public DateTime OccurredAt { get; } = DateTime.UtcNow;
+        public string EventName => nameof(PedidoFinalizadoEvent);
     }
 }

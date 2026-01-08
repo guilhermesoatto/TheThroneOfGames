@@ -4,7 +4,7 @@ using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
 using GameStore.Catalogo.Domain.Entities;
 using GameStore.Catalogo.Domain.Interfaces;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 using GameStore.Catalogo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using GameStore.CQRS.Abstractions;

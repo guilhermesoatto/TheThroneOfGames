@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 
 namespace GameStore.Usuarios.Application.EventHandlers
 {
@@ -7,7 +7,7 @@ namespace GameStore.Usuarios.Application.EventHandlers
     /// Lightweight handler in the Usuarios context to satisfy tests that expect
     /// a handler in this namespace. It performs no work beyond acknowledging the event.
     /// </summary>
-    public class UsuarioAtivadoEventHandler : TheThroneOfGames.Domain.Events.IEventHandler<UsuarioAtivadoEvent>
+    public class UsuarioAtivadoEventHandler : IEventHandler<UsuarioAtivadoEvent>
     {
         public Task HandleAsync(UsuarioAtivadoEvent domainEvent)
         {

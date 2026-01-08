@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using Moq;
 using GameStore.Usuarios.Application.EventHandlers;
-using TheThroneOfGames.Domain.Events;
+using GameStore.Common.Events;
 using TheThroneOfGames.Domain.Interfaces;
 
 namespace GameStore.Usuarios.Tests
