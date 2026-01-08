@@ -59,10 +59,14 @@ public class AdminUserManagementTests : IDisposable
 
     private async Task<Guid> CreateTestUser()
     {
+        // Generate unique email to avoid conflicts between tests
+        var uniqueId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var testUserEmail = $"testuser{uniqueId}@example.com";
+        
         var user = new UserDTO
         {
             Name = "Test User",
-            Email = "testuser@example.com",
+            Email = testUserEmail,
             Password = "Test@123!",
             Role = "User"
         };
@@ -86,12 +90,15 @@ public class AdminUserManagementTests : IDisposable
         var activateResponse = await _client.PostAsync($"/api/Usuario/activate?activationToken={activationToken}", null);
         Assert.That(activateResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
+        // Clean up email file after use
+        File.Delete(emailFiles[0]);
+
         // Get user ID from list
         var adminToken = await GetAdminToken();
         SetAuthToken(adminToken);
         var usersResponse = await _client.GetFromJsonAsync<List<UserListDTO>>("/api/admin/user-management");
         Assert.IsNotNull(usersResponse);
-        var user2 = usersResponse.FirstOrDefault(u => u.Email == "testuser@example.com");
+        var user2 = usersResponse.FirstOrDefault(u => u.Email == testUserEmail);
         Assert.IsNotNull(user2);
 
         return user2.Id;

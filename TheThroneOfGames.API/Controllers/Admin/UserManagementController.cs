@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using TheThroneOfGames.API.Controllers.Base;
 using TheThroneOfGames.API.Models.DTO;
-using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Domain.Entities;
+// Use bounded context instead of legacy domain
+using GameStore.Usuarios.Application.Interfaces;
+using GameStore.Usuarios.Domain.Entities;
 
 namespace TheThroneOfGames.API.Controllers.Admin;
 

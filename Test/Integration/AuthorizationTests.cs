@@ -37,13 +37,18 @@ public class AuthorizationTests : IDisposable
             File.Delete(file);
         }
 
-        // Create and activate test users
-        await CreateAndActivateUser("testuser@example.com", "TestUser", "User");
-        await CreateAndActivateUser("testadmin@example.com", "TestAdmin", "Admin");
+        // Generate unique emails per test run to avoid conflicts
+        var uniqueId = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var testUserEmail = $"testuser{uniqueId}@example.com";
+        var testAdminEmail = $"testadmin{uniqueId}@example.com";
+
+        // Create and activate test users with unique emails
+        await CreateAndActivateUser(testUserEmail, "TestUser", "User");
+        await CreateAndActivateUser(testAdminEmail, "TestAdmin", "Admin");
 
         // Get tokens for both users
-        _userToken = await GetUserToken("testuser@example.com", "Test@123!");
-        _adminToken = await GetUserToken("testadmin@example.com", "Test@123!");
+        _userToken = await GetUserToken(testUserEmail, "Test@123!");
+        _adminToken = await GetUserToken(testAdminEmail, "Test@123!");
     }
 
     private async Task CreateAndActivateUser(string email, string name, string role)

@@ -10,9 +10,13 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
-        // Register application services
+        // Register application services (legacy for Admin controllers)
     services.AddScoped<IGameService, GameService>();
-    services.AddScoped<IUsuarioService, UsuarioService>();
+    
+    // REMOVED: Legacy IUsuarioService no longer needed
+    // Admin UserManagementController now uses bounded context GameStore.Usuarios.Application.Interfaces.IUsuarioService
+    // services.AddScoped<TheThroneOfGames.Application.Interface.IUsuarioService, UsuarioService>();
+    
     services.AddScoped<IPromotionService, PromotionService>();
         
     // Register repositories

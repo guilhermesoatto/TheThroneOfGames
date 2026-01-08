@@ -20,7 +20,9 @@ namespace GameStore.Usuarios.Infrastructure.Extensions
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 
             // Register application services
-            services.AddScoped<IUsuarioService, UsuarioService>();
+            // Explicitly register bounded context IUsuarioService with full namespace
+            // This resolves to UsuarioController (uses GameStore.Usuarios namespace)
+            services.AddScoped<GameStore.Usuarios.Application.Interfaces.IUsuarioService, UsuarioService>();
             services.AddScoped<AuthenticationService>();
 
             return services;
