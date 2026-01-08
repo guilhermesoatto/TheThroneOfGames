@@ -58,10 +58,8 @@ services:
     ports:
       - "5000:80"
     depends_on:
-      mssql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - mssql
+      - rabbitmq
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -92,10 +90,8 @@ services:
       - "5001:80"
       - "9091:9091"  # Prometheus metrics
     depends_on:
-      mssql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - mssql
+      - rabbitmq
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -126,10 +122,8 @@ services:
       - "5002:80"
       - "9092:9092"  # Prometheus metrics
     depends_on:
-      mssql:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - mssql
+      - rabbitmq
     networks:
       - thethroneofgames-network
     healthcheck:
