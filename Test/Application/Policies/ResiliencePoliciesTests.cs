@@ -31,33 +31,40 @@ namespace TheThroneOfGames.Application.Tests.Policies
         }
 
         [Test]
-        public void CircuitBreakerPolicy_OpensAfterThresholdFailures()
+        public async Task CircuitBreakerPolicy_OpensAfterThresholdFailures()
         {
             // Arrange
             var policy = ResiliencePolicies.CreateCircuitBreakerPolicy<string>();
             int attemptCount = 0;
 
-            // Act & Assert
+            // Act - Execute 5 failures to open circuit
             for (int i = 0; i < 5; i++)
             {
-                var exception = Assert.ThrowsAsync<HttpRequestException>(async () =>
+                try
                 {
-                    attemptCount++;
-                    throw new HttpRequestException("Simulated failure");
-                });
-                Assert.IsNotNull(exception);
+                    await policy.ExecuteAsync(async () =>
+                    {
+                        attemptCount++;
+                        throw new HttpRequestException("Simulated failure");
+                    });
+                }
+                catch (HttpRequestException)
+                {
+                    // Expected
+                }
             }
 
-            // After 5 failures, circuit should be open
-            var circuitOpenException = Assert.ThrowsAsync<BrokenCircuitException>(async () =>
+            // Assert - After 5 failures, circuit should be open
+            var exception = Assert.ThrowsAsync<BrokenCircuitException>(async () =>
             {
                 await policy.ExecuteAsync(async () =>
                 {
-                    throw new HttpRequestException("Should not execute");
+                    await Task.CompletedTask;
+                    return "Should not execute";
                 });
             });
 
-            Assert.IsNotNull(circuitOpenException);
+            Assert.IsNotNull(exception);
         }
 
         [Test]
@@ -66,13 +73,13 @@ namespace TheThroneOfGames.Application.Tests.Policies
             // Arrange
             var policy = ResiliencePolicies.CreateTimeoutPolicy<string>();
 
-            // Act & Assert
-            var exception = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            // Act & Assert - Use TimeoutRejectedException which is what Polly throws
+            var exception = Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(async () =>
             {
-                await policy.ExecuteAsync(async () =>
+                await policy.ExecuteAsync(async (ct) =>
                 {
                     // Simulate long-running operation
-                    await Task.Delay(10000);
+                    await Task.Delay(15000, ct); // Longer than timeout, observes cancellation
                     return "Should not complete";
                 });
             });
@@ -107,12 +114,12 @@ namespace TheThroneOfGames.Application.Tests.Policies
             // Arrange
             var policy = ResiliencePolicies.CreateDatabasePolicy<string>();
 
-            // Act & Assert - Timeout after 3 seconds
-            var exception = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            // Act & Assert - Use TimeoutRejectedException which is what Polly throws
+            var exception = Assert.ThrowsAsync<Polly.Timeout.TimeoutRejectedException>(async () =>
             {
-                await policy.ExecuteAsync(async () =>
+                await policy.ExecuteAsync(async (ct) =>
                 {
-                    await Task.Delay(5000);
+                    await Task.Delay(10000, ct); // Longer than database timeout, observes cancellation
                     return "Should timeout";
                 });
             });
