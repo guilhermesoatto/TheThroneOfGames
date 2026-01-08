@@ -24,6 +24,7 @@ using GameStore.Catalogo.Infrastructure.Extensions;
 using GameStore.Vendas.Application.Extensions;
 using GameStore.Vendas.Infrastructure.Extensions;
 using TheThroneOfGames.API.Extensions;
+using TheThroneOfGames.Application;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -40,6 +41,9 @@ builder.Services.AddUsuariosContext(connectionString);
 builder.Services.AddCatalogoContext(connectionString);
 builder.Services.AddVendasApplication();
 builder.Services.AddVendasInfrastructure(builder.Configuration);
+
+// Add legacy application services (for Admin controllers)
+builder.Services.AddApplicationServices();
 
 // Event Bus - Barramento de eventos de domínio
 builder.Services.AddEventBus(builder.Configuration);
