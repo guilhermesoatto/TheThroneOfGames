@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using GameStore.Catalogo.Infrastructure.Persistence;
@@ -14,50 +13,33 @@ public class CatalogoWebApplicationFactory : WebApplicationFactory<Program>
     {
         builder.UseEnvironment("Test");
         
-        builder.ConfigureTestServices(services =>
-        {
-            // Remove all SQL Server DbContext related services
-            var catalogoDescriptors = services.Where(d => 
-                d.ServiceType.ToString().Contains("CatalogoDbContext")).ToList();
-            foreach (var descriptor in catalogoDescriptors)
-            {
-                services.Remove(descriptor);
-            }
-            
-            var usuariosDescriptors = services.Where(d => 
-                d.ServiceType.ToString().Contains("UsuariosDbContext")).ToList();
-            foreach (var descriptor in usuariosDescriptors)
-            {
-                services.Remove(descriptor);
-            }
-            
-            // Add InMemory DbContexts for tests
-            services.AddDbContext<CatalogoDbContext>(options =>
-            {
-                options.UseInMemoryDatabase("CatalogoTestDb");
-            });
-            
-            services.AddDbContext<UsuariosDbContext>(options =>
-            {
-                options.UseInMemoryDatabase("UsuariosTestDb");
-            });
-        });
+        // Não configurar nada - usar SQL Server do container configurado no Program.cs
     }
 
     protected override void ConfigureClient(HttpClient client)
     {
         base.ConfigureClient(client);
         
-        // Seed data after application is built
+        // Executar migrations para garantir que banco está atualizado
         using var scope = Services.CreateScope();
-        var usuariosDb = scope.ServiceProvider.GetRequiredService<UsuariosDbContext>();
-        var catalogoDb = scope.ServiceProvider.GetRequiredService<CatalogoDbContext>();
+        var scopedServices = scope.ServiceProvider;
         
-        usuariosDb.Database.EnsureCreated();
-        catalogoDb.Database.EnsureCreated();
+        // Executar migrations apenas dos bounded contexts
+        var dbUsuarios = scopedServices.GetRequiredService<UsuariosDbContext>();
+        dbUsuarios.Database.Migrate(); // Executa migrations dos bounded contexts
         
-        // Seed admin user for testing
-        if (!usuariosDb.Usuarios.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
+        var dbCatalogo = scopedServices.GetRequiredService<CatalogoDbContext>();
+        dbCatalogo.Database.Migrate(); // Executa migrations dos bounded contexts
+        
+        // Limpar dados de testes anteriores
+        dbUsuarios.Usuarios.RemoveRange(dbUsuarios.Usuarios);
+        dbUsuarios.SaveChanges();
+        
+        dbCatalogo.Jogos.RemoveRange(dbCatalogo.Jogos);
+        dbCatalogo.SaveChanges();
+        
+        // Seed admin user for testing in UsuariosDbContext (bounded context)
+        if (!dbUsuarios.Usuarios.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
         {
             var adminUser = new GameStore.Usuarios.Domain.Entities.Usuario(
                 name: "Admin User",
@@ -67,8 +49,8 @@ public class CatalogoWebApplicationFactory : WebApplicationFactory<Program>
                 activeToken: Guid.NewGuid().ToString()
             );
             adminUser.Activate();
-            usuariosDb.Usuarios.Add(adminUser);
-            usuariosDb.SaveChanges();
+            dbUsuarios.Usuarios.Add(adminUser);
+            dbUsuarios.SaveChanges();
         }
     }
 }
