@@ -102,7 +102,7 @@ public class AdminGameManagementTests : IDisposable
             Role = "User"
         };
 
-        var preRegisterResponse = await _client.PostAsJsonAsync("/api/Usuario/pre-register", user);
+        var preRegisterResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
         Assert.That(preRegisterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
 
         // Need to wait for the email file to be written
