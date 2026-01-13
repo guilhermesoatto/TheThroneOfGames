@@ -86,3 +86,9 @@ app.MapMetrics();
 // Each microservice uses its own database context configured via Infrastructure extensions
 
 app.Run();
+
+// Make Program accessible for integration tests
+namespace GameStore.Catalogo.API
+{
+    public partial class Program { }
+}
