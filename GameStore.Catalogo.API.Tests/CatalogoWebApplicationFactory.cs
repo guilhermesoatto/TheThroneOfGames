@@ -2,18 +2,19 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using GameStore.Catalogo.Infrastructure.Persistence;
 using GameStore.Usuarios.Infrastructure.Persistence;
+using GameStore.Catalogo.Infrastructure.Persistence;
 
 namespace GameStore.Catalogo.API.Tests;
 
-public class CatalogoWebApplicationFactory : WebApplicationFactory<Program>
+public class CatalogoWebApplicationFactory : WebApplicationFactory<global::Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
         
-        // Não configurar nada - usar SQL Server do container configurado no Program.cs
+        // Não precisa configurar nada - vai usar SQL Server do container
+        // Program.cs já configura tudo corretamente
     }
 
     protected override void ConfigureClient(HttpClient client)
@@ -24,12 +25,12 @@ public class CatalogoWebApplicationFactory : WebApplicationFactory<Program>
         using var scope = Services.CreateScope();
         var scopedServices = scope.ServiceProvider;
         
-        // Executar migrations apenas dos bounded contexts
+        // Executar migrations dos bounded contexts
         var dbUsuarios = scopedServices.GetRequiredService<UsuariosDbContext>();
-        dbUsuarios.Database.Migrate(); // Executa migrations dos bounded contexts
+        dbUsuarios.Database.Migrate();
         
         var dbCatalogo = scopedServices.GetRequiredService<CatalogoDbContext>();
-        dbCatalogo.Database.Migrate(); // Executa migrations dos bounded contexts
+        dbCatalogo.Database.Migrate();
         
         // Limpar dados de testes anteriores
         dbUsuarios.Usuarios.RemoveRange(dbUsuarios.Usuarios);
@@ -54,3 +55,4 @@ public class CatalogoWebApplicationFactory : WebApplicationFactory<Program>
         }
     }
 }
+
