@@ -79,20 +79,33 @@ public class AdminGameManagementTests : IDisposable
         Assert.That(updatedGame.Genre, Is.EqualTo(updateGame.Genre));
         Assert.That(updatedGame.Price, Is.EqualTo(updateGame.Price));
 
-        // Act - Delete game
+        // Act - Delete game (soft delete - marca como indisponível)
         var deleteResponse = await _client.DeleteAsync($"/api/admin/game/{createdGame.Id}");
 
         // Assert - Delete successful
         Assert.That(deleteResponse.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
-        // Verify game is deleted
+        // Verify game still exists but is unavailable (soft delete)
         var getResponse = await _client.GetAsync($"/api/admin/game/{createdGame.Id}");
-        Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        var deletedGame = await getResponse.Content.ReadFromJsonAsync<GameDTO>();
+        Assert.That(deletedGame, Is.Not.Null);
+        Assert.That(deletedGame!.IsAvailable, Is.False, "Jogo deveria estar indisponível após delete");
     }
 
     [Test]
     public async Task NonAdminCannotAccessGameManagement()
     {
+        // Limpar emails antigos antes do teste
+        var outboxPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Infrastructure", "Outbox"));
+        if (Directory.Exists(outboxPath))
+        {
+            foreach (var file in Directory.GetFiles(outboxPath, "*.eml"))
+            {
+                File.Delete(file);
+            }
+        }
+
         // Arrange - Create and login as regular user
         var user = new UserDTO
         {
@@ -109,8 +122,8 @@ public class AdminGameManagementTests : IDisposable
         await Task.Delay(100);
 
         // Get activation token from email
-        var emailFiles = Directory.GetFiles(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Infrastructure", "Outbox")), "*.eml");
-        Assert.That(emailFiles, Has.Length.EqualTo(1));
+        var emailFiles = Directory.GetFiles(outboxPath, "*.eml");
+        Assert.That(emailFiles, Has.Length.EqualTo(1), "Deveria ter exatamente 1 email de ativação");
         var emailContent = await File.ReadAllTextAsync(emailFiles[0]);
 
         var activationTokenStart = emailContent.IndexOf("activationToken=") + "activationToken=".Length;

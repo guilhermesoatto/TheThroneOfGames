@@ -17,6 +17,11 @@ public class GameDTO
     [Required(ErrorMessage = "Price is required")]
     [Range(0, 1000, ErrorMessage = "Price must be between $0 and $1000")]
     public decimal Price { get; set; }
+    
+    public string? Description { get; set; }
+    public DateTime? CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public bool IsAvailable { get; set; } = true;
 }
 
 public class GameListDTO

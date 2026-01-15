@@ -6,6 +6,6 @@ Content-Type: text/plain; charset=utf-8
 Olá Regular User,
 
 Por favor ative sua conta clicando no link abaixo:
-http://localhost/api/Usuario/activate?activationToken=158e5322-ce7a-4b38-8ebd-d0d45e3db93c
+http://localhost/api/Usuario/activate?activationToken=4cd24001-8731-49d6-b173-86f56549f3c7
 
 Se você não solicitou esse e-mail, ignore.
