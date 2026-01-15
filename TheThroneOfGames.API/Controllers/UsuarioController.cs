@@ -44,13 +44,24 @@ namespace TheThroneOfGames.API.Controllers
         [AllowAnonymous]
         public IActionResult Post([FromBody] UserDTO value)
         {
-            // Forward to service for secure registration and send activation e-mail
-            var activationToken = _userService.PreRegisterUserAsync(value.Email, value.Name, value.Password, value.Role).GetAwaiter().GetResult();
-            var activationLink = $"{Request.Scheme}://{Request.Host}/api/Usuario/activate?activationToken={activationToken}";
-            var subject = "Ativação de conta - TheThroneOfGames";
-            var body = $"Olá {value.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
-            _emailService.SendEmailAsync(value.Email, subject, body).GetAwaiter().GetResult();
-            return Ok("Usuário registrado com sucesso! E-mail de ativação enviado.");
+            try
+            {
+                // Forward to service for secure registration and send activation e-mail
+                var activationToken = _userService.PreRegisterUserAsync(value.Email, value.Name, value.Password, value.Role).GetAwaiter().GetResult();
+                var activationLink = $"{Request.Scheme}://{Request.Host}/api/Usuario/activate?activationToken={activationToken}";
+                var subject = "Ativação de conta - TheThroneOfGames";
+                var body = $"Olá {value.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
+                _emailService.SendEmailAsync(value.Email, subject, body).GetAwaiter().GetResult();
+                return Ok(new { message = "Usuário registrado com sucesso! E-mail de ativação enviado." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         // PUT api/<UsuarioController>/5
@@ -100,13 +111,21 @@ namespace TheThroneOfGames.API.Controllers
         }
 
         [HttpPost("activate")]
+        [HttpGet("activate")]
         [AllowAnonymous]
         public async Task<IActionResult> ActivateUser([FromQuery] string activationToken)
         {
-            // Lógica para validar o token e ativar o usuário
-            await _userService.ActivateUserAsync(activationToken);
+            try
+            {
+                // Lógica para validar o token e ativar o usuário
+                await _userService.ActivateUserAsync(activationToken);
 
-            return Ok("Usuário ativado com sucesso.");
+                return Ok(new { message = "Usuário ativado com sucesso." });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         [HttpPost("login")]
@@ -120,7 +139,11 @@ namespace TheThroneOfGames.API.Controllers
             if (token == null)
                 return Unauthorized("Credenciais inválidas ou conta não ativada.");
 
-            return Ok(new { token });
+            // Get user to extract role
+            var user = await _authService.GetUserByEmailAsync(loginDto.Email);
+            var role = user?.Role ?? "User";
+
+            return Ok(new { token, role });
         }
 
         [HttpGet("public-info")]

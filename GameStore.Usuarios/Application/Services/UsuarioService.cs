@@ -92,6 +92,11 @@ public class UsuarioService : IUsuarioService
             if (!isStrong)
                 throw new ArgumentException(pwdError);
 
+        // Verificar se email já existe
+        var existingUser = await _userRepository.GetByEmailAsync(email);
+        if (existingUser != null)
+            throw new InvalidOperationException("E-mail já está cadastrado.");
+
         // Gerar hash de senha
         var passwordHash = HashPassword(password);
 

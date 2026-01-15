@@ -58,4 +58,9 @@ public class AuthenticationService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public async Task<Usuario?> GetUserByEmailAsync(string email)
+    {
+        return await _userRepository.GetByEmailAsync(email);
+    }
 }
