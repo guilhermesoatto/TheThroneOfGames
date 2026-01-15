@@ -24,12 +24,12 @@ namespace GameStore.Usuarios.Infrastructure.Persistence
                 entity.Property(u => u.PasswordHash).IsRequired();
                 entity.Property(u => u.Role).IsRequired().HasMaxLength(50);
                 entity.Property(u => u.IsActive).IsRequired();
-                entity.Property(u => u.ActiveToken).IsRequired();
+                entity.Property(u => u.ActiveToken).IsRequired(false).HasMaxLength(255);
 
                 // Unique constraint on Email
                 entity.HasIndex(u => u.Email).IsUnique();
 
-                // Index on ActiveToken for faster lookups
+                // Index on ActiveToken for faster lookups (nullable)
                 entity.HasIndex(u => u.ActiveToken);
             });
         }

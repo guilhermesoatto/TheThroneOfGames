@@ -14,7 +14,7 @@ namespace GameStore.Usuarios.Infrastructure.Extensions
         {
             // Register DbContext - sempre usar SQL Server
             services.AddDbContext<UsuariosDbContext>(options =>
-                options.UseSqlServer(connectionString));
+                options.UseNpgsql(connectionString));
 
             // Register repositories
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();

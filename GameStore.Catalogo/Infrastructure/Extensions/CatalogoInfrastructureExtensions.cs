@@ -21,7 +21,7 @@ namespace GameStore.Catalogo.Infrastructure.Extensions
         {
             // Register DbContext - sempre usar SQL Server
             services.AddDbContext<CatalogoDbContext>(options =>
-                options.UseSqlServer(connectionString));
+                options.UseNpgsql(connectionString));
 
             // Register repositories
             services.AddScoped<IJogoRepository, JogoRepository>();

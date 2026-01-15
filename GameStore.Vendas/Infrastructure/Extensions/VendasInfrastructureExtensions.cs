@@ -13,12 +13,12 @@ namespace GameStore.Vendas.Infrastructure.Extensions
             this IServiceCollection services,
             IConfiguration configuration)
         {
-            // DbContext - sempre usar SQL Server
+            // DbContext - sempre usar PostgreSQL
             services.AddDbContext<VendasDbContext>(options =>
-                options.UseSqlServer(
+                options.UseNpgsql(
                     configuration.GetConnectionString("VendasConnection") ??
                     configuration.GetConnectionString("DefaultConnection"),
-                    sqlOptions => sqlOptions.MigrationsAssembly("GameStore.Vendas")));
+                    npgsqlOptions => npgsqlOptions.MigrationsAssembly("GameStore.Vendas")));
 
             // Repositories
             services.AddScoped<IPedidoRepository, PedidoRepository>();

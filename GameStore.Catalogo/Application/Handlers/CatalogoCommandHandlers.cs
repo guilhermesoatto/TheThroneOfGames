@@ -66,7 +66,15 @@ namespace GameStore.Catalogo.Application.Handlers
                 );
 
                 await _jogoRepository.AddAsync(jogo);
-
+                // Publicar evento de domínio
+                var gameCriadoEvent = new GameStore.Common.Events.GameCriadoEvent
+                {
+                    GameId = jogo.Id,
+                    Nome = jogo.Nome,
+                    Preco = jogo.Preco,
+                    OccurredOn = DateTime.UtcNow
+                };
+                await _eventBus.PublishAsync(gameCriadoEvent);
                 return new CommandResult
                 {
                     Success = true,
@@ -154,6 +162,16 @@ namespace GameStore.Catalogo.Application.Handlers
 
                 await _jogoRepository.UpdateAsync(jogo);
 
+                // Publicar evento de domínio
+                var gameAtualizadoEvent = new GameStore.Common.Events.GameAtualizadoEvent
+                {
+                    GameId = jogo.Id,
+                    Nome = jogo.Nome,
+                    Preco = jogo.Preco,
+                    OccurredOn = DateTime.UtcNow
+                };
+                await _eventBus.PublishAsync(gameAtualizadoEvent);
+
                 return new CommandResult
                 {
                     Success = true,
@@ -219,6 +237,14 @@ namespace GameStore.Catalogo.Application.Handlers
                 // Remover jogo (soft delete usando método do domínio)
                 jogo.Indisponibilizar();
                 await _jogoRepository.UpdateAsync(jogo);
+
+                // Publicar evento de domínio
+                var gameRemovidoEvent = new GameStore.Common.Events.GameRemovidoEvent
+                {
+                    GameId = jogo.Id,
+                    OccurredOn = DateTime.UtcNow
+                };
+                await _eventBus.PublishAsync(gameRemovidoEvent);
 
                 return new CommandResult
                 {

@@ -5,8 +5,8 @@ metadata:
   namespace: thethroneofgames
 data:
   # Database Configuration
-  DB_HOST: "sqlserver-service"
-  DB_PORT: "1433"
+  DB_HOST: "postgresql-service"
+  DB_PORT: "5432"
   DB_NAME: "TheThroneOfGames"
   
   # RabbitMQ Configuration

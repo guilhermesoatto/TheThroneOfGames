@@ -20,17 +20,15 @@ spec:
     spec:
       containers:
       - name: vendas-api
-        image: ghcr.io/guilhermesoatto/thethroneofgames/vendas-api:latest
+        image: gcr.io/project-62120210-43eb-4d93-954/vendas-api:latest
         imagePullPolicy: Always
         ports:
-        - containerPort: 5003
+        - containerPort: 80
           name: http
           protocol: TCP
         env:
         - name: ASPNETCORE_ENVIRONMENT
           value: "Production"
-        - name: ASPNETCORE_URLS
-          value: "http://+:5003"
         envFrom:
         - configMapRef:
             name: app-config
@@ -47,16 +45,16 @@ spec:
             cpu: "1500m"
         livenessProbe:
           httpGet:
-            path: /swagger
-            port: 5003
+            path: /health
+            port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /swagger
-            port: 5003
+            path: /health
+            port: 80
           initialDelaySeconds: 15
           periodSeconds: 5
           timeoutSeconds: 3
@@ -72,8 +70,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 5003
-    targetPort: 5003
+  - port: 80
+    targetPort: 80
     protocol: TCP
     name: http
   selector:

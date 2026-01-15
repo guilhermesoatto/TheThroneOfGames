@@ -20,17 +20,15 @@ spec:
     spec:
       containers:
       - name: usuarios-api
-        image: ghcr.io/guilhermesoatto/thethroneofgames/usuarios-api:latest
+        image: gcr.io/project-62120210-43eb-4d93-954/usuarios-api:postgres
         imagePullPolicy: Always
         ports:
-        - containerPort: 5001
+        - containerPort: 80
           name: http
           protocol: TCP
         env:
         - name: ASPNETCORE_ENVIRONMENT
           value: "Production"
-        - name: ASPNETCORE_URLS
-          value: "http://+:5001"
         envFrom:
         - configMapRef:
             name: app-config
@@ -48,7 +46,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /swagger
-            port: 5001
+            port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
@@ -56,7 +54,7 @@ spec:
         readinessProbe:
           httpGet:
             path: /swagger
-            port: 5001
+            port: 80
           initialDelaySeconds: 15
           periodSeconds: 5
           timeoutSeconds: 3
@@ -72,8 +70,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 5001
-    targetPort: 5001
+  - port: 80
+    targetPort: 80
     protocol: TCP
     name: http
   selector:
