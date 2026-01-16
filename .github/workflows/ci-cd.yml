@@ -144,7 +144,7 @@ jobs:
       run: dotnet tool install --global dotnet-sonarscanner
       
     - name: Analyze with SonarQube
-      if: ${{ github.event_name == 'push' && secrets.SONAR_TOKEN != '' }}
+      if: false  # Desabilitado - configure SONAR_TOKEN secret para habilitar
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
@@ -160,10 +160,6 @@ jobs:
           /p:CollectCoverage=true \
           /p:CoverletOutputFormat=opencover
         dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
-        
-    - name: SonarQube not configured
-      if: ${{ secrets.SONAR_TOKEN == '' }}
-      run: echo "⚠️ SonarQube analysis skipped - SONAR_TOKEN not configured"
 
   # Job 5: Deploy to GKE
   deploy-gke:

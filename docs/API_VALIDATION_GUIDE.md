@@ -22,7 +22,6 @@ kubectl port-forward svc/usuarios-api 8080:80 -n thethroneofgames
 
 # Terminal 2 - Testar endpoints
 curl http://localhost:8080/health
-curl http://localhost:8080/swagger
 
 # PowerShell
 Invoke-WebRequest -Uri "http://localhost:8080/health" -UseBasicParsing

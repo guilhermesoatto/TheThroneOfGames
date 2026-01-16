@@ -93,18 +93,14 @@ services:
     depends_on:
       - mssql
       - rabbitmq
+    networks:
+      - thethroneofgames-network
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - thethroneofgames-network
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/swagger" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    
 
   # Catalogo Microservice
   catalogo-api:
@@ -128,17 +124,12 @@ services:
       - "5002:80"
       - "9092:9092"  # Prometheus metrics
     depends_on:
-      - mssql
+      - postgresql
       - rabbitmq
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - thethroneofgames-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/swagger" ]
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
