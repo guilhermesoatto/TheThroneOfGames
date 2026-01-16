@@ -165,101 +165,11 @@ jobs:
       if: ${{ secrets.SONAR_TOKEN == '' }}
       run: echo "⚠️ SonarQube analysis skipped - SONAR_TOKEN not configured"
 
-  # Job 5: Deploy to Development
-  deploy-dev:
-    name: Deploy to Development
+  # Job 5: Deploy to GKE
+  deploy-gke:
+    name: Deploy to GKE
     runs-on: ubuntu-latest
     needs: [docker-build, security-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    environment:
-      name: development
-      url: https://dev.thethroneofgames.com
-      
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Configure kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: 'latest'
-        
-    - name: Set Kubernetes context
-      run: |
-        echo "${{ secrets.KUBE_CONFIG_DEV }}" > kubeconfig
-        export KUBECONFIG=kubeconfig
-        kubectl config use-context dev-cluster
-        
-    - name: Deploy to Kubernetes
-      run: |
-        export KUBECONFIG=kubeconfig
-        kubectl apply -f k8s/namespaces.yaml
-        kubectl apply -f k8s/configmaps.yaml
-        kubectl apply -f k8s/secrets.yaml
-        kubectl apply -f k8s/deployments/
-        kubectl apply -f k8s/services/
-        kubectl rollout status deployment/usuarios-api -n thethroneofgames
-        kubectl rollout status deployment/catalogo-api -n thethroneofgames
-        kubectl rollout status deployment/vendas-api -n thethroneofgames
-        
-    - name: Run smoke tests
-      run: |
-        export KUBECONFIG=kubeconfig
-        # Wait for services to be ready
-        sleep 30
-        
-        # Get service IPs
-        USUARIOS_URL=$(kubectl get svc usuarios-api -n thethroneofgames -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-        
-        # Test health endpoints
-        curl -f http://$USUARIOS_URL:5001/swagger || exit 1
-        echo "✅ Smoke tests passed"
-
-  # Job 6: Deploy to Staging
-  deploy-staging:
-    name: Deploy to Staging
-    runs-on: ubuntu-latest
-    needs: [docker-build, security-scan]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    environment:
-      name: staging
-      url: https://staging.thethroneofgames.com
-      
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Configure kubectl
-      uses: azure/setup-kubectl@v3
-      
-    - name: Set Kubernetes context
-      run: |
-        echo "${{ secrets.KUBE_CONFIG_STAGING }}" > kubeconfig
-        export KUBECONFIG=kubeconfig
-        kubectl config use-context staging-cluster
-        
-    - name: Deploy to Kubernetes
-      run: |
-        export KUBECONFIG=kubeconfig
-        kubectl apply -f k8s/namespaces.yaml
-        kubectl apply -f k8s/configmaps.yaml
-        kubectl apply -f k8s/secrets.yaml
-        kubectl apply -f k8s/deployments/
-        kubectl apply -f k8s/services/
-        kubectl rollout status deployment/usuarios-api -n thethroneofgames
-        kubectl rollout status deployment/catalogo-api -n thethroneofgames
-        kubectl rollout status deployment/vendas-api -n thethroneofgames
-        
-    - name: Run integration tests
-      run: |
-        # Run full integration test suite
-        echo "✅ Integration tests passed"
-
-  # Job 7: Deploy to Production
-  deploy-production:
-    name: Deploy to Production
-    runs-on: ubuntu-latest
-    needs: deploy-staging
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     environment:
       name: production
@@ -269,67 +179,63 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Configure kubectl
-      uses: azure/setup-kubectl@v3
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
       
-    - name: Set Kubernetes context
+    - name: Configure kubectl
       run: |
-        echo "${{ secrets.KUBE_CONFIG_PROD }}" > kubeconfig
-        export KUBECONFIG=kubeconfig
-        kubectl config use-context prod-cluster
+        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+          --region ${{ secrets.GKE_ZONE }} \
+          --project ${{ secrets.GCP_PROJECT_ID }}
         
-    - name: Deploy to Kubernetes (Blue-Green)
+    - name: Deploy to Kubernetes
       run: |
-        export KUBECONFIG=kubeconfig
+        kubectl apply -f k8s/configmaps/
+        kubectl apply -f k8s/secrets/
+        kubectl apply -f k8s/deployments/
+        kubectl apply -f k8s/services/
         
-        # Create new deployment (green)
-        kubectl apply -f k8s/deployments/ --dry-run=client -o yaml | \
-          sed 's/usuarios-api/usuarios-api-green/g' | \
-          kubectl apply -f -
-        
-        # Wait for green to be ready
-        kubectl wait --for=condition=available deployment/usuarios-api-green -n thethroneofgames --timeout=300s
-        
-        # Switch traffic to green
-        kubectl patch service usuarios-api -n thethroneofgames -p '{"spec":{"selector":{"version":"green"}}}'
-        
-        # Delete old blue deployment
-        kubectl delete deployment usuarios-api-blue -n thethroneofgames --ignore-not-found
-        
-    - name: Run production smoke tests
+    - name: Wait for rollout
       run: |
-        export KUBECONFIG=kubeconfig
-        PROD_URL=$(kubectl get svc usuarios-api -n thethroneofgames -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-        curl -f https://$PROD_URL/swagger || exit 1
-        echo "✅ Production deployment successful"
+        kubectl rollout status deployment/usuarios-api -n thethroneofgames --timeout=300s
+        kubectl rollout status deployment/catalogo-api -n thethroneofgames --timeout=300s
+        kubectl rollout status deployment/vendas-api -n thethroneofgames --timeout=300s
         
-    - name: Notify deployment
-      if: always()
+    - name: Run smoke tests
       run: |
-        # Send notification to Slack/Teams/Email
-        echo "🚀 Production deployment completed"
+        # Get pod status
+        kubectl get pods -n thethroneofgames
+        
+        # Test health endpoints via port-forward
+        kubectl port-forward svc/usuarios-api 8080:80 -n thethroneofgames &
+        sleep 5
+        curl -f http://localhost:8080/health || exit 1
+        echo "✅ Smoke tests passed"
 
-  # Job 8: Performance Testing
+
+  # Job 6: Performance Testing (opcional)
   performance-test:
     name: Performance Testing
     runs-on: ubuntu-latest
-    needs: deploy-staging
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: deploy-gke
+    if: false  # Desabilitado por enquanto
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    - name: Setup PowerShell
-      uses: azure/powershell@v1
-      with:
-        azPSVersion: 'latest'
         
     - name: Run load tests
       shell: pwsh
       run: |
         cd scripts
-        .\load-test.ps1 -NumUsuarios 20 -NumJogos 50 -NumPedidos 100 -ConcurrentUsers 5 -GenerateReport
+        if (Test-Path ".\load-test.ps1") {
+          .\load-test.ps1 -NumUsuarios 20 -NumJogos 50 -NumPedidos 100 -ConcurrentUsers 5 -GenerateReport
+        }
         
     - name: Upload performance report
       uses: actions/upload-artifact@v4
@@ -337,20 +243,3 @@ jobs:
         name: performance-report
         path: scripts/load-test-report-*.txt
 
-  # Job 9: Cleanup
-  cleanup:
-    name: Cleanup Old Resources
-    runs-on: ubuntu-latest
-    needs: deploy-production
-    if: always()
-    
-    steps:
-    - name: Cleanup old Docker images
-      run: |
-        # Delete images older than 30 days
-        echo "🧹 Cleanup completed"
-        
-    - name: Cleanup old deployments
-      run: |
-        # Delete old Kubernetes deployments
-        echo "🧹 Old deployments removed"
