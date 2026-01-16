@@ -144,22 +144,25 @@ jobs:
       run: dotnet tool install --global dotnet-sonarscanner
       
     - name: Analyze with SonarQube
-      if: github.event_name == 'push' && secrets.SONAR_TOKEN != ''
+      if: ${{ github.event_name == 'push' && secrets.SONAR_TOKEN != '' }}
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
       run: |
         dotnet sonarscanner begin \
           /k:"TheThroneOfGames" \
           /n:"The Throne of Games" \
-          /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
-          /d:sonar.token="${{ secrets.SONAR_TOKEN }}" \
+          /d:sonar.host.url="$SONAR_HOST_URL" \
+          /d:sonar.token="$SONAR_TOKEN" \
           /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
         dotnet build TheThroneOfGames.sln --no-restore
         dotnet test --no-build --verbosity normal \
           /p:CollectCoverage=true \
           /p:CoverletOutputFormat=opencover
-        dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+        dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
         
     - name: SonarQube not configured
-      if: secrets.SONAR_TOKEN == ''
+      if: ${{ secrets.SONAR_TOKEN == '' }}
       run: echo "⚠️ SonarQube analysis skipped - SONAR_TOKEN not configured"
 
   # Job 5: Deploy to Development
