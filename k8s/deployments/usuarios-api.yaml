@@ -1,4 +1,4 @@
-apiVersion: apps/v1
+﻿apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: usuarios-api
@@ -45,7 +45,7 @@ spec:
             cpu: "1500m"
         livenessProbe:
           httpGet:
-            path: /swagger
+            path: /health
             port: 80
           initialDelaySeconds: 30
           periodSeconds: 10
@@ -53,7 +53,7 @@ spec:
           failureThreshold: 3
         readinessProbe:
           httpGet:
-            path: /swagger
+            path: /health
             port: 80
           initialDelaySeconds: 15
           periodSeconds: 5

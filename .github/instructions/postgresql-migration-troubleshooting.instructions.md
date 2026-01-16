@@ -231,6 +231,67 @@ docker build -t image3 .
 
 ---
 
+### 9. Docker Image Tag Mismatch (CRITICAL)
+
+**Problema:**
+```
+Liveness probe failed: HTTP probe failed with statuscode: 404
+Readiness probe failed: HTTP probe failed with statuscode: 404
+```
+
+Catalogo e Vendas APIs ficavam em crash loop infinito (67+ restarts) enquanto Usuarios API funcionava perfeitamente, apesar de código idêntico.
+
+**Causa Raiz:**
+Deployment YAML configurado para puxar imagem antiga `:latest` (SQL Server) ao invés da nova imagem `:postgres` (PostgreSQL com endpoint /health).
+
+**Como Identificar:**
+```bash
+# Verificar imagem atual no cluster
+kubectl get deployment catalogo-api -n thethroneofgames -o yaml | grep "image:"
+# Output: image: gcr.io/.../catalogo-api:latest  # ❌ ERRADO
+
+# Verificar eventos do pod
+kubectl describe pod <pod-name> | grep "Image"
+# Pulling image "gcr.io/.../catalogo-api:latest"
+
+# Verificar logs
+kubectl logs <pod-name> --previous
+# Mostra "Application is shutting down" sem erros
+# Indica que app inicia mas algo está faltando (health endpoint)
+```
+
+**Solução:**
+```yaml
+# deployment.yaml - ANTES (errado):
+image: gcr.io/project-62120210-43eb-4d93-954/catalogo-api:latest
+
+# deployment.yaml - DEPOIS (correto):
+image: gcr.io/project-62120210-43eb-4d93-954/catalogo-api:postgres
+```
+
+Aplicar mudança:
+```bash
+kubectl apply -f k8s/deployments/catalogo-api.yaml
+kubectl apply -f k8s/deployments/vendas-api.yaml
+# Kubernetes fará rolling update automaticamente
+```
+
+**Lição Aprendida:**
+✅ SEMPRE verificar tag da imagem no deployment YAML após rebuild
+✅ Usar tags específicas (`:postgres`, `:v1.0.0`) ao invés de `:latest` em produção
+✅ Validar que deployment YAML foi atualizado junto com docker build/push
+✅ Se pod crashar sem erro nos logs, verificar se imagem está correta
+✅ Comparar deployment working vs failing para identificar diferenças
+
+**Sintomas de Tag Incorreto:**
+- Pod inicia e entra em "Running" status
+- Logs mostram startup normal, depois "Application is shutting down"
+- Health checks retornam 404 (endpoint não existe na imagem antiga)
+- Restart count aumenta rapidamente (crash loop)
+- Deployment idêntico funciona para outro serviço (indica problema específico)
+
+---
+
 ## Comandos Úteis para Debug
 
 ### Verificar Logs de Pod

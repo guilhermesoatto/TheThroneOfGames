@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: catalogo-api
-        image: gcr.io/project-62120210-43eb-4d93-954/catalogo-api:latest
+        image: gcr.io/project-62120210-43eb-4d93-954/catalogo-api:postgres
         imagePullPolicy: Always
         ports:
         - containerPort: 80

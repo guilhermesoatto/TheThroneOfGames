@@ -82,6 +82,9 @@ app.UseHttpMetrics();
 app.MapControllers();
 app.MapMetrics();
 
+// Health check endpoint for Kubernetes probes
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
+
 // Migration and Seed - Removed: Microservice should not manage DB schema
 // Each microservice uses its own database context configured via Infrastructure extensions
 
