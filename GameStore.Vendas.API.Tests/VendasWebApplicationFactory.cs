@@ -14,27 +14,54 @@ public class VendasWebApplicationFactory : WebApplicationFactory<global::Program
     {
         builder.UseEnvironment("Test");
         
-        // Não precisa configurar nada - vai usar SQL Server do container
-        // Program.cs já configura tudo corretamente
+        builder.ConfigureServices(services =>
+        {
+            // Remove DbContext options
+            var usuariosDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>));
+            if (usuariosDescriptor != null) services.Remove(usuariosDescriptor);
+            
+            var catalogoDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>));
+            if (catalogoDescriptor != null) services.Remove(catalogoDescriptor);
+            
+            var vendasDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<VendasDbContext>));
+            if (vendasDescriptor != null) services.Remove(vendasDescriptor);
+            
+            // Remove any DbContext registrations
+            var usuariosContext = services.FirstOrDefault(d => d.ServiceType == typeof(UsuariosDbContext));
+            if (usuariosContext != null) services.Remove(usuariosContext);
+            
+            var catalogoContext = services.FirstOrDefault(d => d.ServiceType == typeof(CatalogoDbContext));
+            if (catalogoContext != null) services.Remove(catalogoContext);
+            
+            var vendasContext = services.FirstOrDefault(d => d.ServiceType == typeof(VendasDbContext));
+            if (vendasContext != null) services.Remove(vendasContext);
+            
+            // Add InMemory databases
+            services.AddDbContext<UsuariosDbContext>(options => 
+                options.UseInMemoryDatabase("TestDb_Usuarios"));
+            services.AddDbContext<CatalogoDbContext>(options => 
+                options.UseInMemoryDatabase("TestDb_Catalogo"));
+            services.AddDbContext<VendasDbContext>(options => 
+                options.UseInMemoryDatabase("TestDb_Vendas"));
+        });
     }
 
     protected override void ConfigureClient(HttpClient client)
     {
         base.ConfigureClient(client);
         
-        // Executar migrations para garantir que banco está atualizado
         using var scope = Services.CreateScope();
         var scopedServices = scope.ServiceProvider;
         
-        // Executar migrations dos bounded contexts
+        // EnsureCreated for InMemory databases
         var dbUsuarios = scopedServices.GetRequiredService<UsuariosDbContext>();
-        dbUsuarios.Database.Migrate();
+        dbUsuarios.Database.EnsureCreated();
         
         var dbCatalogo = scopedServices.GetRequiredService<CatalogoDbContext>();
-        dbCatalogo.Database.Migrate();
+        dbCatalogo.Database.EnsureCreated();
         
         var dbVendas = scopedServices.GetRequiredService<VendasDbContext>();
-        dbVendas.Database.Migrate();
+        dbVendas.Database.EnsureCreated();
         
         // Limpar dados de testes anteriores
         dbUsuarios.Usuarios.RemoveRange(dbUsuarios.Usuarios);

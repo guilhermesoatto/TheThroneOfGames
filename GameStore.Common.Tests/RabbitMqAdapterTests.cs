@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using GameStore.Common.Events;
+using RabbitMQ.Client;
 
 namespace GameStore.Common.Tests
 {
@@ -16,6 +17,32 @@ namespace GameStore.Common.Tests
         private Mock<ILogger<RabbitMqAdapter>> _mockLogger = null!;
         private RabbitMqAdapter _adapter = null!;
 
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            // Limpar todas as filas do RabbitMQ antes dos testes
+            try
+            {
+                var factory = new ConnectionFactory()
+                {
+                    HostName = "localhost",
+                    Port = 5672,
+                    UserName = "guest",
+                    Password = "guest"
+                };
+                using var connection = factory.CreateConnection();
+                using var channel = connection.CreateModel();
+                
+                // Tentar deletar filas que podem existir de testes anteriores
+                try { channel.QueueDelete("catalogo.usuario-ativado"); } catch { }
+                try { channel.QueueDelete("catalogo.usuario-ativado.dlq"); } catch { }
+            }
+            catch
+            {
+                // Se falhar (RabbitMQ não disponível), os testes vão falhar de qualquer forma
+            }
+        }
+
         [SetUp]
         public void SetUp()
         {
@@ -26,6 +53,28 @@ namespace GameStore.Common.Tests
         public void TearDown()
         {
             _adapter?.Dispose();
+            
+            // Limpar filas após cada teste para evitar conflitos
+            try
+            {
+                var factory = new ConnectionFactory()
+                {
+                    HostName = "localhost",
+                    Port = 5672,
+                    UserName = "guest",
+                    Password = "guest"
+                };
+                using var connection = factory.CreateConnection();
+                using var channel = connection.CreateModel();
+                
+                // Deletar filas que podem ter sido criadas
+                try { channel.QueueDelete("catalogo.usuario-ativado"); } catch { }
+                try { channel.QueueDelete("catalogo.usuario-ativado.dlq"); } catch { }
+            }
+            catch
+            {
+                // Se falhar, ignora
+            }
         }
 
         [Test]
@@ -37,9 +86,8 @@ namespace GameStore.Common.Tests
                 port: 5672,
                 username: "guest",
                 password: "guest",
-                logger: _mockLogger.Object,
-                exchangeName: "test.exchange",
-                dlqExchangeName: "test.dlq"
+                logger: _mockLogger.Object
+                // Usar defaults: exchangeName: "thethroneofgames.events", dlqExchangeName: "thethroneofgames.dlq"
             );
 
             // Assert - constructor completed without throwing

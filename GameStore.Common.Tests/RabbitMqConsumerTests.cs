@@ -2,6 +2,7 @@ using GameStore.Common.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using RabbitMQ.Client;
 
 namespace GameStore.Common.Tests
 {
@@ -14,6 +15,33 @@ namespace GameStore.Common.Tests
     {
         private Mock<ILogger<RabbitMqConsumer>> _mockLogger = null!;
         private RabbitMqConsumer _consumer = null!;
+
+        [OneTimeSetUp]
+        public void OneTimeSetUp()
+        {
+            // Limpar todas as filas do RabbitMQ antes dos testes
+            try
+            {
+                var factory = new ConnectionFactory()
+                {
+                    HostName = "localhost",
+                    Port = 5672,
+                    UserName = "guest",
+                    Password = "guest"
+                };
+                using var connection = factory.CreateConnection();
+                using var channel = connection.CreateModel();
+                
+                // Tentar deletar filas que podem existir
+                try { channel.QueueDelete("test.queue"); } catch { }
+                try { channel.QueueDelete("catalogo.usuario-ativado"); } catch { }
+                try { channel.QueueDelete("catalogo.usuario-ativado.dlq"); } catch { }
+            }
+            catch
+            {
+                // Ignora se RabbitMQ não está disponível
+            }
+        }
 
         [SetUp]
         public void SetUp()

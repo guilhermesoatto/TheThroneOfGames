@@ -15,14 +15,25 @@ public class CatalogoWebApplicationFactory : WebApplicationFactory<global::Progr
         
         builder.ConfigureServices(services =>
         {
+            // Remove DbContext options
             var usuariosDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>));
             if (usuariosDescriptor != null) services.Remove(usuariosDescriptor);
             
             var catalogoDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>));
             if (catalogoDescriptor != null) services.Remove(catalogoDescriptor);
             
-            services.AddDbContext<UsuariosDbContext>(options => options.UseInMemoryDatabase("TestDb_Usuarios"));
-            services.AddDbContext<CatalogoDbContext>(options => options.UseInMemoryDatabase("TestDb_Catalogo"));
+            // Remove any DbContext registrations
+            var usuariosContext = services.FirstOrDefault(d => d.ServiceType == typeof(UsuariosDbContext));
+            if (usuariosContext != null) services.Remove(usuariosContext);
+            
+            var catalogoContext = services.FirstOrDefault(d => d.ServiceType == typeof(CatalogoDbContext));
+            if (catalogoContext != null) services.Remove(catalogoContext);
+            
+            // Add InMemory databases
+            services.AddDbContext<UsuariosDbContext>(options => 
+                options.UseInMemoryDatabase("TestDb_Usuarios"));
+            services.AddDbContext<CatalogoDbContext>(options => 
+                options.UseInMemoryDatabase("TestDb_Catalogo"));
         });
     }
 

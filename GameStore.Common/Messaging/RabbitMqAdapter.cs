@@ -101,21 +101,6 @@ namespace GameStore.Common.Messaging
             {
                 var queueName = kvp.Value;
 
-                // Declarar fila principal
-                _channel.QueueDeclare(
-                    queue: queueName,
-                    durable: true,
-                    exclusive: false,
-                    autoDelete: false
-                );
-
-                // Bind da fila ao exchange principal
-                _channel.QueueBind(
-                    queue: queueName,
-                    exchange: _exchangeName,
-                    routingKey: queueName
-                );
-
                 // Declarar fila DLQ específica para este tipo de evento
                 var dlqQueueName = $"{queueName}.dlq";
                 _channel.QueueDeclare(
@@ -139,13 +124,20 @@ namespace GameStore.Common.Messaging
                     { "x-dead-letter-routing-key", queueName }
                 };
 
-                // Re-declarar fila com argumentos de DLQ
+                // Declarar fila principal COM argumentos de DLQ (uma única vez)
                 _channel.QueueDeclare(
                     queue: queueName,
                     durable: true,
                     exclusive: false,
                     autoDelete: false,
                     arguments: queueArgs
+                );
+
+                // Bind da fila ao exchange principal
+                _channel.QueueBind(
+                    queue: queueName,
+                    exchange: _exchangeName,
+                    routingKey: queueName
                 );
             }
 
