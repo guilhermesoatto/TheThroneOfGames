@@ -13,31 +13,31 @@ public class CatalogoWebApplicationFactory : WebApplicationFactory<global::Progr
     {
         builder.UseEnvironment("Test");
         
-        // Não precisa configurar nada - vai usar SQL Server do container
-        // Program.cs já configura tudo corretamente
+        builder.ConfigureServices(services =>
+        {
+            var usuariosDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>));
+            if (usuariosDescriptor != null) services.Remove(usuariosDescriptor);
+            
+            var catalogoDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>));
+            if (catalogoDescriptor != null) services.Remove(catalogoDescriptor);
+            
+            services.AddDbContext<UsuariosDbContext>(options => options.UseInMemoryDatabase("TestDb_Usuarios"));
+            services.AddDbContext<CatalogoDbContext>(options => options.UseInMemoryDatabase("TestDb_Catalogo"));
+        });
     }
 
     protected override void ConfigureClient(HttpClient client)
     {
         base.ConfigureClient(client);
         
-        // Executar migrations para garantir que banco está atualizado
         using var scope = Services.CreateScope();
         var scopedServices = scope.ServiceProvider;
         
-        // Executar migrations dos bounded contexts
         var dbUsuarios = scopedServices.GetRequiredService<UsuariosDbContext>();
-        dbUsuarios.Database.Migrate();
+        dbUsuarios.Database.EnsureCreated();
         
         var dbCatalogo = scopedServices.GetRequiredService<CatalogoDbContext>();
-        dbCatalogo.Database.Migrate();
-        
-        // Limpar dados de testes anteriores
-        dbUsuarios.Usuarios.RemoveRange(dbUsuarios.Usuarios);
-        dbUsuarios.SaveChanges();
-        
-        dbCatalogo.Jogos.RemoveRange(dbCatalogo.Jogos);
-        dbCatalogo.SaveChanges();
+        dbCatalogo.Database.EnsureCreated();
         
         // Seed admin user for testing in UsuariosDbContext (bounded context)
         if (!dbUsuarios.Usuarios.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
