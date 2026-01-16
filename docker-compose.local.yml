@@ -1,20 +1,26 @@
 version: '3.8'
 
 services:
-  # SQL Server Database
-  sqlserver:
-    image: mcr.microsoft.com/mssql/server:2019-latest
-    container_name: thethroneofgames-sqlserver
+  # PostgreSQL Database
+  postgresql:
+    image: postgres:16-alpine
+    container_name: thethroneofgames-postgresql
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourSecurePassword123!
-      - MSSQL_PID=Developer
+      - POSTGRES_DB=GameStore
+      - POSTGRES_USER=sa
+      - POSTGRES_PASSWORD=YourSecurePassword123!
+      - PGDATA=/var/lib/postgresql/data/pgdata
     ports:
-      - "1433:1433"
+      - "5432:5432"
     volumes:
-      - sqlserver-data:/var/opt/mssql
+      - postgresql-data:/var/lib/postgresql/data
     networks:
       - thethroneofgames-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # RabbitMQ Message Broker
   rabbitmq:
@@ -84,7 +90,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False;TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Host=postgresql;Port=5432;Database=GameStore;Username=sa;Password=YourSecurePassword123!
       - Jwt__Key=your-jwt-secret-key-minimum-32-characters-long-change-in-production!
       - Jwt__Issuer=TheThroneOfGames
       - Jwt__Audience=TheThroneOfGamesClient
@@ -99,8 +105,13 @@ services:
     networks:
       - thethroneofgames-network
     depends_on:
-      - sqlserver
+      - postgresql
       - rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Catalogo API
   catalogo-api:
@@ -111,7 +122,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False;TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Host=postgresql;Port=5432;Database=GameStore;Username=sa;Password=YourSecurePassword123!
       - Jwt__Key=your-jwt-secret-key-minimum-32-characters-long-change-in-production!
       - Jwt__Issuer=TheThroneOfGames
       - Jwt__Audience=TheThroneOfGamesClient
@@ -126,8 +137,13 @@ services:
     networks:
       - thethroneofgames-network
     depends_on:
-      - sqlserver
+      - postgresql
       - rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Vendas API
   vendas-api:
@@ -138,7 +154,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:80
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False;TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Host=postgresql;Port=5432;Database=GameStore;Username=sa;Password=YourSecurePassword123!
       - Jwt__Key=your-jwt-secret-key-minimum-32-characters-long-change-in-production!
       - Jwt__Issuer=TheThroneOfGames
       - Jwt__Audience=TheThroneOfGamesClient
@@ -153,15 +169,20 @@ services:
     networks:
       - thethroneofgames-network
     depends_on:
-      - sqlserver
+      - postgresql
       - rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   thethroneofgames-network:
     driver: bridge
 
 volumes:
-  sqlserver-data:
+  postgresql-data:
   rabbitmq-data:
   prometheus-data:
   grafana-data:

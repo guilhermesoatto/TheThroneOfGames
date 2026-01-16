@@ -78,7 +78,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORT: 80
-      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+      ConnectionStrings__DefaultConnection: "Host=mssql;Port=5432;Database=GameStore;Username=sa;Password=YourSecurePassword123!"
       Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
       Jwt__Issuer: "TheThroneOfGames"
       Jwt__Audience: "TheThroneOfGamesClient"
@@ -93,6 +93,11 @@ services:
     depends_on:
       - mssql
       - rabbitmq
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -110,7 +115,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORT: 80
-      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+      ConnectionStrings__DefaultConnection: "Host=mssql;Port=5432;Database=GameStore;Username=sa;Password=YourSecurePassword123!"
       Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
       Jwt__Issuer: "TheThroneOfGames"
       Jwt__Audience: "TheThroneOfGamesClient"
@@ -125,6 +130,11 @@ services:
     depends_on:
       - mssql
       - rabbitmq
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -142,7 +152,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORT: 80
-      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=GameStore;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
+      ConnectionStrings__DefaultConnection: "Host=mssql;Port=5432;Database=GameStore;Username=sa;Password=YourSecurePassword123!"
       Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
       Jwt__Issuer: "TheThroneOfGames"
       Jwt__Audience: "TheThroneOfGamesClient"
@@ -157,6 +167,11 @@ services:
     depends_on:
       - mssql
       - rabbitmq
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - thethroneofgames-network
 
