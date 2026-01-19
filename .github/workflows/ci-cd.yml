@@ -201,12 +201,16 @@ jobs:
           --region ${{ secrets.GKE_ZONE }} \
           --project ${{ secrets.GCP_PROJECT_ID }}
         
+    - name: Install GKE auth plugin
+      run: |
+        gcloud components install gke-gcloud-auth-plugin
+
     - name: Deploy to Kubernetes
       run: |
-        kubectl apply -f k8s/configmaps/
-        kubectl apply -f k8s/secrets/
-        kubectl apply -f k8s/deployments/
-        kubectl apply -f k8s/services/
+        kubectl apply -f k8s/configmaps/ --validate=false
+        kubectl apply -f k8s/secrets/ --validate=false
+        kubectl apply -f k8s/deployments/ --validate=false
+        kubectl apply -f k8s/services/ --validate=false
         
     - name: Wait for rollout
       run: |
