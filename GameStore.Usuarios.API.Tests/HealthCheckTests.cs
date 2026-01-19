@@ -1,31 +1,28 @@
-using NUnit.Framework;
+using System.Net;
+using Xunit;
 
 namespace GameStore.Usuarios.API.Tests;
 
-[TestFixture]
-public class HealthCheckTests
+public class HealthCheckTests : IClassFixture<IntegrationTestFixture>
 {
-    private UsuariosWebApplicationFactory _factory = null!;
-    private HttpClient _client = null!;
+    private readonly HttpClient _client;
 
-    [OneTimeSetUp]
-    public void Setup()
+    public HealthCheckTests(IntegrationTestFixture fixture)
     {
-        _factory = new UsuariosWebApplicationFactory();
-        _client = _factory.CreateClient();
+        _client = fixture.Client;
     }
 
-    [Test]
+    [Fact]
     public async Task ServerIsRunning()
     {
         // Act
         var response = await _client.GetAsync("/");
 
         // Assert
-        Assert.That(response, Is.Not.Null);
+        Assert.NotNull(response);
     }
 
-    [Test]
+    [Fact]
     public async Task CanReachSwagger()
     {
         // Act
@@ -33,13 +30,6 @@ public class HealthCheckTests
 
         // Assert
         Console.WriteLine($"Swagger response: {response.StatusCode}");
-        Assert.That(response, Is.Not.Null);
-    }
-
-    [OneTimeTearDown]
-    public void Cleanup()
-    {
-        _client.Dispose();
-        _factory.Dispose();
+        Assert.NotNull(response);
     }
 }

@@ -1,20 +1,18 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Xunit;
 using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Usuarios.API.Tests;
 
-[TestFixture]
-public class AuthorizationTests : IDisposable
+public class AuthorizationTests : IClassFixture<IntegrationTestFixture>
 {
-    private readonly UsuariosWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public AuthorizationTests()
+    public AuthorizationTests(IntegrationTestFixture fixture)
     {
-        _factory = new UsuariosWebApplicationFactory();
-        _client = _factory.CreateClient();
+        _client = fixture.Client;
     }
 
     private async Task<string> GetAdminToken()
@@ -29,17 +27,17 @@ public class AuthorizationTests : IDisposable
         return result!["token"];
     }
 
-    [Test]
+    [Fact]
     public async Task AccessProtectedEndpoint_WithoutToken_ReturnsUnauthorized()
     {
         // Act - Tentar acessar endpoint protegido sem token
         var response = await _client.GetAsync("/api/admin/game");
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task AccessProtectedEndpoint_WithInvalidToken_ReturnsUnauthorized()
     {
         // Arrange
@@ -50,10 +48,10 @@ public class AuthorizationTests : IDisposable
         var response = await _client.GetAsync("/api/admin/game");
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task AccessAdminEndpoint_WithAdminToken_ReturnsSuccess()
     {
         // Arrange
@@ -65,10 +63,10 @@ public class AuthorizationTests : IDisposable
         var response = await _client.GetAsync("/api/admin/game");
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task AccessAdminEndpoint_WithExpiredToken_ReturnsUnauthorized()
     {
         // Arrange - Token com formato válido mas expirado/inválido
@@ -80,10 +78,10 @@ public class AuthorizationTests : IDisposable
         var response = await _client.GetAsync("/api/admin/game");
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task CreateAdminResource_WithValidAdminToken_ReturnsCreated()
     {
         // Arrange
@@ -103,10 +101,10 @@ public class AuthorizationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/admin/game", newGame);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task TokenValidation_ChecksIssuerAndAudience()
     {
         // Arrange - Token de admin válido
@@ -119,11 +117,11 @@ public class AuthorizationTests : IDisposable
         var response2 = await _client.GetAsync("/api/admin/game");
 
         // Assert - Token deve funcionar consistentemente
-        Assert.That(response1.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        Assert.That(response2.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task JwtTokenContainsRequiredClaims()
     {
         // Arrange & Act
@@ -137,17 +135,12 @@ public class AuthorizationTests : IDisposable
         var token = result!["token"];
 
         // Assert - Token não deve ser vazio e deve ter formato JWT válido
-        Assert.That(token, Is.Not.Null.And.Not.Empty);
-        Assert.That(token.Split('.'), Has.Length.EqualTo(3), "JWT deve ter 3 partes separadas por ponto");
+        Assert.NotNull(token);
+        Assert.NotEmpty(token);
+        Assert.Equal(3, token.Split('.').Length);
         
         // Verificar que role está presente no response
-        Assert.That(result.ContainsKey("role"), Is.True);
-        Assert.That(result["role"], Is.EqualTo("Admin"));
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
+        Assert.True(result.ContainsKey("role"));
+        Assert.Equal("Admin", result["role"]);
     }
 }

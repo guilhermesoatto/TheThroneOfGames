@@ -9,6 +9,13 @@ namespace GameStore.Usuarios.API.Tests;
 
 public class UsuariosWebApplicationFactory : WebApplicationFactory<global::Program>
 {
+    private readonly string _testDatabaseName;
+
+    public UsuariosWebApplicationFactory(string testDatabaseName)
+    {
+        _testDatabaseName = testDatabaseName;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
@@ -22,47 +29,19 @@ public class UsuariosWebApplicationFactory : WebApplicationFactory<global::Progr
             var catalogoDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<CatalogoDbContext>));
             if (catalogoDescriptor != null) services.Remove(catalogoDescriptor);
             
-            // Remove  any DbContext registrations
+            // Remove any DbContext registrations
             var usuariosContext = services.FirstOrDefault(d => d.ServiceType == typeof(UsuariosDbContext));
             if (usuariosContext != null) services.Remove(usuariosContext);
             
             var catalogoContext = services.FirstOrDefault(d => d.ServiceType == typeof(CatalogoDbContext));
             if (catalogoContext != null) services.Remove(catalogoContext);
             
-            // Add InMemory databases
+            // Add PostgreSQL databases with test-specific database names
+            var connectionString = $"Host=localhost;Port=5432;Database={_testDatabaseName};Username=sa;Password=YourSecurePassword123!";
             services.AddDbContext<UsuariosDbContext>(options => 
-                options.UseInMemoryDatabase("TestDb_Usuarios"));
+                options.UseNpgsql(connectionString));
             services.AddDbContext<CatalogoDbContext>(options => 
-                options.UseInMemoryDatabase("TestDb_Catalogo"));
+                options.UseNpgsql(connectionString));
         });
-    }
-
-    protected override void ConfigureClient(HttpClient client)
-    {
-        base.ConfigureClient(client);
-        
-        using var scope = Services.CreateScope();
-        var scopedServices = scope.ServiceProvider;
-        
-        var dbUsuarios = scopedServices.GetRequiredService<UsuariosDbContext>();
-        dbUsuarios.Database.EnsureCreated();
-        
-        var dbCatalogo = scopedServices.GetRequiredService<CatalogoDbContext>();
-        dbCatalogo.Database.EnsureCreated();
-        
-        // Seed admin user for testing in UsuariosDbContext (bounded context)
-        if (!dbUsuarios.Usuarios.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
-        {
-            var adminUser = new GameStore.Usuarios.Domain.Entities.Usuario(
-                name: "Admin User",
-                email: "admin@test.com",
-                passwordHash: GameStore.Usuarios.Application.Services.UsuarioService.HashPassword("Admin@123!"),
-                role: "Admin",
-                activeToken: Guid.NewGuid().ToString()
-            );
-            adminUser.Activate();
-            dbUsuarios.Usuarios.Add(adminUser);
-            dbUsuarios.SaveChanges();
-        }
     }
 }

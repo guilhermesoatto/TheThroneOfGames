@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   mssql:
@@ -124,7 +122,7 @@ services:
       - "5002:80"
       - "9092:9092"  # Prometheus metrics
     depends_on:
-      - postgresql
+      - mssql
       - rabbitmq
     networks:
       - thethroneofgames-network

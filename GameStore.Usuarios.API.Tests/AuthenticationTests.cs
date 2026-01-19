@@ -1,26 +1,20 @@
 using System.Net;
 using System.Net.Http.Json;
+using Xunit;
 using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Usuarios.API.Tests;
 
-[TestFixture]
-public class AuthenticationTests : IDisposable
+public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
 {
-    private readonly UsuariosWebApplicationFactory _factory;
     private readonly HttpClient _client;
     private readonly string _outboxPath;
 
-    public AuthenticationTests()
+    public AuthenticationTests(IntegrationTestFixture fixture)
     {
-        _factory = new UsuariosWebApplicationFactory();
-        _client = _factory.CreateClient();
+        _client = fixture.Client;
         _outboxPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Infrastructure", "Outbox"));
-    }
-
-    [SetUp]
-    public void Setup()
-    {
+        
         // Limpar emails antes de cada teste
         if (Directory.Exists(_outboxPath))
         {
@@ -31,7 +25,7 @@ public class AuthenticationTests : IDisposable
         }
     }
 
-    [Test]
+    [Fact]
     public async Task UserRegistration_WithValidData_ReturnsSuccess()
     {
         // Arrange
@@ -47,13 +41,13 @@ public class AuthenticationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/Usuario/register", newUser);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>();
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result.ContainsKey("message"), Is.True);
+        Assert.NotNull(result);
+        Assert.True(result.ContainsKey("message"));
     }
 
-    [Test]
+    [Fact]
     public async Task UserRegistration_WithInvalidPassword_ReturnsBadRequest()
     {
         // Arrange - senha sem caractere especial
@@ -69,10 +63,10 @@ public class AuthenticationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/Usuario/register", newUser);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task UserRegistration_WithDuplicateEmail_ReturnsBadRequest()
     {
         // Arrange
@@ -86,16 +80,16 @@ public class AuthenticationTests : IDisposable
 
         // Act - Registrar primeiro usuário
         var firstResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
-        Assert.That(firstResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
 
         // Act - Tentar registrar com mesmo email
         var secondResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
 
         // Assert
-        Assert.That(secondResponse.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+        Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task UserActivation_WithValidToken_ReturnsSuccess()
     {
         // Arrange - Registrar usuário
@@ -108,14 +102,14 @@ public class AuthenticationTests : IDisposable
         };
 
         var registerResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
-        Assert.That(registerResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
 
         // Aguardar email ser escrito
         await Task.Delay(100);
 
         // Obter token de ativação do email
         var emailFiles = Directory.GetFiles(_outboxPath, "*.eml");
-        Assert.That(emailFiles, Has.Length.EqualTo(1), "Deveria ter exatamente 1 email");
+        Assert.Single(emailFiles);
         
         var emailContent = await File.ReadAllTextAsync(emailFiles[0]);
         var tokenStart = emailContent.IndexOf("activationToken=") + "activationToken=".Length;
@@ -126,10 +120,10 @@ public class AuthenticationTests : IDisposable
         var activateResponse = await _client.GetAsync($"/api/Usuario/activate?activationToken={Uri.EscapeDataString(activationToken)}");
 
         // Assert
-        Assert.That(activateResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, activateResponse.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task Login_WithValidCredentials_ReturnsTokenAndRole()
     {
         // Arrange - Admin já existe no banco (seeded)
@@ -143,16 +137,16 @@ public class AuthenticationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/Usuario/login", loginRequest);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result.ContainsKey("token"), Is.True);
-        Assert.That(result.ContainsKey("role"), Is.True);
-        Assert.That(result["role"], Is.EqualTo("Admin"));
-        Assert.That(result["token"], Is.Not.Null.And.Not.Empty);
+        Assert.NotNull(result);
+        Assert.True(result.ContainsKey("token"));
+        Assert.True(result.ContainsKey("role"));
+        Assert.Equal("Admin", result["role"]);
+        Assert.NotEmpty(result["token"]);
     }
 
-    [Test]
+    [Fact]
     public async Task Login_WithInvalidCredentials_ReturnsUnauthorized()
     {
         // Arrange
@@ -166,10 +160,10 @@ public class AuthenticationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/Usuario/login", loginRequest);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task Login_WithInactiveUser_ReturnsUnauthorized()
     {
         // Arrange - Registrar usuário mas não ativar
@@ -182,7 +176,7 @@ public class AuthenticationTests : IDisposable
         };
 
         var registerResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
-        Assert.That(registerResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
 
         var loginRequest = new LoginDTO
         {
@@ -194,10 +188,10 @@ public class AuthenticationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/Usuario/login", loginRequest);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Test]
+    [Fact]
     public async Task Login_WithNonexistentUser_ReturnsUnauthorized()
     {
         // Arrange
@@ -211,12 +205,6 @@ public class AuthenticationTests : IDisposable
         var response = await _client.PostAsJsonAsync("/api/Usuario/login", loginRequest);
 
         // Assert
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

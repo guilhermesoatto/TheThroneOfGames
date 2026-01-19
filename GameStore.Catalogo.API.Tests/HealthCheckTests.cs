@@ -1,21 +1,18 @@
 using System.Net;
-using NUnit.Framework;
+using Xunit;
 
 namespace GameStore.Catalogo.API.Tests;
 
-[TestFixture]
-public class HealthCheckTests : IDisposable
+public class HealthCheckTests : IClassFixture<IntegrationTestFixture>
 {
-    private readonly CatalogoWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public HealthCheckTests()
+    public HealthCheckTests(IntegrationTestFixture fixture)
     {
-        _factory = new CatalogoWebApplicationFactory();
-        _client = _factory.CreateClient();
+        _client = fixture.Client;
     }
 
-    [Test]
+    [Fact]
     public async Task ServerIsRunning()
     {
         // Act
@@ -23,10 +20,10 @@ public class HealthCheckTests : IDisposable
         
         // Assert - any response means server is up
         Console.WriteLine($"Server response: {response.StatusCode}");
-        Assert.That(response, Is.Not.Null);
+        Assert.NotNull(response);
     }
 
-    [Test]
+    [Fact]
     public async Task CanReachSwagger()
     {
         // Act
@@ -34,12 +31,6 @@ public class HealthCheckTests : IDisposable
         
         // Assert
         Console.WriteLine($"Swagger response: {response.StatusCode}");
-        Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.InternalServerError));
-    }
-
-    public void Dispose()
-    {
-        _client?.Dispose();
-        _factory?.Dispose();
+        Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);
     }
 }

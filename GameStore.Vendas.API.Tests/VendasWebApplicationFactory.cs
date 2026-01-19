@@ -10,6 +10,13 @@ namespace GameStore.Vendas.API.Tests;
 
 public class VendasWebApplicationFactory : WebApplicationFactory<global::Program>
 {
+    private readonly string _testDatabaseName;
+
+    public VendasWebApplicationFactory(string testDatabaseName)
+    {
+        _testDatabaseName = testDatabaseName;
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
@@ -36,55 +43,14 @@ public class VendasWebApplicationFactory : WebApplicationFactory<global::Program
             var vendasContext = services.FirstOrDefault(d => d.ServiceType == typeof(VendasDbContext));
             if (vendasContext != null) services.Remove(vendasContext);
             
-            // Add InMemory databases
+            // Add PostgreSQL databases with test-specific database names
+            var connectionString = $"Host=localhost;Port=5432;Database={_testDatabaseName};Username=sa;Password=YourSecurePassword123!";
             services.AddDbContext<UsuariosDbContext>(options => 
-                options.UseInMemoryDatabase("TestDb_Usuarios"));
+                options.UseNpgsql(connectionString));
             services.AddDbContext<CatalogoDbContext>(options => 
-                options.UseInMemoryDatabase("TestDb_Catalogo"));
+                options.UseNpgsql(connectionString));
             services.AddDbContext<VendasDbContext>(options => 
-                options.UseInMemoryDatabase("TestDb_Vendas"));
+                options.UseNpgsql(connectionString));
         });
-    }
-
-    protected override void ConfigureClient(HttpClient client)
-    {
-        base.ConfigureClient(client);
-        
-        using var scope = Services.CreateScope();
-        var scopedServices = scope.ServiceProvider;
-        
-        // EnsureCreated for InMemory databases
-        var dbUsuarios = scopedServices.GetRequiredService<UsuariosDbContext>();
-        dbUsuarios.Database.EnsureCreated();
-        
-        var dbCatalogo = scopedServices.GetRequiredService<CatalogoDbContext>();
-        dbCatalogo.Database.EnsureCreated();
-        
-        var dbVendas = scopedServices.GetRequiredService<VendasDbContext>();
-        dbVendas.Database.EnsureCreated();
-        
-        // Limpar dados de testes anteriores
-        dbUsuarios.Usuarios.RemoveRange(dbUsuarios.Usuarios);
-        dbUsuarios.SaveChanges();
-        
-        dbCatalogo.Jogos.RemoveRange(dbCatalogo.Jogos);
-        dbCatalogo.SaveChanges();
-        
-        // Vendas não precisa limpar pois depende dos outros contexts
-        
-        // Seed admin user for testing in UsuariosDbContext (bounded context)
-        if (!dbUsuarios.Usuarios.Any(u => u.Email == "admin@test.com" && u.Role == "Admin"))
-        {
-            var adminUser = new GameStore.Usuarios.Domain.Entities.Usuario(
-                name: "Admin User",
-                email: "admin@test.com",
-                passwordHash: GameStore.Usuarios.Application.Services.UsuarioService.HashPassword("Admin@123!"),
-                role: "Admin",
-                activeToken: Guid.NewGuid().ToString()
-            );
-            adminUser.Activate();
-            dbUsuarios.Usuarios.Add(adminUser);
-            dbUsuarios.SaveChanges();
-        }
     }
 }

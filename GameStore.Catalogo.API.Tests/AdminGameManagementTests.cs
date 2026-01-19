@@ -1,20 +1,18 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Xunit;
 using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Catalogo.API.Tests;
 
-[TestFixture]
-public class AdminGameManagementTests : IDisposable
+public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
 {
-    private readonly CatalogoWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public AdminGameManagementTests()
+    public AdminGameManagementTests(IntegrationTestFixture fixture)
     {
-        _factory = new CatalogoWebApplicationFactory();
-        _client = _factory.CreateClient();
+        _client = fixture.Client;
     }
 
     private async Task<string> GetAdminToken()
@@ -24,11 +22,11 @@ public class AdminGameManagementTests : IDisposable
             Email = "admin@test.com",
             Password = "Admin@123!"
         });
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), "Admin login failed");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result.ContainsKey("token"), "Token not found in response");
+        Assert.NotNull(result);
+        Assert.True(result.ContainsKey("token"), "Token not found in response");
 
         return result["token"];
     }
@@ -38,7 +36,7 @@ public class AdminGameManagementTests : IDisposable
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
-    [Test]
+    [Fact]
     public async Task AdminCanCreateAndUpdateGame()
     {
         // Arrange - Get admin token
@@ -56,11 +54,11 @@ public class AdminGameManagementTests : IDisposable
         var createResponse = await _client.PostAsJsonAsync("/api/admin/game", newGame);
 
         // Assert - Creation successful
-        Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var createdGame = await createResponse.Content.ReadFromJsonAsync<GameDTO>();
-        Assert.That(createdGame, Is.Not.Null);
-        Assert.That(createdGame!.Id, Is.Not.EqualTo(Guid.Empty));
-        Assert.That(createdGame.Name, Is.EqualTo(newGame.Name));
+        Assert.NotNull(createdGame);
+        Assert.NotEqual(Guid.Empty, createdGame!.Id);
+        Assert.Equal(newGame.Name, createdGame.Name);
 
         // Act - Update game
         var updateGame = new GameDTO
@@ -73,27 +71,28 @@ public class AdminGameManagementTests : IDisposable
         var updateResponse = await _client.PutAsJsonAsync($"/api/admin/game/{createdGame.Id}", updateGame);
 
         // Assert - Update successful
-        Assert.That(updateResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         var updatedGame = await updateResponse.Content.ReadFromJsonAsync<GameDTO>();
-        Assert.That(updatedGame.Name, Is.EqualTo(updateGame.Name));
-        Assert.That(updatedGame.Genre, Is.EqualTo(updateGame.Genre));
-        Assert.That(updatedGame.Price, Is.EqualTo(updateGame.Price));
+        Assert.NotNull(updatedGame);
+        Assert.Equal(updateGame.Name, updatedGame!.Name);
+        Assert.Equal(updateGame.Genre, updatedGame.Genre);
+        Assert.Equal(updateGame.Price, updatedGame.Price);
 
         // Act - Delete game (soft delete - marca como indisponível)
         var deleteResponse = await _client.DeleteAsync($"/api/admin/game/{createdGame.Id}");
 
         // Assert - Delete successful
-        Assert.That(deleteResponse.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
 
         // Verify game still exists but is unavailable (soft delete)
         var getResponse = await _client.GetAsync($"/api/admin/game/{createdGame.Id}");
-        Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         var deletedGame = await getResponse.Content.ReadFromJsonAsync<GameDTO>();
-        Assert.That(deletedGame, Is.Not.Null);
-        Assert.That(deletedGame!.IsAvailable, Is.False, "Jogo deveria estar indisponível após delete");
+        Assert.NotNull(deletedGame);
+        Assert.False(deletedGame!.IsAvailable);
     }
 
-    [Test]
+    [Fact]
     public async Task NonAdminCannotAccessGameManagement()
     {
         // Limpar emails antigos antes do teste
@@ -116,14 +115,14 @@ public class AdminGameManagementTests : IDisposable
         };
 
         var preRegisterResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
-        Assert.That(preRegisterResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, preRegisterResponse.StatusCode);
 
         // Need to wait for the email file to be written
         await Task.Delay(100);
 
         // Get activation token from email
         var emailFiles = Directory.GetFiles(outboxPath, "*.eml");
-        Assert.That(emailFiles, Has.Length.EqualTo(1), "Deveria ter exatamente 1 email de ativação");
+        Assert.Single(emailFiles);
         var emailContent = await File.ReadAllTextAsync(emailFiles[0]);
 
         var activationTokenStart = emailContent.IndexOf("activationToken=") + "activationToken=".Length;
@@ -132,7 +131,7 @@ public class AdminGameManagementTests : IDisposable
 
         // Activate the account
         var activateResponse = await _client.PostAsync($"/api/Usuario/activate?activationToken={activationToken}", null);
-        Assert.That(activateResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.Equal(HttpStatusCode.OK, activateResponse.StatusCode);
 
         var loginResponse = await _client.PostAsJsonAsync("/api/Usuario/login", new LoginDTO
         {
@@ -141,7 +140,7 @@ public class AdminGameManagementTests : IDisposable
         });
 
         var result = await loginResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.That(result, Is.Not.Null);
+        Assert.NotNull(result);
         SetAuthToken(result!["token"]);
 
         // Act & Assert - Try to access admin endpoints
@@ -152,15 +151,9 @@ public class AdminGameManagementTests : IDisposable
             Price = 29.99m
         });
 
-        Assert.That(createResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
+        Assert.Equal(HttpStatusCode.Forbidden, createResponse.StatusCode);
 
         var getResponse = await _client.GetAsync("/api/admin/game");
-        Assert.That(getResponse.StatusCode, Is.EqualTo(HttpStatusCode.Forbidden));
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-        _factory.Dispose();
+        Assert.Equal(HttpStatusCode.Forbidden, getResponse.StatusCode);
     }
 }

@@ -1,31 +1,38 @@
-using NUnit.Framework;
+using Xunit;
 
 namespace GameStore.Vendas.API.Tests;
 
-[TestFixture]
-public class HealthCheckTests
+public class HealthCheckTests : IAsyncLifetime
 {
     private VendasWebApplicationFactory _factory = null!;
     private HttpClient _client = null!;
 
-    [OneTimeSetUp]
-    public void Setup()
+    public async Task InitializeAsync()
     {
-        _factory = new VendasWebApplicationFactory();
+        var testDb = $"GameStore_Test_{Guid.NewGuid():N}";
+        _factory = new VendasWebApplicationFactory(testDb);
         _client = _factory.CreateClient();
+        await Task.CompletedTask;
     }
 
-    [Test]
+    public async Task DisposeAsync()
+    {
+        _client?.Dispose();
+        _factory?.Dispose();
+        await Task.CompletedTask;
+    }
+
+    [Fact]
     public async Task ServerIsRunning()
     {
         // Act
         var response = await _client.GetAsync("/");
 
         // Assert
-        Assert.That(response, Is.Not.Null);
+        Assert.NotNull(response);
     }
 
-    [Test]
+    [Fact]
     public async Task CanReachSwagger()
     {
         // Act
@@ -33,13 +40,6 @@ public class HealthCheckTests
 
         // Assert
         Console.WriteLine($"Swagger response: {response.StatusCode}");
-        Assert.That(response, Is.Not.Null);
-    }
-
-    [OneTimeTearDown]
-    public void Cleanup()
-    {
-        _client.Dispose();
-        _factory.Dispose();
+        Assert.NotNull(response);
     }
 }
