@@ -6,6 +6,6 @@ Content-Type: text/plain; charset=utf-8
 Olá First User,
 
 Por favor ative sua conta clicando no link abaixo:
-http://localhost/api/Usuario/activate?activationToken=cd30f1dd-3f4b-4918-a2a7-d5d1efaf46f4
+http://localhost/api/Usuario/activate?activationToken=b9a7f139-f92c-4c57-9d2f-0daced7bdfef
 
 Se você não solicitou esse e-mail, ignore.

@@ -11,6 +11,7 @@ namespace GameStore.Common.Tests
     /// Valida inicialização e processamento de mensagens.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public class RabbitMqConsumerTests
     {
         private Mock<ILogger<RabbitMqConsumer>> _mockLogger = null!;

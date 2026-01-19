@@ -2,6 +2,7 @@ using Xunit;
 
 namespace GameStore.Vendas.API.Tests;
 
+[Trait("Category", "Integration")]
 public class HealthCheckTests : IAsyncLifetime
 {
     private VendasWebApplicationFactory _factory = null!;

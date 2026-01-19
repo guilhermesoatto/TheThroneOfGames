@@ -3,6 +3,7 @@ using Xunit;
 
 namespace GameStore.Usuarios.API.Tests;
 
+[Trait("Category", "Integration")]
 public class HealthCheckTests : IClassFixture<IntegrationTestFixture>
 {
     private readonly HttpClient _client;

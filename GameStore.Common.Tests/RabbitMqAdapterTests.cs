@@ -12,6 +12,7 @@ namespace GameStore.Common.Tests
     /// Valida comportamento de publicação, tratamento de erros e logging.
     /// </summary>
     [TestFixture]
+    [Category("Integration")]
     public class RabbitMqAdapterTests
     {
         private Mock<ILogger<RabbitMqAdapter>> _mockLogger = null!;

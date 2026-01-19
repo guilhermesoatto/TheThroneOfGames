@@ -5,6 +5,7 @@ using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Usuarios.API.Tests;
 
+[Trait("Category", "Integration")]
 public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
 {
     private readonly HttpClient _client;

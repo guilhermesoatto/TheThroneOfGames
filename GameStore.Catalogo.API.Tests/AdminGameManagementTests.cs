@@ -6,6 +6,7 @@ using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Catalogo.API.Tests;
 
+[Trait("Category", "Integration")]
 public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
 {
     private readonly HttpClient _client;
