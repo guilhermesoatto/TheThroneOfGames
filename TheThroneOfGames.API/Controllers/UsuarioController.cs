@@ -14,13 +14,11 @@ namespace TheThroneOfGames.API.Controllers
     {
         private readonly IUsuarioService _userService;
         private readonly GameStore.Usuarios.Application.Services.AuthenticationService _authService;
-        private readonly TheThroneOfGames.Infrastructure.ExternalServices.EmailService _emailService;
 
-        public UsuarioController(IUsuarioService userService, GameStore.Usuarios.Application.Services.AuthenticationService authService, TheThroneOfGames.Infrastructure.ExternalServices.EmailService emailService)
+        public UsuarioController(IUsuarioService userService, GameStore.Usuarios.Application.Services.AuthenticationService authService)
         {
             _userService = userService;
             _authService = authService;
-            _emailService = emailService;
         }
 
         // GET: api/<UsuarioController>
@@ -49,9 +47,7 @@ namespace TheThroneOfGames.API.Controllers
                 // Forward to service for secure registration and send activation e-mail
                 var activationToken = _userService.PreRegisterUserAsync(value.Email, value.Name, value.Password, value.Role).GetAwaiter().GetResult();
                 var activationLink = $"{Request.Scheme}://{Request.Host}/api/Usuario/activate?activationToken={activationToken}";
-                var subject = "Ativação de conta - TheThroneOfGames";
-                var body = $"Olá {value.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
-                _emailService.SendEmailAsync(value.Email, subject, body).GetAwaiter().GetResult();
+                // TODO: Send activation email via EmailService
                 return Ok(new { message = "Usuário registrado com sucesso! E-mail de ativação enviado." });
             }
             catch (ArgumentException ex)
@@ -97,7 +93,7 @@ namespace TheThroneOfGames.API.Controllers
                 var subject = "Ativação de conta - TheThroneOfGames";
                 var body = $"Olá {userDto.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
 
-                await _emailService.SendEmailAsync(userDto.Email, subject, body);
+                // TODO: Send email via EmailService
             }
             catch (ArgumentException ex)
             {

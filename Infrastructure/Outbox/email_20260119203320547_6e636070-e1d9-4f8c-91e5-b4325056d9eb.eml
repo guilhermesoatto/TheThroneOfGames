@@ -1,0 +1,11 @@
+﻿From: Plataforma de Jogos <noreply@plataformajogos.com>
+To: duplicate@example.com
+Subject: Ativação de conta - TheThroneOfGames
+Content-Type: text/plain; charset=utf-8
+
+Olá First User,
+
+Por favor ative sua conta clicando no link abaixo:
+http://localhost/api/Usuario/activate?activationToken=668b4c42-310b-4403-8a69-6f25a53a9eb4
+
+Se você não solicitou esse e-mail, ignore.

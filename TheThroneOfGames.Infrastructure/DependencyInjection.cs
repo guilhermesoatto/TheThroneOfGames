@@ -8,11 +8,8 @@ using Microsoft.Extensions.Configuration;
 using TheThroneOfGames.Infrastructure.Data;
 using TheThroneOfGames.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using TheThroneOfGames.Infrastructure.Email;
-using TheThroneOfGames.Infrastructure.ExternalServices;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Entities;
-using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Infrastructure.Repository;
 
 namespace TheThroneOfGames.Infrastructure
@@ -30,11 +27,6 @@ namespace TheThroneOfGames.Infrastructure
             services.AddScoped<IGameEntityRepository, GameEntityRepository>();
             services.AddScoped<IPromotionRepository, PromotionRepository>();
             // NOTE: Purchase repository may live in another project (GameStore.Vendas). Register it there when composing app.
-
-            // Registro dos Serviços de E-mail
-            var smtpSection = configuration.GetSection("SmtpSettings");
-            services.Configure<SmtpSettings>(options => smtpSection.Bind(options));
-            services.AddTransient<EmailService>();
 
             // Registro de Background Services (se aplicável)
             // services.AddHostedService<PromotionNotificationService>();

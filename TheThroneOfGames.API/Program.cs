@@ -61,9 +61,6 @@ if (!useRabbitMq)
     eventBus.Subscribe<GameStore.Common.Events.GameCompradoEvent>(new GameStore.Usuarios.Application.EventHandlers.GameCompradoEventHandler());
 }
 
-// Authentication & email
-builder.Services.AddScoped<TheThroneOfGames.Infrastructure.ExternalServices.EmailService>();
-
 // Command Handlers - CQRS Pattern
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Usuarios.Application.Commands.ActivateUserCommand>, GameStore.Usuarios.Application.Handlers.ActivateUserCommandHandler>();
 builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Usuarios.Application.Commands.UpdateUserProfileCommand>, GameStore.Usuarios.Application.Handlers.UpdateUserProfileCommandHandler>();

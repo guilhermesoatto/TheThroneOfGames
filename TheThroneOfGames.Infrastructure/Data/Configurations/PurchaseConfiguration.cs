@@ -14,7 +14,6 @@ namespace TheThroneOfGames.Infrastructure.Data.Configurations
         {
             builder.HasKey(p => p.Id);
             builder.Property(p => p.UserId).IsRequired();
-            builder.Property(p => p.GameId).IsRequired();
             builder.Property(p => p.PurchaseDate).IsRequired();
             builder.Property(p => p.TotalPrice).HasColumnType("decimal(18,2)").IsRequired();
         }
