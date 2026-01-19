@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using MimeKit;
-using TheThroneOfGames.Infrastructure.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Persistence;
 
@@ -8,31 +7,60 @@ public class MainDbContext : DbContext
 {
     public MainDbContext(DbContextOptions<MainDbContext> options) : base(options) { }
 
-
     public DbSet<GameEntity> Games { get; set; }
-    public DbSet<UserEntity> Users { get; set; }
+    public DbSet<Usuario> Users { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        // Suprimir warning de PendingModelChanges para testes de integração
+        optionsBuilder.ConfigureWarnings(warnings => 
+            warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<GameEntity>().ToTable("Games");
-        modelBuilder.Entity<UserEntity>().ToTable("Users");
+        base.OnModelCreating(modelBuilder);
+
+        // Configuração de entidades
+        modelBuilder.Entity<Usuario>(entity =>
+        {
+            entity.ToTable("Usuario");
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Email).IsRequired().HasMaxLength(100);
+            entity.Property(u => u.Name).IsRequired().HasMaxLength(100);
+            entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.Role).IsRequired();
+            entity.Property(u => u.ActiveToken);
+            entity.Property(u => u.IsActive);
+        });
 
         modelBuilder.Entity<GameEntity>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Genre).IsRequired().HasMaxLength(50);
-            entity.Property(e => e.Price).IsRequired();
+            entity.ToTable("GameEntity");
+            entity.HasKey(g => g.Id);
+            entity.Property(g => g.Name).IsRequired().HasMaxLength(100);
+            entity.Property(g => g.Genre).IsRequired().HasMaxLength(50);
+            entity.Property(g => g.Price).IsRequired().HasPrecision(18, 2);
         });
 
-        modelBuilder.Entity<UserEntity>(entity =>
+        modelBuilder.Entity<PromotionEntity>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Password).IsRequired();
-            entity.Property(e => e.Role).IsRequired();
-            entity.Property(e => e.IsActive).IsRequired();
+            entity.ToTable("Promotion");
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Discount).IsRequired().HasPrecision(18, 2);
+            entity.Property(p => p.ValidUntil).IsRequired();
+        });
+
+        modelBuilder.Entity<PurchaseEntity>(entity =>
+        {
+            entity.ToTable("Purchase");
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.UserId).IsRequired();
+            entity.Property(p => p.GameId).IsRequired();
+            entity.Property(p => p.PurchaseDate).IsRequired();
+
+            entity.HasOne<Usuario>().WithMany().HasForeignKey(p => p.UserId);
+            entity.HasOne<GameEntity>().WithMany().HasForeignKey(p => p.GameId);
         });
     }
 }

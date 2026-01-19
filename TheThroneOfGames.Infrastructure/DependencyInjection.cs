@@ -1,9 +1,16 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using TheThroneOfGames.Infrastructure.Email;
+using Microsoft.Extensions.Configuration;
+using TheThroneOfGames.Infrastructure.Data;
 using TheThroneOfGames.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Infrastructure.Repository;
-using TheThroneOfGames.Infrastructure.Repository.Interfaces;
 
 namespace TheThroneOfGames.Infrastructure
 {
@@ -11,21 +18,18 @@ namespace TheThroneOfGames.Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
-            // Configuração do MongoDbContext
-            services.AddSingleton(sp =>
-                new MongoDbContext(
-                    configuration.GetConnectionString("MongoDbConnection") ?? throw new InvalidOperationException("MongoDb connection string is not configured"),
-                    configuration["MongoDbDatabaseName"] ?? throw new InvalidOperationException("MongoDb database name is not configured")
-                ));
+            // Configuração do DbContext (in-memory por padrão para testes/local)
+            services.AddDbContext<AppDbContext>(options =>
+                options.UseInMemoryDatabase("TheThroneOfGamesDb"));
 
-            // Registro dos Repositórios
-            services.AddScoped<IUsuarioRepository, MongoUsuarioRepository>();
-            // Adicione outros repositórios conforme necessário
+            // Registro dos Repositórios (usar nomes reais existentes)
+            services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+            services.AddScoped<IGameEntityRepository, GameEntityRepository>();
+            services.AddScoped<IPromotionRepository, PromotionRepository>();
+            // NOTE: Purchase repository may live in another project (GameStore.Vendas). Register it there when composing app.
 
-            // Registro dos Serviços de E-mail
-            services.Configure<SmtpSettings>(options =>
-                configuration.GetSection("SmtpSettings").Bind(options));
-            services.AddTransient<IEmailService, EmailService>();
+            // Registro de Background Services (se aplicável)
+            // services.AddHostedService<PromotionNotificationService>();
 
             return services;
         }

@@ -1,0 +1,12 @@
+**/.git
+**/.gitignore
+**/.vs
+**/bin
+**/obj
+**/.DS_Store
+**/node_modules
+docs/phase-4-evidence
+*.trx
+.github
+.vscode
+README.md

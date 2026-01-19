@@ -1,0 +1,164 @@
+# Performance Test Configuration
+# Define thresholds and baselines for performance validation
+
+performance:
+  # Thresholds para considerar teste como PASSOU
+  thresholds:
+    # Taxa mínima de sucesso (%)
+    minSuccessRate: 95
+    
+    # Latência máxima média (ms)
+    maxAverageLatency: 2000
+    
+    # P95 máximo (ms) - 95% das requisições devem ser mais rápidas que isso
+    maxP95Latency: 5000
+    
+    # P99 máximo (ms) - 99% das requisições devem ser mais rápidas que isso
+    maxP99Latency: 8000
+    
+  # Configuração de testes
+  testConfig:
+    # Teste completo (desenvolvimento/staging)
+    full:
+      duration: 60              # segundos
+      concurrentUsers: 10       # usuários simultâneos
+      rampUpTime: 10           # tempo para escalar usuários
+      
+    # Teste rápido (CI/CD)
+    quick:
+      duration: 30              # segundos
+      concurrentUsers: 5        # usuários simultâneos
+      rampUpTime: 5            # tempo para escalar usuários
+      
+    # Teste de stress (pré-produção)
+    stress:
+      duration: 300             # 5 minutos
+      concurrentUsers: 50       # usuários simultâneos
+      rampUpTime: 30           # tempo para escalar usuários
+
+  # Baseline esperado para cada microservice (requisições/segundo por container)
+  # Baseado em testes anteriores
+  baselines:
+    usuarios-api:
+      targetThroughput: 100     # req/s esperado
+      maxLatency: 500          # ms
+      cpuThreshold: 70         # % CPU para trigger HPA
+      
+    catalogo-api:
+      targetThroughput: 120     # req/s esperado
+      maxLatency: 400          # ms
+      cpuThreshold: 70         # % CPU para trigger HPA
+      
+    vendas-api:
+      targetThroughput: 80      # req/s esperado
+      maxLatency: 600          # ms (mais complexo, pode ser mais lento)
+      cpuThreshold: 70         # % CPU para trigger HPA
+
+  # Configuração de HPA baseada em performance
+  hpa:
+    # Margem de segurança - escala com X% da capacidade
+    safetyMargin: 0.70          # 70% da capacidade máxima
+    
+    # Configuração de scaling
+    scaleUp:
+      threshold: 70             # % da capacidade para escalar UP
+      cooldown: 30              # segundos antes de escalar novamente
+      
+    scaleDown:
+      threshold: 30             # % da capacidade para escalar DOWN
+      cooldown: 300             # 5 minutos antes de escalar DOWN
+      
+    # Limites de réplicas
+    minReplicas: 2
+    maxReplicas: 10
+    
+  # Alertas e notificações
+  alerts:
+    # Quando avisar sobre performance degradada
+    degradedPerformance:
+      successRateBelow: 98      # %
+      latencyAbove: 1500        # ms
+      
+    # Quando marcar como crítico
+    criticalPerformance:
+      successRateBelow: 90      # %
+      latencyAbove: 3000        # ms
+      errorRateAbove: 5         # %
+
+  # Configuração de relatórios
+  reporting:
+    # Formato dos relatórios
+    format: json
+    
+    # Incluir detalhes
+    includeDetails: true
+    
+    # Gerar gráficos (requer dependências adicionais)
+    generateCharts: false
+    
+    # Onde salvar resultados
+    outputDirectory: ./test-results/performance/
+    
+    # Retention de resultados
+    retentionDays: 30
+
+# Endpoints para teste
+endpoints:
+  usuarios-api:
+    - path: /swagger
+      method: GET
+      expectedStatus: 200
+      
+    - path: /health
+      method: GET
+      expectedStatus: 200
+      
+    - path: /metrics
+      method: GET
+      expectedStatus: 200
+      
+  catalogo-api:
+    - path: /swagger
+      method: GET
+      expectedStatus: 200
+      
+    - path: /health
+      method: GET
+      expectedStatus: 200
+      
+    - path: /metrics
+      method: GET
+      expectedStatus: 200
+      
+  vendas-api:
+    - path: /swagger
+      method: GET
+      expectedStatus: 200
+      
+    - path: /health
+      method: GET
+      expectedStatus: 200
+      
+    - path: /metrics
+      method: GET
+      expectedStatus: 200
+
+# CI/CD Integration
+cicd:
+  # Executar testes em quais branches
+  triggerBranches:
+    - master
+    - main
+    - develop
+    
+  # Falhar build se performance degradar
+  failOnDegradation: true
+  
+  # Permitir margem de erro (%)
+  allowedDegradation: 10
+  
+  # Comparar com baseline
+  compareWithBaseline: true
+  
+  # Notificar equipe se falhar
+  notifyOnFailure: true

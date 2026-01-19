@@ -1,0 +1,43 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'thethroneofgames-monitor'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'api-monolithic'
+    static_configs:
+      - targets: ['api:80']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'usuarios-api'
+    static_configs:
+      - targets: ['usuarios-api:9091']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'catalogo-api'
+    static_configs:
+      - targets: ['catalogo-api:9092']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+
+  - job_name: 'vendas-api'
+    static_configs:
+      - targets: ['vendas-api:9093']
+    metrics_path: '/metrics'
+    scrape_interval: 5s

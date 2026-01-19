@@ -1,0 +1,344 @@
+using NUnit.Framework;
+using Moq;
+using GameStore.Catalogo.Application.Commands;
+using GameStore.Catalogo.Application.Handlers;
+using GameStore.Catalogo.Application.Validators;
+using GameStore.Catalogo.Application.DTOs;
+using GameStore.Catalogo.Domain.Interfaces;
+using GameStore.Catalogo.Domain.Entities;
+using GameStore.Common.Events;
+using GameStore.CQRS.Abstractions;
+using GameStore.Catalogo.Tests.Helpers;
+
+namespace GameStore.Catalogo.Tests
+{
+    [TestFixture]
+    public class CommandHandlerTests
+    {
+        private Mock<IJogoRepository> _mockJogoRepository = null!;
+        private Mock<IEventBus> _mockEventBus = null!;
+
+        [SetUp]
+        public void Setup()
+        {
+            _mockJogoRepository = new Mock<IJogoRepository>();
+            _mockEventBus = new Mock<IEventBus>();
+        }
+        
+        private Jogo CreateTestJogo(string nome = "Test Game", decimal preco = 59.99m, string genero = "Action")
+        {
+            return new Jogo(
+                nome: nome,
+                descricao: "Descrição de teste",
+                preco: preco,
+                genero: genero,
+                desenvolvedora: "Test Developer",
+                dataLancamento: DateTime.UtcNow,
+                imagemUrl: "http://test.com/image.jpg",
+                estoque: 100
+            );
+        }
+
+        #region CreateGameCommandHandler Tests
+
+        [Test]
+        public async Task CreateGameCommandHandler_ValidData_ShouldCreateGame()
+        {
+            // Arrange
+            var command = new CreateGameCommand("Test Game", "Action", 59.99m, "Test Description");
+            var handler = new CreateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("Test Game"))
+                .ReturnsAsync(new List<Jogo>());
+            _mockJogoRepository.Setup(r => r.AddAsync(It.IsAny<Jogo>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Message, Is.EqualTo("Jogo criado com sucesso"));
+            Assert.That(result.EntityId, Is.Not.EqualTo(Guid.Empty));
+            Assert.That(result.Data, Is.Not.Null);
+            Assert.That(((GameDTO)result.Data!).Name, Is.EqualTo("Test Game"));
+
+            _mockJogoRepository.Verify(r => r.AddAsync(It.Is<Jogo>(
+                j => j.Nome == "Test Game" && j.Genero == "Action" && j.Preco == 59.99m)), Times.Once);
+        }
+
+        [Test]
+        public async Task CreateGameCommandHandler_GameAlreadyExists_ShouldReturnError()
+        {
+            // Arrange
+            var existingGame = CreateTestJogo("Test Game");
+
+            var command = new CreateGameCommand("Test Game", "Action", 59.99m);
+            var handler = new CreateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("Test Game"))
+                .ReturnsAsync(new List<Jogo> { existingGame });
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Message, Is.EqualTo("Jogo já existe"));
+            Assert.That(result.Errors, Contains.Item("Jogo 'Test Game' já está cadastrado"));
+
+            _mockJogoRepository.Verify(r => r.AddAsync(It.IsAny<Jogo>()), Times.Never);
+        }
+
+        [Test]
+        public async Task CreateGameCommandHandler_InvalidPrice_ShouldFailValidation()
+        {
+            // Arrange
+            var command = new CreateGameCommand("Test Game", "Action", -10m);
+            var handler = new CreateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Message, Is.EqualTo("Validação falhou"));
+            Assert.That(result.Errors, Contains.Item("Preço deve ser maior que zero."));
+
+            _mockJogoRepository.Verify(r => r.GetByNomeAsync(It.IsAny<string>()), Times.Never);
+        }
+
+        #endregion
+
+        #region UpdateGameCommandHandler Tests
+
+        [Test]
+        public async Task UpdateGameCommandHandler_ValidData_ShouldUpdateGame()
+        {
+            // Arrange
+            var gameId = Guid.NewGuid();
+            var existingGame = TestDataBuilder.CreateJogoWithId(gameId);
+
+            var command = new UpdateGameCommand(gameId, "New Name", "Action", 59.99m, "Updated Description");
+            var handler = new UpdateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync(existingGame);
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("New Name"))
+                .ReturnsAsync(new List<Jogo>());
+            _mockJogoRepository.Setup(r => r.UpdateAsync(It.IsAny<Jogo>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Message, Is.EqualTo("Jogo atualizado com sucesso"));
+            Assert.That(result.EntityId, Is.EqualTo(gameId));
+            Assert.That(existingGame.Nome, Is.EqualTo("New Name"));
+            Assert.That(existingGame.Genero, Is.EqualTo("Action"));
+            Assert.That(existingGame.Preco, Is.EqualTo(59.99m));
+            Assert.That(existingGame.Descricao, Is.EqualTo("Updated Description"));
+
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.Is<Jogo>(
+                g => g.Nome == "New Name" && g.Genero == "Action")), Times.Once);
+        }
+
+        [Test]
+        public async Task UpdateGameCommandHandler_GameNotFound_ShouldReturnError()
+        {
+            // Arrange
+            var gameId = Guid.NewGuid();
+            var command = new UpdateGameCommand(gameId, "New Name", "Action", 59.99m);
+            var handler = new UpdateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync((Jogo?)null);
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Message, Is.EqualTo("Jogo não encontrado"));
+            Assert.That(result.Errors, Contains.Item($"Jogo com ID {gameId} não encontrado"));
+
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
+        }
+
+        [Test]
+        public async Task UpdateGameCommandHandler_NameAlreadyExists_ShouldReturnError()
+        {
+            // Arrange
+            var gameId = Guid.NewGuid();
+            var existingGame = CreateTestJogo();
+            var otherGame = CreateTestJogo();
+
+            var command = new UpdateGameCommand(gameId, "Game 2", "Action", 59.99m);
+            var handler = new UpdateGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync(existingGame);
+            _mockJogoRepository.Setup(r => r.GetByNomeAsync("Game 2"))
+                .ReturnsAsync(new List<Jogo> { otherGame });
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Message, Is.EqualTo("Nome já está em uso"));
+            Assert.That(result.Errors, Contains.Item("Jogo 'Game 2' já está cadastrado com outro ID"));
+
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
+        }
+
+        #endregion
+
+        #region RemoveGameCommandHandler Tests
+
+        [Test]
+        public async Task RemoveGameCommandHandler_ValidGame_ShouldSoftDelete()
+        {
+            // Arrange
+            var gameId = Guid.NewGuid();
+            var existingGame = TestDataBuilder.CreateJogoWithId(gameId);
+
+            var command = new RemoveGameCommand(gameId);
+            var handler = new RemoveGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync(existingGame);
+            _mockJogoRepository.Setup(r => r.UpdateAsync(It.IsAny<Jogo>()))
+                .Returns(Task.CompletedTask);
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.True);
+            Assert.That(result.Message, Is.EqualTo("Jogo removido com sucesso"));
+            Assert.That(result.EntityId, Is.EqualTo(gameId));
+            Assert.That(existingGame.Disponivel, Is.False); // Soft delete
+
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.Is<Jogo>(g => !g.Disponivel)), Times.Once);
+        }
+
+        [Test]
+        public async Task RemoveGameCommandHandler_GameNotFound_ShouldReturnError()
+        {
+            // Arrange
+            var gameId = Guid.NewGuid();
+            var command = new RemoveGameCommand(gameId);
+            var handler = new RemoveGameCommandHandler(_mockJogoRepository.Object, _mockEventBus.Object);
+
+            _mockJogoRepository.Setup(r => r.GetByIdAsync(gameId))
+                .ReturnsAsync((Jogo?)null);
+
+            // Act
+            var result = await handler.HandleAsync(command);
+
+            // Assert
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Message, Is.EqualTo("Jogo não encontrado"));
+            Assert.That(result.Errors, Contains.Item($"Jogo com ID {gameId} não encontrado"));
+
+            _mockJogoRepository.Verify(r => r.UpdateAsync(It.IsAny<Jogo>()), Times.Never);
+        }
+
+
+
+        #endregion
+
+        #region Command Validation Tests
+
+        [Test]
+        public void CatalogoValidators_CreateGameCommand_ValidData_ShouldPass()
+        {
+            // Arrange
+            var command = new CreateGameCommand("Valid Game", "Action", 59.99m, "Valid Description");
+
+            // Act
+            var result = CatalogoValidators.Validate(command);
+
+            // Assert
+            Assert.That(result.IsValid, Is.True);
+            Assert.That(result.Errors.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void CatalogoValidators_CreateGameCommand_EmptyName_ShouldFail()
+        {
+            // Arrange
+            var command = new CreateGameCommand("", "Action", 59.99m);
+
+            // Act
+            var result = CatalogoValidators.Validate(command);
+
+            // Assert
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Contains.Item("Nome do jogo é obrigatório."));
+        }
+
+        [Test]
+        public void CatalogoValidators_CreateGameCommand_ZeroPrice_ShouldFail()
+        {
+            // Arrange
+            var command = new CreateGameCommand("Valid Game", "Action", 0m);
+
+            // Act
+            var result = CatalogoValidators.Validate(command);
+
+            // Assert
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Contains.Item("Preço deve ser maior que zero."));
+        }
+
+        [Test]
+        public void CatalogoValidators_CreateGameCommand_ExcessivePrice_ShouldFail()
+        {
+            // Arrange
+            var command = new CreateGameCommand("Valid Game", "Action", 15000m);
+
+            // Act
+            var result = CatalogoValidators.Validate(command);
+
+            // Assert
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Contains.Item("Preço não pode exceder R$ 10.000,00."));
+        }
+
+        [Test]
+        public void CatalogoValidators_UpdateGameCommand_EmptyGameId_ShouldFail()
+        {
+            // Arrange
+            var command = new UpdateGameCommand(Guid.Empty, "Valid Game", "Action", 59.99m);
+
+            // Act
+            var result = CatalogoValidators.Validate(command);
+
+            // Assert
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Contains.Item("ID do jogo é obrigatório."));
+        }
+
+        [Test]
+        public void CatalogoValidators_RemoveGameCommand_EmptyGameId_ShouldFail()
+        {
+            // Arrange
+            var command = new RemoveGameCommand(Guid.Empty);
+
+            // Act
+            var result = CatalogoValidators.Validate(command);
+
+            // Assert
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Errors, Contains.Item("ID do jogo é obrigatório."));
+        }
+
+        #endregion
+    }
+}
+
+

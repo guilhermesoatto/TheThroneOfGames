@@ -1,0 +1,138 @@
+# YAML Workflow Validation Report
+
+- File: `C:\Users\Guilherme\source\repos\TheThroneOfGames\.github\workflows\docker-build-push.yml`
+- Checked at (UTC): 2026-01-05T16:29:00.449Z
+
+## Result: No parse errors found
+
+## Workflow content (first 200 lines)
+
+    name: Docker Build & Push
+    
+    on:
+      push:
+        branches: [ master, Develop ]
+        tags: [ 'v*' ]
+      pull_request:
+        branches: [ master, Develop ]
+    
+    env:
+      REGISTRY: ghcr.io
+    
+    jobs:
+      build-and-push:
+        runs-on: ubuntu-latest
+        
+        permissions:
+          contents: read
+          packages: write
+          security-events: write # Necessário para upload do Trivy
+        
+        outputs:
+          image-tag: ${{ steps.meta.outputs.tags }}
+          image-digest: ${{ steps.build.outputs.digest }}
+          image-name-lower: ${{ steps.string.outputs.lowercase }}
+        
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+            with:
+              fetch-depth: 0
+          
+          - name: Set up Docker Buildx
+            uses: docker/setup-buildx-action@v3
+          
+          - name: Log in to Container Registry
+            if: github.event_name != 'pull_request'
+            uses: docker/login-action@v3
+            with:
+              registry: ${{ env.REGISTRY }}
+              username: ${{ github.actor }}
+              password: ${{ secrets.GITHUB_TOKEN }}
+    
+          # CORREÇÃO 1: Normalizar o nome da imagem para minúsculo
+          - name: Lowercase Image Name
+            id: string
+            uses: ASzc/change-string-case-action@v5
+            with:
+              string: ${{ github.repository }}
+    
+          - name: Extract metadata
+            id: meta
+            uses: docker/metadata-action@v5
+            with:
+              images: ${{ env.REGISTRY }}/${{ steps.string.outputs.lowercase }}
+              tags: |
+                type=ref,event=branch
+                type=semver,pattern={{version}}
+                type=semver,pattern={{major}}.{{minor}}
+                type=sha,prefix={{branch}}-
+                type=raw,value=latest,enable={{is_default_branch}}
+          
+          - name: Build and push Docker image
+            id: build
+            uses: docker/build-push-action@v5
+            with:
+              context: .
+              file: ./TheThroneOfGames.API/Dockerfile
+              push: ${{ github.event_name != 'pull_request' }}
+              tags: ${{ steps.meta.outputs.tags }}
+              labels: ${{ steps.meta.outputs.labels }}
+              cache-from: type=gha
+              cache-to: type=gha, mode=max
+          
+          - name: Image digest
+            run: |
+              echo "Image pushed with digest: ${{ steps.build.outputs.digest }}"
+          
+          # CORREÇÃO 2 e 3: Sintaxe YAML corrigida e uso do DIGEST em vez de tag
+          - name: Create SBOM (SPDX)
+            uses: anchore/sbom-action@v0.21.0
+            if: github.event_name != 'pull_request'
+            with:
+              # Usa o output direto do step de build (mais simples e confiável)
+              image: ${{ steps.build.outputs.image }}
+              format: spdx
+              output-file: sbom.spdx.json
+          
+          - name: Upload SBOM
+            uses: actions/upload-artifact@v4
+            if: github.event_name != 'pull_request'
+            with:
+              name: sbom
+              path: sbom.spdx.json
+          
+          - name: Scan image for vulnerabilities (Trivy)
+            uses: aquasecurity/trivy-action@master
+            if: github.event_name != 'pull_request'
+            with:
+              # Usa o digest para scan
+              image-ref: ${{ env.REGISTRY }}/${{ steps.string.outputs.lowercase }}@${{ steps.build.outputs.digest }}
+              format: 'sarif'
+              output: 'trivy-results.sarif'
+          
+          - name: Upload Trivy scan results
+            uses: github/codeql-action/upload-sarif@v3
+            if: github.event_name != 'pull_request'
+            with:
+              sarif_file: 'trivy-results.sarif'
+              category: 'trivy'
+    
+      docker-scan:
+        runs-on: ubuntu-latest
+        needs: build-and-push
+        if: github.event_name != 'pull_request'
+        
+        permissions:
+          contents: read
+          security-events: write
+        
+        steps:
+          - name: Run Trivy vulnerability scanner
+            uses: aquasecurity/trivy-action@master
+            with:
+              scan-type: 'image'
+              # Usa a referência exata construída no job anterior
+              image-ref: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.image-name-lower }}@${{ needs.build-and-push.outputs.image-digest }}
+              format: 'table'
+              exit-code: '0'

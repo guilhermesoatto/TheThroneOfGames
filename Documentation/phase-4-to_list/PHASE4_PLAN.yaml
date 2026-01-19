@@ -1,0 +1,201 @@
+# Plano passo-a-passo para atingir 100% dos OKRs da Phase 4
+# Formato compacto, pensado para consumo por agente de IA e humanos.
+
+project: TheThroneOfGames
+phase: 4
+format: yaml-steps
+
+meta:
+  repo_root: .
+  branch: readme-and-fixes
+  dotnet_sdk: '9.0.306'
+  requires:
+    - docker
+    - docker-compose
+    - kubectl
+    - minikube
+  docker_registry: 'ghcr.io/guilhermesoatto'
+  health_endpoint: 'http://localhost:5000/api/usuario/public-info'
+  build_cmd: 'dotnet build TheThroneOfGames.sln -c Debug'
+  test_cmd: 'dotnet test TheThroneOfGames.sln -c Debug --no-build'
+  smoke_test_cmd: 'curl -sSf http://localhost:5000/api/usuario/public-info'
+  evidence_dir: 'docs/phase-4-evidence'
+
+okr_map:
+  okr_1_async_messaging: [2, 3, 9]
+  okr_2_docker_images: [1, 3]
+  okr_3_kubernetes_hpa: [6, 7, 8, 10]
+  okr_4_monitoring: [4, 10]
+
+steps:
+  - id: 1
+    title: Create Dockerfile for API
+    desc: |-
+      Add a multi-stage Dockerfile for the main API (minimal, secure, non-root).
+    okr_ids: [okr_2_docker_images]
+    files:
+      - TheThroneOfGames.API/Dockerfile
+    cmds:
+      - 'docker build -t thethroneofgames/api:local -f TheThroneOfGames.API/Dockerfile .'
+      - 'docker run --rm -p 5000:80 thethroneofgames/api:local'
+    accept: 'image builds; app responds 200 on /api/usuario/public-info'
+    accept_check: 'curl -sSf http://localhost:5000/api/usuario/public-info && echo "OK"'
+    evidence_path: 'docs/phase-4-evidence/step1-dockerfile-build.log'
+    hours: 4
+    owner: 'DevOps'
+
+  - id: 2
+    title: Add RabbitMQ adapter and publish/consume skeleton
+    desc: |-
+      Implement broker adapter (ports & adapters) that replaces in-memory EventBus.
+      Publish UsuarioAtivadoEvent to exchange; consumer writes to logs and DLQ on failure.
+    okr_ids: [okr_1_async_messaging]
+    files:
+      - GameStore.Common/Messaging/RabbitMqAdapter.cs
+      - GameStore.Usuarios.Infrastructure/Messaging/*
+    cmds:
+      - 'dotnet test --no-build'
+    accept: 'messages persisted; consumer processes messages in docker-compose demo'
+    accept_check: 'dotnet test GameStore.Usuarios.Tests --filter "RabbitMQ" --no-build'
+    evidence_path: 'docs/phase-4-evidence/step2-rabbitmq-tests.trx'
+    hours: 16
+    owner: 'Backend'
+
+  - id: 3
+    title: Docker Compose demo (app + rabbitmq + prometheus)
+    desc: |-
+      Compose file to run API image, RabbitMQ, Prometheus and Grafana locally for demo.
+    okr_ids: [okr_1_async_messaging, okr_2_docker_images, okr_4_monitoring]
+    files:
+      - docker-compose.yml
+      - monitoring/prometheus.yml
+    cmds:
+      - 'docker-compose up --build'
+    accept: 'stack up; Prometheus scrapes /metrics; app sends events to RabbitMQ'
+    accept_check: 'docker-compose ps | grep -E "api|rabbitmq|prometheus"'
+    evidence_path: 'docs/phase-4-evidence/step3-compose-stack.log'
+    hours: 8
+    owner: 'DevOps'
+
+  - id: 4
+    title: Add basic metrics (OpenTelemetry / Prometheus)
+    desc: |-
+      Instrument HTTP request count, latency and a custom metric for queue length.
+    okr_ids: [okr_4_monitoring]
+    files:
+      - TheThroneOfGames.API/Telemetry/TelemetryExtensions.cs
+      - TheThroneOfGames.API/Program.cs (config)
+    cmds:
+      - 'dotnet run --project TheThroneOfGames.API'
+    accept: 'metrics available at /metrics and visible in Prometheus'
+    accept_check: 'curl -sSf http://localhost:5000/metrics | grep -E "http_requests|queue_length"'
+    evidence_path: 'docs/phase-4-evidence/step4-metrics-export.log'
+    hours: 8
+    owner: 'Observability'
+
+  - id: 5
+    title: Add resilience (Polly) to message processing and external calls
+    desc: |-
+      Use Polly policies: retry with jitter, circuit-breaker and timeout wrappers.
+    okr_ids: [okr_1_async_messaging]
+    files:
+      - TheThroneOfGames.Application/Policies/ResiliencePolicies.cs
+    accept: 'policies applied; tests simulate transient failures and succeed'
+    accept_check: 'dotnet test TheThroneOfGames.Application --filter "Resilience" --no-build'
+    evidence_path: 'docs/phase-4-evidence/step5-polly-tests.trx'
+    hours: 6
+    owner: 'Backend'
+
+  - id: 6
+    title: Create k8s manifests + HPA example
+    desc: |-
+      Add Kubernetes manifests (Deployment, Service, HPA on CPU) and readiness/liveness probes.
+    okr_ids: [okr_3_kubernetes_hpa]
+    files:
+      - k8s/thethrone-deployment.yaml
+      - k8s/thethrone-service.yaml
+      - k8s/hpa.yaml
+    cmds:
+      - 'kubectl apply -f k8s/'
+    accept: 'deployment created; HPA scales pods on CPU load locally (minikube/kind)'
+    accept_check: 'kubectl get deployment thethrone && kubectl get hpa'
+    evidence_path: 'docs/phase-4-evidence/step6-k8s-apply.log'
+    hours: 8
+    owner: 'Platform'
+
+  - id: 7
+    title: Add Helm chart skeleton
+    desc: |-
+      Create a Helm chart for templated deployments, configmaps and secrets placeholders.
+    okr_ids: [okr_3_kubernetes_hpa]
+    files:
+      - helm/thethrone/Chart.yaml
+      - helm/thethrone/values.yaml
+    accept: 'helm lint passes; chart installs into test namespace'
+    accept_check: 'helm lint helm/thethrone && helm template thethrone helm/thethrone | head -20'
+    evidence_path: 'docs/phase-4-evidence/step7-helm-lint.log'
+    hours: 6
+    owner: 'Platform'
+
+  - id: 8
+    title: Add CI pipeline steps for build/image/test and deploy-to-staging
+    desc: |-
+      CI that builds images, runs tests, pushes to registry, and optionally deploys to staging via helm.
+    okr_ids: [okr_3_kubernetes_hpa]
+    files:
+      - .github/workflows/ci.yaml
+    cmds:
+      - 'gh workflow run ci.yaml' 
+    accept: 'CI builds image and runs tests; artifacts present'
+    accept_check: 'gh run list --workflow ci.yaml --limit 1'
+    evidence_path: 'docs/phase-4-evidence/step8-ci-run.log'
+    hours: 12
+    owner: 'DevOps'
+
+  - id: 9
+    title: Implement Saga for purchase flow
+    desc: |-
+      Implement a saga/choreography for CreatePurchase -> Payment -> FinalizePurchase with compensation.
+    okr_ids: [okr_1_async_messaging]
+    files:
+      - GameStore.Vendas/Application/Sagas/PurchaseSaga.cs
+      - GameStore.Vendas.Infrastructure/Handlers/*
+    accept: 'purchase flow completes; compensating transactions on failure'
+    accept_check: 'dotnet test GameStore.Vendas.Tests --filter "Saga" --no-build'
+    evidence_path: 'docs/phase-4-evidence/step9-saga-tests.trx'
+    hours: 24
+    owner: 'Backend'
+
+  - id: 10
+    title: Observability & autoscaling on custom metrics
+    desc: |-
+      Integrate Prometheus Adapter to expose queue-length metric for HPA; configure Grafana dashboards.
+    okr_ids: [okr_3_kubernetes_hpa, okr_4_monitoring]
+    files:
+      - monitoring/prometheus-adapter-config.yaml
+      - monitoring/grafana/dashboards/*
+    accept: 'HPA scales on queue-length metric; dashboards show traces/metrics'
+    accept_check: 'kubectl get customresourcedefinition servicemonitors.monitoring.coreos.com'
+    evidence_path: 'docs/phase-4-evidence/step10-prometheus-adapter.log'
+    hours: 24
+    owner: 'Observability'
+
+  - id: 11
+    title: Security & production hardening
+    desc: |-
+      Secrets management, image scanning, RBAC, network policies and API Gateway + rate-limiting.
+    okr_ids: [okr_3_kubernetes_hpa]
+    files:
+      - docs/security/README.md
+    accept: 'no secrets in repo; secrets stored in secret manager; ingress with TLS'
+    accept_check: 'git log --all -p -S "RABBITMQ_PASSWORD" --oneline | head -5'
+    evidence_path: 'docs/phase-4-evidence/step11-security-audit.log'
+    hours: 24
+    owner: 'Security'
+
+instructions: |
+  - Work sequentially: complete step N, commit, run tests, document results, then start N+1.
+  - For each step record: commit message, PR description, time spent, and acceptance evidence (screenshots/logs/CI artifacts).
+  - Use the provided `cmds` to verify locally; adapt to CI or cloud environment as needed.
+  - Store evidence in `evidence_dir` (from meta).
+  - For each step, run `accept_check` command; if 0 exit code, step is complete.

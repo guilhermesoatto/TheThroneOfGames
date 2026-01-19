@@ -1,17 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using TheThroneOfGames.Application.DTO;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Application.Interface
 {
-    public interface IPromotionService
+    public interface IPromotionService : IBaseService<PromotionEntity>
     {
-        Task CreatePromotionAsync(string title, string description, decimal discount, DateTime validUntil, List<Guid> gameIds);
-        Task<PromotionDto> GetPromotionByIdAsync(Guid promotionId);
-        Task ApplyPromotionAsync(Guid userId, Guid promotionId);
-        Task<IEnumerable<PromotionDto>> GetUserAppliedPromotionsAsync(Guid userId);
+        // Additional promotion-specific methods can go here in future
     }
 }

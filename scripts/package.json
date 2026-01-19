@@ -1,0 +1,9 @@
+{
+  "name": "validate-yaml",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Small helper to validate GitHub Actions YAML workflows",
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

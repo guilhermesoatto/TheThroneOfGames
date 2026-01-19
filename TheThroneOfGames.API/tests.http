@@ -1,0 +1,10 @@
+@baseUrl = http://localhost:5184
+
+### Login with Admin User
+POST {{baseUrl}}/api/usuario/login
+Content-Type: application/json
+
+{
+    "email": "admin1@throne.com",
+    "password": "Admin@123"
+}
