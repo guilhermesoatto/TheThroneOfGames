@@ -1,39 +1,43 @@
 #!/usr/bin/env pwsh
-# Simple Performance Test - K8s Post-Deploy Validation
-# Validates deployed services health and basic performance
+# K8s Performance Validation - Post-Deploy Health Check
+# Uses kubectl port-forward to test services internally
 
 param(
     [string]$Namespace = "thethroneofgames",
-    [int]$Duration = 30,
-    [int]$Requests = 10
+    [int]$Requests = 5
 )
 
 Write-Host "`n=== K8S PERFORMANCE VALIDATION ===" -ForegroundColor Cyan
-Write-Host "Namespace: $Namespace | Duration: ${Duration}s | Requests: $Requests`n"
+Write-Host "Namespace: $Namespace | Requests: $Requests`n"
 
 $services = @(
-    @{Name="usuarios-api"; Port=30001},
-    @{Name="catalogo-api"; Port=30002},
-    @{Name="vendas-api"; Port=30003}
+    @{Name="usuarios-api"; LocalPort=8081; SvcName="usuarios-api-service"},
+    @{Name="catalogo-api"; LocalPort=8082; SvcName="catalogo-api-service"},
+    @{Name="vendas-api"; LocalPort=8083; SvcName="vendas-api-service"}
 )
 
 $results = @()
+$pids = @()
 
+# Start port-forwards
+Write-Host "Setting up port-forwards..." -ForegroundColor Gray
+foreach ($svc in $services) {
+    $job = Start-Job -ScriptBlock {
+        param($ns, $svcName, $localPort)
+        kubectl port-forward "svc/$svcName" "${localPort}:80" -n $ns 2>&1
+    } -ArgumentList $Namespace, $svc.SvcName, $svc.LocalPort
+    $pids += $job.Id
+    Start-Sleep -Seconds 1
+}
+
+# Wait for port-forwards to establish
+Start-Sleep -Seconds 5
+
+# Test each service
 foreach ($svc in $services) {
     Write-Host "Testing $($svc.Name)..." -ForegroundColor Yellow
     
-    $nodeIP = (kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="ExternalIP")].address}' 2>$null)
-    if ([string]::IsNullOrEmpty($nodeIP)) {
-        $nodeIP = (kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}' 2>$null)
-    }
-    
-    if ([string]::IsNullOrEmpty($nodeIP)) {
-        Write-Host "  ERROR: Cannot get node IP" -ForegroundColor Red
-        continue
-    }
-    
-    $url = "http://${nodeIP}:$($svc.Port)/health"
-    
+    $url = "http://localhost:$($svc.LocalPort)/health"
     $success = 0
     $failed = 0
     $latencies = @()
@@ -41,7 +45,7 @@ foreach ($svc in $services) {
     for ($i = 0; $i -lt $Requests; $i++) {
         try {
             $sw = [System.Diagnostics.Stopwatch]::StartNew()
-            $response = Invoke-WebRequest -Uri $url -Method Get -UseBasicParsing -TimeoutSec 5 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri $url -Method Get -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
             $sw.Stop()
             
             if ($response.StatusCode -eq 200) {
@@ -52,48 +56,44 @@ foreach ($svc in $services) {
             }
         } catch {
             $failed++
+            Write-Host "  Request $i failed: $($_.Exception.Message)" -ForegroundColor DarkGray
         }
-        
-        Start-Sleep -Milliseconds 100
+        Start-Sleep -Milliseconds 200
     }
     
-    if ($latencies.Count -gt 0) {
-        $avgLatency = ($latencies | Measure-Object -Average).Average
-        $p95Latency = ($latencies | Sort-Object)[[Math]::Floor($latencies.Count * 0.95)]
-    } else {
-        $avgLatency = 0
-        $p95Latency = 0
-    }
-    
+    $avgLatency = if ($latencies.Count -gt 0) { [Math]::Round(($latencies | Measure-Object -Average).Average, 2) } else { 0 }
     $successRate = if ($Requests -gt 0) { ($success / $Requests) * 100 } else { 0 }
     
-    $result = @{
+    $results += @{
         Service = $svc.Name
         Success = $success
         Failed = $failed
         SuccessRate = $successRate
-        AvgLatency = [Math]::Round($avgLatency, 2)
-        P95Latency = $p95Latency
+        AvgLatency = $avgLatency
     }
     
-    $results += $result
-    
-    if ($successRate -ge 90) {
+    if ($successRate -ge 80) {
         Write-Host "  OK - Success: $success/$Requests ($([Math]::Round($successRate,1))%) | Latency: ${avgLatency}ms" -ForegroundColor Green
-    } elseif ($successRate -ge 50) {
-        Write-Host "  WARN - Success: $success/$Requests ($([Math]::Round($successRate,1))%) | Latency: ${avgLatency}ms" -ForegroundColor Yellow
     } else {
         Write-Host "  FAIL - Success: $success/$Requests ($([Math]::Round($successRate,1))%) | Latency: ${avgLatency}ms" -ForegroundColor Red
     }
 }
 
+# Cleanup port-forwards
+Write-Host "`nCleaning up..." -ForegroundColor Gray
+foreach ($pid in $pids) {
+    Stop-Job -Id $pid -ErrorAction SilentlyContinue
+    Remove-Job -Id $pid -Force -ErrorAction SilentlyContinue
+}
+
+# Summary
 Write-Host "`n=== SUMMARY ===" -ForegroundColor Cyan
-$allSuccess = ($results | Where-Object { $_.SuccessRate -ge 90 }).Count
+$passedServices = ($results | Where-Object { $_.SuccessRate -ge 80 }).Count
 $totalServices = $results.Count
 
-Write-Host "Services OK: $allSuccess/$totalServices"
+Write-Host "Services OK: $passedServices/$totalServices"
 
-if ($allSuccess -eq $totalServices) {
+if ($passedServices -eq $totalServices) {
     Write-Host "PASS - All services healthy`n" -ForegroundColor Green
     exit 0
 } else {

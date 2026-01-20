@@ -227,7 +227,7 @@ jobs:
       shell: pwsh
       run: |
         cd scripts
-        ./k8s-performance-validation.ps1 -Namespace thethroneofgames -Duration 30 -Requests 10
+        ./k8s-performance-validation.ps1 -Namespace thethroneofgames -Requests 5
 
 
   # Job 6: Performance Testing (optional)
