@@ -220,17 +220,17 @@ jobs:
         
     - name: Run smoke tests
       run: |
-        # Get pod status
         kubectl get pods -n thethroneofgames
+        kubectl get svc -n thethroneofgames
         
-        # Test health endpoints via port-forward
-        kubectl port-forward svc/usuarios-api 8080:80 -n thethroneofgames &
-        sleep 5
-        curl -f http://localhost:8080/health || exit 1
-        echo "✅ Smoke tests passed"
+    - name: Performance validation
+      shell: pwsh
+      run: |
+        cd scripts
+        ./k8s-performance-validation.ps1 -Namespace thethroneofgames -Duration 30 -Requests 10
 
 
-  # Job 6: Performance Testing (opcional)
+  # Job 6: Performance Testing (optional)
   performance-test:
     name: Performance Testing
     runs-on: ubuntu-latest
