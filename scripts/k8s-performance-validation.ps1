@@ -17,7 +17,7 @@ $services = @(
 )
 
 $results = @()
-$pids = @()
+$jobIds = @()
 
 # Start port-forwards
 Write-Host "Setting up port-forwards..." -ForegroundColor Gray
@@ -26,7 +26,7 @@ foreach ($svc in $services) {
         param($ns, $svcName, $localPort)
         kubectl port-forward "svc/$svcName" "${localPort}:80" -n $ns 2>&1
     } -ArgumentList $Namespace, $svc.SvcName, $svc.LocalPort
-    $pids += $job.Id
+    $jobIds += $job.Id
     Start-Sleep -Seconds 1
 }
 
@@ -81,9 +81,9 @@ foreach ($svc in $services) {
 
 # Cleanup port-forwards
 Write-Host "`nCleaning up..." -ForegroundColor Gray
-foreach ($pid in $pids) {
-    Stop-Job -Id $pid -ErrorAction SilentlyContinue
-    Remove-Job -Id $pid -Force -ErrorAction SilentlyContinue
+foreach ($jobId in $jobIds) {
+    Stop-Job -Id $jobId -ErrorAction SilentlyContinue
+    Remove-Job -Id $jobId -Force -ErrorAction SilentlyContinue
 }
 
 # Summary
