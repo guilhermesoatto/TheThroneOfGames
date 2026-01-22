@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GameStore.Vendas.Application.Commands;
+using GameStore.CQRS.Abstractions;
+using GameStore.Vendas.Domain.Repositories;
 
 namespace GameStore.Vendas.API.Controllers
 {
@@ -7,15 +10,28 @@ namespace GameStore.Vendas.API.Controllers
     [Route("api/pedidos")]
     public class PedidoController : ControllerBase
     {
-        private readonly GameStore.Vendas.Application.Interfaces.IPedidoService _pedidoService;
+        private readonly ICommandHandler<CriarPedidoCommand> _criarPedidoHandler;
+        private readonly ICommandHandler<AdicionarItemPedidoCommand> _adicionarItemHandler;
+        private readonly ICommandHandler<FinalizarPedidoCommand> _finalizarPedidoHandler;
+        private readonly ICommandHandler<CancelarPedidoCommand> _cancelarPedidoHandler;
+        private readonly IPedidoRepository _pedidoRepository;
 
-        public PedidoController(GameStore.Vendas.Application.Interfaces.IPedidoService pedidoService)
+        public PedidoController(
+            ICommandHandler<CriarPedidoCommand> criarPedidoHandler,
+            ICommandHandler<AdicionarItemPedidoCommand> adicionarItemHandler,
+            ICommandHandler<FinalizarPedidoCommand> finalizarPedidoHandler,
+            ICommandHandler<CancelarPedidoCommand> cancelarPedidoHandler,
+            IPedidoRepository pedidoRepository)
         {
-            _pedidoService = pedidoService;
+            _criarPedidoHandler = criarPedidoHandler;
+            _adicionarItemHandler = adicionarItemHandler;
+            _finalizarPedidoHandler = finalizarPedidoHandler;
+            _cancelarPedidoHandler = cancelarPedidoHandler;
+            _pedidoRepository = pedidoRepository;
         }
 
         /// <summary>
-        /// Get all orders for authenticated user
+        /// Obter todos os pedidos do usuário autenticado
         /// </summary>
         [HttpGet]
         [Authorize]
@@ -23,8 +39,12 @@ namespace GameStore.Vendas.API.Controllers
         {
             try
             {
-                // Implementation depends on order retrieval service
-                return Ok(new List<object>());
+                var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("nameid");
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Unauthorized();
+
+                var pedidos = await _pedidoRepository.GetByUsuarioIdAsync(userId);
+                return Ok(pedidos);
             }
             catch (Exception ex)
             {
@@ -33,7 +53,7 @@ namespace GameStore.Vendas.API.Controllers
         }
 
         /// <summary>
-        /// Get order by ID
+        /// Obter pedido por ID
         /// </summary>
         [HttpGet("{id}")]
         [Authorize]
@@ -41,8 +61,11 @@ namespace GameStore.Vendas.API.Controllers
         {
             try
             {
-                // Implementation depends on order retrieval service
-                return Ok(new { id, message = "Order data" });
+                var pedido = await _pedidoRepository.GetByIdAsync(id);
+                if (pedido == null)
+                    return NotFound();
+
+                return Ok(pedido);
             }
             catch (Exception ex)
             {
@@ -51,19 +74,25 @@ namespace GameStore.Vendas.API.Controllers
         }
 
         /// <summary>
-        /// Create a new order
+        /// Criar novo pedido
         /// </summary>
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request)
+        public async Task<IActionResult> CreateOrder()
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
             try
             {
-                // Implementation depends on order creation service
-                return Created(nameof(GetOrderById), new { id = Guid.NewGuid(), message = "Order created" });
+                var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("nameid");
+                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    return Unauthorized();
+
+                var command = new CriarPedidoCommand(userId);
+                var result = await _criarPedidoHandler.HandleAsync(command);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
+                return CreatedAtAction(nameof(GetOrderById), new { id = result.EntityId }, result);
             }
             catch (Exception ex)
             {
@@ -72,7 +101,7 @@ namespace GameStore.Vendas.API.Controllers
         }
 
         /// <summary>
-        /// Add item to order
+        /// Adicionar item ao pedido
         /// </summary>
         [HttpPost("{pedidoId}/itens")]
         [Authorize]
@@ -83,8 +112,19 @@ namespace GameStore.Vendas.API.Controllers
 
             try
             {
-                // Implementation depends on item service
-                return Ok(new { pedidoId, message = "Item added to order" });
+                var command = new AdicionarItemPedidoCommand(
+                    pedidoId,
+                    request.JogoId,
+                    request.NomeJogo,
+                    request.Preco
+                );
+
+                var result = await _adicionarItemHandler.HandleAsync(command);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -93,7 +133,7 @@ namespace GameStore.Vendas.API.Controllers
         }
 
         /// <summary>
-        /// Finalize order and process payment
+        /// Finalizar pedido
         /// </summary>
         [HttpPost("{pedidoId}/finalizar")]
         [Authorize]
@@ -104,8 +144,13 @@ namespace GameStore.Vendas.API.Controllers
 
             try
             {
-                // Implementation depends on order finalization service
-                return Ok(new { pedidoId, message = "Order finalized" });
+                var command = new FinalizarPedidoCommand(pedidoId, request.MetodoPagamento);
+                var result = await _finalizarPedidoHandler.HandleAsync(command);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
+                return Ok(result);
             }
             catch (Exception ex)
             {
@@ -114,15 +159,20 @@ namespace GameStore.Vendas.API.Controllers
         }
 
         /// <summary>
-        /// Cancel order
+        /// Cancelar pedido
         /// </summary>
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<IActionResult> CancelOrder(Guid id)
+        public async Task<IActionResult> CancelOrder(Guid id, [FromQuery] string motivo = "Cancelado pelo usuário")
         {
             try
             {
-                // Implementation depends on order cancellation service
+                var command = new CancelarPedidoCommand(id, motivo);
+                var result = await _cancelarPedidoHandler.HandleAsync(command);
+
+                if (!result.Success)
+                    return BadRequest(result);
+
                 return NoContent();
             }
             catch (Exception ex)
@@ -133,30 +183,20 @@ namespace GameStore.Vendas.API.Controllers
     }
 
     /// <summary>
-    /// Request model to create an order
-    /// </summary>
-    public class CreateOrderRequest
-    {
-        public string? Reference { get; set; }
-        public DateTime OrderDate { get; set; }
-    }
-
-    /// <summary>
-    /// Request model to add item to order
+    /// Request para adicionar item ao pedido
     /// </summary>
     public class AddOrderItemRequest
     {
-        public Guid GameId { get; set; }
-        public int Quantity { get; set; }
-        public decimal Price { get; set; }
+        public Guid JogoId { get; set; }
+        public string NomeJogo { get; set; } = string.Empty;
+        public decimal Preco { get; set; }
     }
 
     /// <summary>
-    /// Request model to finalize order
+    /// Request para finalizar pedido
     /// </summary>
     public class FinalizeOrderRequest
     {
-        public string? PaymentMethod { get; set; }
-        public decimal Total { get; set; }
+        public string MetodoPagamento { get; set; } = string.Empty;
     }
 }
