@@ -7,9 +7,6 @@
     <RootNamespace>GameStore.Vendas</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj" />
-    <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
-    <ProjectReference Include="..\TheThroneOfGames.Application\TheThroneOfGames.Application.csproj" />
     <ProjectReference Include="..\GameStore.CQRS.Abstractions\GameStore.CQRS.Abstractions.csproj" />
     <ProjectReference Include="..\GameStore.Common\GameStore.Common.csproj" />
   </ItemGroup>
