@@ -26,6 +26,11 @@ import re
 import sys
 from pathlib import Path
 
+# Ensure UTF-8 output on Windows consoles (cp1252 cannot encode accented chars)
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
 import chromadb
 from chromadb.config import Settings
 
