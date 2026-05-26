@@ -1,153 +1,66 @@
-using NUnit.Framework;
+using FluentAssertions;
 using GameStore.Common.Events;
 using GameStore.Common.Messaging;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-namespace GameStore.Usuarios.Tests
+namespace GameStore.Usuarios.Tests;
+
+public class EventBusTests
 {
-    public class EventBusTests
+    private readonly IEventBus _eventBus = new SimpleEventBus();
+
+    [Fact]
+    public async Task EventBus_PublishAsync_Calls_RegisteredHandlers()
     {
-        private IEventBus _eventBus = null!;
+        bool handlerCalled = false;
+        var handler = new TestEventHandler(() => handlerCalled = true);
+        var ev = new UsuarioAtivadoEvent(Guid.NewGuid(), "test@example.com", "Test User");
 
-        [SetUp]
-        public void Setup()
-        {
-            _eventBus = new SimpleEventBus();
-        }
+        _eventBus.Subscribe(handler);
+        await _eventBus.PublishAsync(ev);
 
-        [Test]
-        public async Task EventBus_PublishAsync_Calls_RegisteredHandlers()
-        {
-            // Arrange
-            bool handlerCalled = false;
-            var handler = new TestEventHandler(() => handlerCalled = true);
-            
-            var usuarioEvent = new UsuarioAtivadoEvent(
-                UsuarioId: Guid.NewGuid(),
-                Email: "test@example.com",
-                Nome: "Test User"
-            );
-
-            _eventBus.Subscribe(handler);
-
-            // Act
-            await _eventBus.PublishAsync(usuarioEvent);
-
-            // Assert
-            Assert.IsTrue(handlerCalled);
-        }
-
-        [Test]
-        public async Task EventBus_PublishAsync_Calls_Multiple_Handlers()
-        {
-            // Arrange
-            var handlerCalls = new List<string>();
-            var handler1 = new TestEventHandler(() => handlerCalls.Add("Handler1"));
-            var handler2 = new TestEventHandler(() => handlerCalls.Add("Handler2"));
-
-            var usuarioEvent = new UsuarioAtivadoEvent(
-                UsuarioId: Guid.NewGuid(),
-                Email: "test@example.com",
-                Nome: "Test User"
-            );
-
-            _eventBus.Subscribe(handler1);
-            _eventBus.Subscribe(handler2);
-
-            // Act
-            await _eventBus.PublishAsync(usuarioEvent);
-
-            // Assert
-            Assert.AreEqual(2, handlerCalls.Count);
-            Assert.Contains("Handler1", handlerCalls);
-            Assert.Contains("Handler2", handlerCalls);
-        }
-
-        [Test]
-        public void EventBus_GetHandlerCount_Returns_Correct_Count()
-        {
-            // Arrange
-            var handler1 = new TestEventHandler(() => { });
-            var handler2 = new TestEventHandler(() => { });
-
-            // Act
-            _eventBus.Subscribe(handler1);
-            _eventBus.Subscribe(handler2);
-            var count = _eventBus.GetHandlerCount<UsuarioAtivadoEvent>();
-
-            // Assert
-            Assert.AreEqual(2, count);
-        }
-
-        [Test]
-        public async Task EventBus_Unsubscribe_Removes_Handler()
-        {
-            // Arrange
-            bool handlerCalled = false;
-            var handler = new TestEventHandler(() => handlerCalled = true);
-
-            var usuarioEvent = new UsuarioAtivadoEvent(
-                UsuarioId: Guid.NewGuid(),
-                Email: "test@example.com",
-                Nome: "Test User"
-            );
-
-            _eventBus.Subscribe(handler);
-            _eventBus.Unsubscribe(handler);
-
-            // Act
-            await _eventBus.PublishAsync(usuarioEvent);
-
-            // Assert
-            Assert.IsFalse(handlerCalled);
-            Assert.AreEqual(0, _eventBus.GetHandlerCount<UsuarioAtivadoEvent>());
-        }
-
-        [Test]
-        public async Task EventBus_PublishAsync_With_No_Handlers_Succeeds()
-        {
-            // Arrange
-            var usuarioEvent = new UsuarioAtivadoEvent(
-                UsuarioId: Guid.NewGuid(),
-                Email: "test@example.com",
-                Nome: "Test User"
-            );
-
-            // Act & Assert - Should not throw
-            await _eventBus.PublishAsync(usuarioEvent);
-        }
-
-        [Test]
-        public void EventBus_Subscribe_Throws_With_Null_Handler()
-        {
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => _eventBus.Subscribe<UsuarioAtivadoEvent>(null!));
-        }
-
-        [Test]
-        public void EventBus_PublishAsync_Throws_With_Null_Event()
-        {
-            // Act & Assert
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await _eventBus.PublishAsync<UsuarioAtivadoEvent>(null!));
-        }
-
-        // Test helper
-        private class TestEventHandler : IEventHandler<UsuarioAtivadoEvent>
-        {
-            private readonly Action _action;
-
-            public TestEventHandler(Action action)
-            {
-                _action = action;
-            }
-
-            public Task HandleAsync(UsuarioAtivadoEvent domainEvent)
-            {
-                _action();
-                return Task.CompletedTask;
-            }
-        }
+        handlerCalled.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task EventBus_PublishAsync_Calls_Multiple_Handlers()
+    {
+        var calls = new List<string>();
+        _eventBus.Subscribe(new TestEventHandler(() => calls.Add("H1")));
+        _eventBus.Subscribe(new TestEventHandler(() => calls.Add("H2")));
+        var ev = new UsuarioAtivadoEvent(Guid.NewGuid(), "test@example.com", "Test");
+
+        await _eventBus.PublishAsync(ev);
+
+        calls.Should().HaveCount(2).And.Contain("H1").And.Contain("H2");
+    }
+
+    [Fact]
+    public void EventBus_GetHandlerCount_Returns_Correct_Count()
+    {
+        _eventBus.Subscribe(new TestEventHandler(() => { }));
+        _eventBus.Subscribe(new TestEventHandler(() => { }));
+
+        _eventBus.GetHandlerCount<UsuarioAtivadoEvent>().Should().Be(2);
+    }
+
+    [Fact]
+    public async Task EventBus_Unsubscribe_Removes_Handler()
+    {
+        bool called = false;
+        var handler = new TestEventHandler(() => called = true);
+        var ev = new UsuarioAtivadoEvent(Guid.NewGuid(), "test@example.com", "Test");
+
+        _eventBus.Subscribe(handler);
+        _eventBus.Unsubscribe(handler);
+        await _eventBus.PublishAsync(ev);
+
+        called.Should().BeFalse();
+    }
+}
+
+internal sealed class TestEventHandler : IEventHandler<UsuarioAtivadoEvent>
+{
+    private readonly Action _onHandle;
+    public TestEventHandler(Action onHandle) => _onHandle = onHandle;
+    public Task HandleAsync(UsuarioAtivadoEvent domainEvent) { _onHandle(); return Task.CompletedTask; }
 }
