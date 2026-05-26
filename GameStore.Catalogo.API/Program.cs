@@ -3,8 +3,24 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using GameStore.Catalogo.Infrastructure.Extensions;
 using Prometheus;
+using Serilog;
+using Serilog.Formatting.Compact;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console(new CompactJsonFormatter())
+    .Enrich.FromLogContext()
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((ctx, services, config) => config
+    .ReadFrom.Configuration(ctx.Configuration)
+    .ReadFrom.Services(services)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("ServiceName", "catalogo-api")
+    .WriteTo.Console(new CompactJsonFormatter()));
 
 // Configure Kestrel to listen on port 80
 builder.WebHost.UseUrls("http://*:80");
@@ -26,6 +42,14 @@ builder.Services.AddSwaggerGen();
 
 // Prometheus Metrics
 builder.Services.AddSingleton<IMetricServer>(new KestrelMetricServer(port: 9092));
+
+// OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService("catalogo-api"))
+    .WithTracing(t => t
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter());
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -72,6 +96,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseSerilogRequestLogging();
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
