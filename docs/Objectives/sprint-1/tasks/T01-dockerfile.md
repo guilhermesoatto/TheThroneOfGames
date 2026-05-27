@@ -48,39 +48,45 @@ Feature: FCG Platform Dockerfile
 
 - [ ] Dockerfile exists at repository root
 - [ ] Multi-stage build: `builder` stage compiles, `runtime` stage runs
-- [ ] Base image for runtime is `alpine` or `distroless` variant
-- [ ] Application runs as a non-root user (e.g., `uid=1001`)
+- [ ] Base image pinned to **SHA digest** (e.g., `node:20-alpine@sha256:<digest>`) — never `node:latest` or bare tag
+- [ ] Application runs as a non-root user (UID ≥ 1000, e.g., `uid=1001`)
 - [ ] `EXPOSE 8080` declared
 - [ ] `.dockerignore` excludes `node_modules`, `.git`, `*.log`, test files
-- [ ] `docker build` completes with no HIGH/CRITICAL CVEs (scan with `docker scout` or `trivy`)
+- [ ] `trivy image --severity HIGH,CRITICAL --exit-code 1 <image>` passes (zero CVEs)
+- [ ] `trivy image --scanners secret <image>` passes (no embedded secrets)
+- [ ] `securityContext` in Kubernetes Pod spec: `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`
 
 ## Best Practices
 
 - Use `--no-cache` in CI to ensure clean builds
-- Pin base image versions (e.g., `node:20-alpine` not `node:latest`)
+- **Pin base image to SHA digest** — a tag can be overwritten; a digest cannot (e.g., `node:20-alpine@sha256:abc123...`). Run `docker pull node:20-alpine && docker inspect --format='{{index .RepoDigests 0}}' node:20-alpine` to get it
 - Use `COPY --chown` to avoid post-copy permission fixes
 - Add `HEALTHCHECK` instruction so Kubernetes liveness probe auto-discovers it
+- Run `trivy image --scanners secret` in CI — secrets accidentally baked into layers are a critical supply-chain risk
+- Do NOT install `curl` or `wget` in the runtime image unless strictly required (reduces attack surface)
 
 ## Technical Notes
 
 ```dockerfile
 # Pattern: multi-stage Node.js example
-FROM node:20-alpine AS builder
+# Pin digest: docker inspect --format='{{index .RepoDigests 0}}' node:20-alpine
+FROM node:20-alpine@sha256:<digest> AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
-FROM node:20-alpine AS runtime
+FROM node:20-alpine@sha256:<digest> AS runtime
 RUN addgroup -S fcg && adduser -S fcg -G fcg
 WORKDIR /app
 COPY --from=builder --chown=fcg:fcg /app/dist ./dist
 COPY --from=builder --chown=fcg:fcg /app/node_modules ./node_modules
 USER fcg
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:8080/health || exit 1
-CMD ["node", "dist/main.js"]
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD wget -qO- http://localhost:8080/health || exit 1
+# No shell entrypoint — reduces attack surface
+ENTRYPOINT ["node", "dist/main.js"]
 ```
 
 ## Dependencies

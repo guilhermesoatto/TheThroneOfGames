@@ -72,6 +72,9 @@ Feature: Users Microservice — Player Identity Management
 - [ ] JWT validation middleware reusable by Games and Payments (publish as shared lib or document public key)
 - [ ] Emits `PlayerRegistered`, `PlayerLoggedIn`, `PlayerProfileUpdated` Events to Event Log
 - [ ] Input validation on all endpoints (email format, password min-length 8)
+- [ ] **Prototype Pollution protection**: `req.body` keys `__proto__`, `constructor`, `prototype` are rejected at the validation layer with HTTP 400
+- [ ] **Content-Length limit**: payloads > 1MB are rejected with HTTP 413 (configure in framework body-parser or API Gateway)
+- [ ] **HTTP Security Headers** on every response: `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'`
 
 ## Best Practices
 

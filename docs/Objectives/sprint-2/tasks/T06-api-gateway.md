@@ -63,10 +63,12 @@ Feature: API Gateway — Routing and Security
 - [ ] Single base URL routing to all three Microservices
 - [ ] Route map: `/api/users/*` → Users MS, `/api/games/*` → Games MS, `/api/payments/*` → Payments MS
 - [ ] JWT validation on all routes except `POST /api/users/register` and `POST /api/users/login`
-- [ ] Rate limiting: minimum 100 req/min per IP (configurable)
-- [ ] HTTPS enforced — TLS certificate configured
+- [ ] **JWT `alg:none` attack blocked**: Gateway MUST reject tokens where the `alg` header is `none` or any unexpected algorithm; only HS256 or RS256 accepted
+- [ ] Rate limiting: minimum 100 req/min per IP, 1000 req/min per authenticated Player ID
+- [ ] HTTPS enforced — TLS certificate configured; plain HTTP requests rejected (301 redirect or 400)
 - [ ] Microservice internal URLs are not publicly exposed
-- [ ] CORS configured for FCG frontend origin
+- [ ] **CORS**: `Access-Control-Allow-Origin: *` is **forbidden** in production — configure origin whitelist via environment variable `ALLOWED_ORIGINS`
+- [ ] **HTTP Security Headers** enforced at Gateway for all responses: `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'`, `Referrer-Policy: strict-origin-when-cross-origin`
 - [ ] API Gateway configured via infrastructure-as-code (not via console GUI)
 
 ## Best Practices

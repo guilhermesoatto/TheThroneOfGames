@@ -52,8 +52,11 @@ Feature: CI Pipeline — Automated Quality Gate
 
 - [ ] CI pipeline file exists (`.github/workflows/ci.yml` or equivalent)
 - [ ] Triggers: `pull_request` targeting `main`, `push` to any branch
-- [ ] Steps include: checkout → install dependencies → lint → unit tests → integration tests
-- [ ] Pipeline fails fast on first error category (lint → test)
+- [ ] **Gate 1:** `npm audit --audit-level=high` — HIGH/CRITICAL blocks merge
+- [ ] **Gate 2:** SAST — `npx eslint src/ --plugin security` (or Semgrep) runs and reports
+- [ ] **Gate 3:** `npx tsc --noEmit` — TypeScript compiles with zero errors
+- [ ] **Gate 4:** Steps include lint → audit → SAST → unit tests → integration tests
+- [ ] Pipeline fails fast: any gate failure stops subsequent gates
 - [ ] Test results published as pipeline artifact or check annotation
 - [ ] Branch protection rule on `main` requires CI to pass before merge
 - [ ] Pipeline runs in under 10 minutes
@@ -77,8 +80,23 @@ on:
     branches-ignore: [main]
 
 jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - run: npm ci
+      - name: Dependency CVE scan
+        run: npm audit --audit-level=high    # HIGH/CRITICAL blocks merge
+      - name: SAST
+        run: npx semgrep scan --config=auto src/ --error   # or eslint-plugin-security
+      - name: TypeScript compile check
+        run: npx tsc --noEmit
+
   lint:
     runs-on: ubuntu-latest
+    needs: security-audit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

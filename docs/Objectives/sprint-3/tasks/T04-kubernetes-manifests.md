@@ -62,6 +62,10 @@ Feature: Kubernetes Manifests — Microservice Deployments
 - [ ] Resource requests AND limits set for every container
 - [ ] `rollingUpdate` strategy: `maxUnavailable: 0`, `maxSurge: 1`
 - [ ] `readinessProbe` and `livenessProbe` configured on each container
+- [ ] **`securityContext`** on every container: `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`
+- [ ] **Dedicated `ServiceAccount`** per Microservice with `automountServiceAccountToken: false`
+- [ ] **`NetworkPolicy`** per Microservice: allow ingress only from API Gateway Pod, allow egress only to its own database and the Message Broker
+- [ ] `kubectl apply --dry-run=server -f k8s/` runs in CD Pipeline before live apply
 - [ ] All manifests in `k8s/` folder, committed to repository
 - [ ] CD Pipeline applies manifests via `kubectl apply -f k8s/` (or `helm upgrade`)
 
@@ -71,6 +75,8 @@ Feature: Kubernetes Manifests — Microservice Deployments
 - Use `readinessProbe` to prevent traffic being sent to not-yet-ready Pods
 - Set `terminationGracePeriodSeconds: 30` to allow in-flight requests to complete
 - Use `imagePullPolicy: Always` for `latest` tag; use `IfNotPresent` for SHA-tagged images
+- **Never use the `default` ServiceAccount** — create a dedicated SA per Microservice with minimum RBAC permissions
+- Set `readOnlyRootFilesystem: true` — if the app needs to write temp files, mount a specific `emptyDir` volume instead of making the whole FS writable
 
 ## Technical Notes
 
@@ -125,6 +131,45 @@ spec:
                 name: users-config
             - secretRef:
                 name: users-secrets
+      securityContext:          # Pod-level: all containers inherit
+        runAsNonRoot: true
+      serviceAccountName: users-sa   # Dedicated SA, not default
+      automountServiceAccountToken: false
+```
+
+```yaml
+# users-securitycontext (container-level)
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+```
+
+```yaml
+# users-networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: users-netpol
+  namespace: fcg
+spec:
+  podSelector:
+    matchLabels:
+      app: users
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { role: api-gateway } }
+      ports: [{ port: 8080, protocol: TCP }]
+  egress:
+    - to:
+        - podSelector: { matchLabels: { role: postgres } }
+      ports: [{ port: 5432, protocol: TCP }]
+    - to:   # Allow DNS
+        - namespaceSelector: {}
+          podSelector: { matchLabels: { k8s-app: kube-dns } }
+      ports: [{ port: 53, protocol: UDP }]
 ```
 
 ## Dependencies
