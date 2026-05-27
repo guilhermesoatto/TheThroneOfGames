@@ -7,9 +7,6 @@
     <RootNamespace>GameStore.Usuarios</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj" />
-    <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
-    <ProjectReference Include="..\TheThroneOfGames.Application\TheThroneOfGames.Application.csproj" />
     <ProjectReference Include="..\GameStore.CQRS.Abstractions\GameStore.CQRS.Abstractions.csproj" />
     <ProjectReference Include="..\GameStore.Common\GameStore.Common.csproj" />
   </ItemGroup>
@@ -20,5 +17,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.1" />
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.3.1" />
   </ItemGroup>
 </Project>

@@ -1,0 +1,14 @@
+# Dependências Python para a base de conhecimento ChromaDB
+# Instale com: pip install -r tools/requirements.txt
+
+# Banco de dados vetorial local — arquivo chroma.db commitável
+chromadb>=0.5.0,<1.0.0
+
+# Modelo de embedding local (sem API key) — ~80MB no download inicial
+sentence-transformers>=3.0.0,<4.0.0
+
+# Dependência do sentence-transformers
+torch>=2.0.0
+
+# File watcher para rag-watch.py (re-embed automatico ao salvar .md)
+watchdog>=4.0.0
