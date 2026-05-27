@@ -1,52 +1,19 @@
-using NUnit.Framework;
-using Moq;
+using FluentAssertions;
 using GameStore.Catalogo.Application.EventHandlers;
 using GameStore.Common.Events;
 
-namespace GameStore.Catalogo.Tests
+namespace GameStore.Catalogo.Tests;
+
+public class EventHandlerTests
 {
-    [TestFixture]
-    public class EventHandlerTests
+    [Fact]
+    public async Task UsuarioAtivadoEventHandler_ValidEvent_ShouldNotThrow()
     {
-        #region UsuarioAtivadoEventHandler Tests
+        var ev = new UsuarioAtivadoEvent(Guid.NewGuid(), "test@example.com", "Test User");
+        var handler = new UsuarioAtivadoEventHandler();
 
-        [Test]
-        public void UsuarioAtivadoEventHandler_ValidEvent_ShouldHandleSuccessfully()
-        {
-            // Arrange
-            var userId = Guid.NewGuid();
-            var userEvent = new UsuarioAtivadoEvent(
-                UsuarioId: userId,
-                Email: "test@example.com",
-                Nome: "Test User"
-            );
+        var act = async () => await handler.HandleAsync(ev);
 
-            var handler = new UsuarioAtivadoEventHandler();
-
-            // Act
-            Assert.DoesNotThrow(() => handler.HandleAsync(userEvent));
-
-            // Assert
-            // Verifica que o handler processou o evento sem lançar exceção
-        }
-
-        [Test]
-        public void UsuarioAtivadoEventHandler_ShouldLogEvent()
-        {
-            // Arrange
-            var userId = Guid.NewGuid();
-            var userEvent = new UsuarioAtivadoEvent(
-                UsuarioId: userId,
-                Email: "test@example.com",
-                Nome: "Test User"
-            );
-
-            var handler = new UsuarioAtivadoEventHandler();
-
-            // Act & Assert
-            Assert.DoesNotThrow(() => handler.HandleAsync(userEvent));
-        }
-
-        #endregion
+        await act.Should().NotThrowAsync();
     }
 }

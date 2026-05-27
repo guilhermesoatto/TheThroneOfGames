@@ -1,5 +1,7 @@
 using GameStore.Vendas.Application.Commands;
-using GameStore.Vendas.Application.Interfaces;
+using GameStore.Vendas.Domain.Repositories;
+using GameStore.Vendas.Domain.Entities;
+using GameStore.Vendas.Domain.ValueObjects;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Vendas.Application.Handlers
@@ -9,25 +11,26 @@ namespace GameStore.Vendas.Application.Handlers
     /// </summary>
     public class CriarPedidoCommandHandler : ICommandHandler<CriarPedidoCommand>
     {
-        private readonly IPedidoService _pedidoService;
+        private readonly IPedidoRepository _pedidoRepository;
 
-        public CriarPedidoCommandHandler(IPedidoService pedidoService)
+        public CriarPedidoCommandHandler(IPedidoRepository pedidoRepository)
         {
-            _pedidoService = pedidoService ?? throw new ArgumentNullException(nameof(pedidoService));
+            _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
         }
 
         public async Task<CommandResult> HandleAsync(CriarPedidoCommand command)
         {
             try
             {
-                var pedidoDto = await _pedidoService.CriarPedidoAsync(command.UsuarioId);
+                var pedido = new Pedido(command.UsuarioId);
+                await _pedidoRepository.AddAsync(pedido);
 
                 return new CommandResult
                 {
                     Success = true,
                     Message = "Pedido criado com sucesso",
-                    EntityId = pedidoDto.Id,
-                    Data = pedidoDto
+                    EntityId = pedido.Id,
+                    Data = pedido
                 };
             }
             catch (Exception ex)
@@ -47,23 +50,31 @@ namespace GameStore.Vendas.Application.Handlers
     /// </summary>
     public class AdicionarItemPedidoCommandHandler : ICommandHandler<AdicionarItemPedidoCommand>
     {
-        private readonly IPedidoService _pedidoService;
+        private readonly IPedidoRepository _pedidoRepository;
 
-        public AdicionarItemPedidoCommandHandler(IPedidoService pedidoService)
+        public AdicionarItemPedidoCommandHandler(IPedidoRepository pedidoRepository)
         {
-            _pedidoService = pedidoService ?? throw new ArgumentNullException(nameof(pedidoService));
+            _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
         }
 
         public async Task<CommandResult> HandleAsync(AdicionarItemPedidoCommand command)
         {
-            var success = await _pedidoService.AdicionarItemAoPedidoAsync(
-                command.PedidoId,
-                command.JogoId,
-                command.NomeJogo,
-                command.Preco);
-
-            if (success)
+            try
             {
+                var pedido = await _pedidoRepository.GetByIdAsync(command.PedidoId);
+                if (pedido == null)
+                {
+                    return new CommandResult
+                    {
+                        Success = false,
+                        Message = "Pedido não encontrado",
+                        Errors = new List<string> { $"Pedido {command.PedidoId} não existe" }
+                    };
+                }
+
+                pedido.AdicionarItem(command.JogoId, command.NomeJogo, new Money(command.Preco));
+                await _pedidoRepository.UpdateAsync(pedido);
+
                 return new CommandResult
                 {
                     Success = true,
@@ -71,13 +82,22 @@ namespace GameStore.Vendas.Application.Handlers
                     EntityId = command.PedidoId
                 };
             }
-            else
+            catch (InvalidOperationException ex)
+            {
+                return new CommandResult
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+            catch (Exception ex)
             {
                 return new CommandResult
                 {
                     Success = false,
                     Message = "Erro ao adicionar item ao pedido",
-                    Errors = new List<string> { "Pedido não encontrado ou operação inválida" }
+                    Errors = new List<string> { ex.Message }
                 };
             }
         }
@@ -88,19 +108,31 @@ namespace GameStore.Vendas.Application.Handlers
     /// </summary>
     public class RemoverItemPedidoCommandHandler : ICommandHandler<RemoverItemPedidoCommand>
     {
-        private readonly IPedidoService _pedidoService;
+        private readonly IPedidoRepository _pedidoRepository;
 
-        public RemoverItemPedidoCommandHandler(IPedidoService pedidoService)
+        public RemoverItemPedidoCommandHandler(IPedidoRepository pedidoRepository)
         {
-            _pedidoService = pedidoService ?? throw new ArgumentNullException(nameof(pedidoService));
+            _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
         }
 
         public async Task<CommandResult> HandleAsync(RemoverItemPedidoCommand command)
         {
-            var success = await _pedidoService.RemoverItemDoPedidoAsync(command.PedidoId, command.JogoId);
-
-            if (success)
+            try
             {
+                var pedido = await _pedidoRepository.GetByIdAsync(command.PedidoId);
+                if (pedido == null)
+                {
+                    return new CommandResult
+                    {
+                        Success = false,
+                        Message = "Pedido não encontrado",
+                        Errors = new List<string> { $"Pedido {command.PedidoId} não existe" }
+                    };
+                }
+
+                pedido.RemoverItem(command.JogoId);
+                await _pedidoRepository.UpdateAsync(pedido);
+
                 return new CommandResult
                 {
                     Success = true,
@@ -108,13 +140,22 @@ namespace GameStore.Vendas.Application.Handlers
                     EntityId = command.PedidoId
                 };
             }
-            else
+            catch (InvalidOperationException ex)
+            {
+                return new CommandResult
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+            catch (Exception ex)
             {
                 return new CommandResult
                 {
                     Success = false,
                     Message = "Erro ao remover item do pedido",
-                    Errors = new List<string> { "Pedido não encontrado ou item não existe no pedido" }
+                    Errors = new List<string> { ex.Message }
                 };
             }
         }
@@ -125,19 +166,31 @@ namespace GameStore.Vendas.Application.Handlers
     /// </summary>
     public class FinalizarPedidoCommandHandler : ICommandHandler<FinalizarPedidoCommand>
     {
-        private readonly IPedidoService _pedidoService;
+        private readonly IPedidoRepository _pedidoRepository;
 
-        public FinalizarPedidoCommandHandler(IPedidoService pedidoService)
+        public FinalizarPedidoCommandHandler(IPedidoRepository pedidoRepository)
         {
-            _pedidoService = pedidoService ?? throw new ArgumentNullException(nameof(pedidoService));
+            _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
         }
 
         public async Task<CommandResult> HandleAsync(FinalizarPedidoCommand command)
         {
-            var success = await _pedidoService.FinalizarPedidoAsync(command.PedidoId, command.MetodoPagamento);
-
-            if (success)
+            try
             {
+                var pedido = await _pedidoRepository.GetByIdAsync(command.PedidoId);
+                if (pedido == null)
+                {
+                    return new CommandResult
+                    {
+                        Success = false,
+                        Message = "Pedido não encontrado",
+                        Errors = new List<string> { $"Pedido {command.PedidoId} não existe" }
+                    };
+                }
+
+                pedido.Finalizar(command.MetodoPagamento);
+                await _pedidoRepository.UpdateAsync(pedido);
+
                 return new CommandResult
                 {
                     Success = true,
@@ -145,13 +198,22 @@ namespace GameStore.Vendas.Application.Handlers
                     EntityId = command.PedidoId
                 };
             }
-            else
+            catch (InvalidOperationException ex)
+            {
+                return new CommandResult
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+            catch (Exception ex)
             {
                 return new CommandResult
                 {
                     Success = false,
                     Message = "Erro ao finalizar pedido",
-                    Errors = new List<string> { "Pedido não encontrado ou não pode ser finalizado" }
+                    Errors = new List<string> { ex.Message }
                 };
             }
         }
@@ -162,19 +224,31 @@ namespace GameStore.Vendas.Application.Handlers
     /// </summary>
     public class CancelarPedidoCommandHandler : ICommandHandler<CancelarPedidoCommand>
     {
-        private readonly IPedidoService _pedidoService;
+        private readonly IPedidoRepository _pedidoRepository;
 
-        public CancelarPedidoCommandHandler(IPedidoService pedidoService)
+        public CancelarPedidoCommandHandler(IPedidoRepository pedidoRepository)
         {
-            _pedidoService = pedidoService ?? throw new ArgumentNullException(nameof(pedidoService));
+            _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
         }
 
         public async Task<CommandResult> HandleAsync(CancelarPedidoCommand command)
         {
-            var success = await _pedidoService.CancelarPedidoAsync(command.PedidoId, command.Motivo);
-
-            if (success)
+            try
             {
+                var pedido = await _pedidoRepository.GetByIdAsync(command.PedidoId);
+                if (pedido == null)
+                {
+                    return new CommandResult
+                    {
+                        Success = false,
+                        Message = "Pedido não encontrado",
+                        Errors = new List<string> { $"Pedido {command.PedidoId} não existe" }
+                    };
+                }
+
+                pedido.Cancelar(command.Motivo);
+                await _pedidoRepository.UpdateAsync(pedido);
+
                 return new CommandResult
                 {
                     Success = true,
@@ -182,13 +256,22 @@ namespace GameStore.Vendas.Application.Handlers
                     EntityId = command.PedidoId
                 };
             }
-            else
+            catch (InvalidOperationException ex)
+            {
+                return new CommandResult
+                {
+                    Success = false,
+                    Message = ex.Message,
+                    Errors = new List<string> { ex.Message }
+                };
+            }
+            catch (Exception ex)
             {
                 return new CommandResult
                 {
                     Success = false,
                     Message = "Erro ao cancelar pedido",
-                    Errors = new List<string> { "Pedido não encontrado ou não pode ser cancelado" }
+                    Errors = new List<string> { ex.Message }
                 };
             }
         }

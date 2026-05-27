@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Catalogo.Application.Services;
 
 namespace GameStore.Catalogo.API.Controllers
 {
@@ -9,15 +8,15 @@ namespace GameStore.Catalogo.API.Controllers
     [Route("api/[controller]")]
     public class GameController : ControllerBase
     {
-        private readonly IGameService _gameService;
+        private readonly GameService _gameService;
 
-        public GameController(IGameService gameService)
+        public GameController(GameService gameService)
         {
             _gameService = gameService;
         }
 
         /// <summary>
-        /// Get all available games
+        /// Get all games
         /// </summary>
         [HttpGet]
         [AllowAnonymous]
@@ -35,86 +34,73 @@ namespace GameStore.Catalogo.API.Controllers
         }
 
         /// <summary>
-        /// Get games available for authenticated user
+        /// Get game by ID
+        /// </summary>
+        [HttpGet("{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            try
+            {
+                var game = await _gameService.GetByIdAsync(id);
+                if (game == null)
+                    return NotFound();
+                
+                return Ok(game);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get available games (in stock)
         /// </summary>
         [HttpGet("available")]
-        [Authorize]
-        public async Task<IActionResult> GetAvailableForUser()
-        {
-            try
-            {
-                var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("nameid");
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                    return Unauthorized();
-
-                var games = await _gameService.GetAvailableGames(userId);
-                return Ok(games);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Get owned games for authenticated user
-        /// </summary>
-        [HttpGet("owned")]
-        [Authorize]
-        public async Task<IActionResult> GetOwnedGames()
-        {
-            try
-            {
-                var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("nameid");
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                    return Unauthorized();
-
-                var games = await _gameService.GetOwnedGames(userId);
-                return Ok(games);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Buy a game (requires authentication)
-        /// </summary>
-        [HttpPost("{gameId}/buy")]
-        [Authorize]
-        public async Task<IActionResult> BuyGame(Guid gameId)
-        {
-            try
-            {
-                var userIdClaim = User.FindFirst("sub") ?? User.FindFirst("nameid");
-                if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
-                    return Unauthorized();
-
-                await _gameService.BuyGame(gameId, userId);
-                return Ok(new { message = "Game purchased successfully" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Search games by name
-        /// </summary>
-        [HttpGet("search")]
         [AllowAnonymous]
-        public async Task<IActionResult> SearchGames([FromQuery] string name)
+        public async Task<IActionResult> GetAvailable()
         {
-            if (string.IsNullOrWhiteSpace(name))
-                return BadRequest(new { message = "Search term is required" });
-
             try
             {
-                var games = await _gameService.GetAllGames();
-                var results = games.Where(g => g.Name.Contains(name, StringComparison.OrdinalIgnoreCase)).ToList();
-                return Ok(results);
+                var games = await _gameService.GetAvailableGames();
+                return Ok(games);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get games by genre
+        /// </summary>
+        [HttpGet("genre/{genero}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetByGenre(string genero)
+        {
+            try
+            {
+                var games = await _gameService.GetGamesByGenre(genero);
+                return Ok(games);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get games by price range
+        /// </summary>
+        [HttpGet("price")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetByPriceRange([FromQuery] decimal min, [FromQuery] decimal max)
+        {
+            try
+            {
+                var games = await _gameService.GetGamesByPriceRange(min, max);
+                return Ok(games);
             }
             catch (Exception ex)
             {

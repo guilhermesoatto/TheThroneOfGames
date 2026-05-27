@@ -1,88 +1,73 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Domain.Entities;
+using GameStore.Catalogo.Domain.Entities;
+using GameStore.Catalogo.Domain.Interfaces;
 
-namespace GameStore.Catalogo.Application
+namespace GameStore.Catalogo.Application.Services
 {
-    public class GameService : IGameService
+    public class GameService
     {
-        private readonly IBaseRepository<GameEntity> _gameRepository;
-        private readonly IBaseRepository<PurchaseEntity> _purchaseRepository;
+        private readonly IJogoRepository _jogoRepository;
 
-        public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<PurchaseEntity> purchaseRepository)
+        public GameService(IJogoRepository jogoRepository)
         {
-            _gameRepository = gameRepository;
-            _purchaseRepository = purchaseRepository;
+            _jogoRepository = jogoRepository;
         }
 
-        public async Task AddAsync(GameEntity entity)
+        public async Task AddAsync(Jogo jogo)
         {
-            await _gameRepository.AddAsync(entity);
+            await _jogoRepository.AddAsync(jogo);
         }
 
         public async Task DeleteAsync(Guid id)
         {
-            await _gameRepository.DeleteAsync(id);
+            await _jogoRepository.DeleteAsync(id);
         }
 
-        public async Task<IEnumerable<GameEntity>> GetAllAsync()
+        public async Task<IEnumerable<Jogo>> GetAllAsync()
         {
-            return await _gameRepository.GetAllAsync();
+            return await _jogoRepository.GetAllAsync();
         }
 
-        public async Task<GameEntity?> GetByIdAsync(Guid id)
+        public async Task<Jogo?> GetByIdAsync(Guid id)
         {
-            return await _gameRepository.GetByIdAsync(id);
+            return await _jogoRepository.GetByIdAsync(id);
         }
 
-        public async Task UpdateAsync(GameEntity entity)
+        public async Task UpdateAsync(Jogo jogo)
         {
-            await _gameRepository.UpdateAsync(entity);
+            await _jogoRepository.UpdateAsync(jogo);
         }
 
-        public async Task BuyGame(Guid gameId, Guid userId)
+        public async Task<List<Jogo>> GetAllGames()
         {
-            var game = await _gameRepository.GetByIdAsync(gameId);
-            if (game == null)
-                throw new ArgumentException($"Game with ID {gameId} not found.");
-
-            var purchase = new PurchaseEntity
-            {
-                GameId = gameId,
-                UserId = userId,
-                PurchaseDate = DateTime.UtcNow
-            };
-
-            await _purchaseRepository.AddAsync(purchase);
+            var jogos = await _jogoRepository.GetAllAsync();
+            return jogos.ToList();
         }
 
-        public async Task<List<GameEntity>> GetAllGames()
+        public async Task<List<Jogo>> GetAvailableGames()
         {
-            var games = await _gameRepository.GetAllAsync();
-            return games.ToList();
+            var jogos = await _jogoRepository.GetDisponiveisAsync();
+            return jogos.ToList();
         }
 
-        public async Task<List<GameEntity>> GetAvailableGames(Guid userId)
+        public async Task<List<Jogo>> GetGamesByGenre(string genero)
         {
-            var allGames = await _gameRepository.GetAllAsync();
-            var ownedGameIds = (await GetOwnedGames(userId)).Select(g => g.Id);
-
-            return allGames.Where(g => !ownedGameIds.Contains(g.Id)).ToList();
+            var jogos = await _jogoRepository.GetByGeneroAsync(genero);
+            return jogos.ToList();
         }
 
-        public async Task<List<GameEntity>> GetOwnedGames(Guid userId)
+        public async Task<List<Jogo>> GetGamesByPriceRange(decimal precoMinimo, decimal precoMaximo)
         {
-            var purchases = await _purchaseRepository.GetAllAsync();
-            var userPurchases = purchases.Where(p => p.UserId == userId);
-            var gameIds = userPurchases.Select(p => p.GameId);
-            
-            var games = await _gameRepository.GetAllAsync();
-            return games.Where(g => gameIds.Contains(g.Id)).ToList();
+            var jogos = await _jogoRepository.GetByFaixaPrecoAsync(precoMinimo, precoMaximo);
+            return jogos.ToList();
+        }
+
+        public async Task<bool> ExistsAsync(Guid id)
+        {
+            return await _jogoRepository.ExistsAsync(id);
         }
     }
 }

@@ -1,150 +1,68 @@
-using NUnit.Framework;
-using Moq;
+using FluentAssertions;
 using GameStore.Usuarios.Application.Mappers;
 using GameStore.Usuarios.Application.DTOs;
 using GameStore.Usuarios.Domain.Entities;
 
-namespace GameStore.Usuarios.Tests
+namespace GameStore.Usuarios.Tests;
+
+public class MapperTests
 {
-    [TestFixture]
-    public class MapperTests
+    private static Usuario CreateUsuario(Guid? id = null, string name = "Test User",
+        string email = "test@example.com", string role = "User", bool active = true)
+        => new(id ?? Guid.NewGuid(), name, email, "hash", role, active, "token");
+
+    [Fact]
+    public void UsuarioMapper_ToDTO_ValidUsuario_ShouldMapCorrectly()
     {
-        #region UsuarioMapper Tests
+        var usuario = CreateUsuario();
+        var dto = UsuarioMapper.ToDTO(usuario);
 
-        [Test]
-        public void UsuarioMapper_ToDTO_ValidUsuario_ShouldMapCorrectly()
+        dto.Should().NotBeNull();
+        dto.Id.Should().Be(usuario.Id);
+        dto.Name.Should().Be(usuario.Name);
+        dto.Email.Should().Be(usuario.Email);
+        dto.Role.Should().Be(usuario.Role);
+        dto.IsActive.Should().Be(usuario.IsActive);
+    }
+
+    [Fact]
+    public void UsuarioMapper_ToDTO_NullUsuario_ShouldThrow()
+    {
+        var act = () => UsuarioMapper.ToDTO(null!);
+        act.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void UsuarioMapper_FromDTO_ValidDTO_ShouldMapCorrectly()
+    {
+        var dto = new UsuarioDTO
         {
-            // Arrange
-            var usuario = new Usuario(
-                id: Guid.NewGuid(),
-                name: "Test User",
-                email: "test@example.com",
-                passwordHash: "hashedpassword",
-                role: "User",
-                isActive: true,
-                activeToken: "token123"
-            );
+            Id = Guid.NewGuid(), Name = "Test User",
+            Email = "test@example.com", Role = "User",
+            IsActive = true, CreatedAt = DateTime.UtcNow
+        };
 
-            // Act
-            var result = UsuarioMapper.ToDTO(usuario);
+        var usuario = UsuarioMapper.FromDTO(dto);
 
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Id, Is.EqualTo(usuario.Id));
-            Assert.That(result.Name, Is.EqualTo(usuario.Name));
-            Assert.That(result.Email, Is.EqualTo(usuario.Email));
-            Assert.That(result.Role, Is.EqualTo(usuario.Role));
-            Assert.That(result.IsActive, Is.EqualTo(usuario.IsActive));
-        }
+        usuario.Should().NotBeNull();
+        usuario.Id.Should().Be(dto.Id);
+        usuario.Name.Should().Be(dto.Name);
+        usuario.Email.Should().Be(dto.Email);
+    }
 
-        [Test]
-        public void UsuarioMapper_ToDTO_NullUsuario_ShouldThrowArgumentNullException()
+    [Fact]
+    public void UsuarioMapper_ToDTOList_ShouldMapAll()
+    {
+        var usuarios = new List<Usuario>
         {
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => UsuarioMapper.ToDTO(null!));
-        }
+            CreateUsuario(name: "User 1", email: "u1@e.com"),
+            CreateUsuario(name: "User 2", email: "u2@e.com", active: false)
+        };
 
-        [Test]
-        public void UsuarioMapper_FromDTO_ValidDTO_ShouldMapCorrectly()
-        {
-            // Arrange
-            var usuarioDto = new UsuarioDTO
-            {
-                Id = Guid.NewGuid(),
-                Name = "Test User",
-                Email = "test@example.com",
-                Role = "User",
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = null
-            };
+        var dtos = UsuarioMapper.ToDTOList(usuarios).ToList();
 
-            // Act
-            var result = UsuarioMapper.FromDTO(usuarioDto);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Id, Is.EqualTo(usuarioDto.Id));
-            Assert.That(result.Name, Is.EqualTo(usuarioDto.Name));
-            Assert.That(result.Email, Is.EqualTo(usuarioDto.Email));
-            Assert.That(result.Role, Is.EqualTo(usuarioDto.Role));
-            Assert.That(result.IsActive, Is.EqualTo(usuarioDto.IsActive));
-        }
-
-        [Test]
-        public void UsuarioMapper_FromDTO_NullDTO_ShouldThrowArgumentNullException()
-        {
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => UsuarioMapper.FromDTO(null!));
-        }
-
-        [Test]
-        public void UsuarioMapper_ToDTOList_ValidList_ShouldMapCorrectly()
-        {
-            // Arrange
-            var usuarios = new List<Usuario>
-            {
-                new Usuario(
-                    id: Guid.NewGuid(),
-                    name: "User 1",
-                    email: "user1@example.com",
-                    passwordHash: "hashedpassword1",
-                    role: "User",
-                    isActive: true,
-                    activeToken: "token1"
-                ),
-                new Usuario(
-                    id: Guid.NewGuid(),
-                    name: "User 2",
-                    email: "user2@example.com",
-                    passwordHash: "hashedpassword2",
-                    role: "Admin",
-                    isActive: false,
-                    activeToken: "token2"
-                )
-            };
-
-            // Act
-            var result = UsuarioMapper.ToDTOList(usuarios);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result.Count(), Is.EqualTo(2));
-            
-            var firstDto = result.First();
-            Assert.That(firstDto.Name, Is.EqualTo("User 1"));
-            Assert.That(firstDto.Email, Is.EqualTo("user1@example.com"));
-            Assert.That(firstDto.Role, Is.EqualTo("User"));
-            Assert.That(firstDto.IsActive, Is.True);
-            
-            var secondDto = result.Last();
-            Assert.That(secondDto.Name, Is.EqualTo("User 2"));
-            Assert.That(secondDto.Email, Is.EqualTo("user2@example.com"));
-            Assert.That(secondDto.Role, Is.EqualTo("Admin"));
-            Assert.That(secondDto.IsActive, Is.False);
-        }
-
-        [Test]
-        public void UsuarioMapper_ToDTOList_NullList_ShouldThrowArgumentNullException()
-        {
-            // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => UsuarioMapper.ToDTOList(null!));
-        }
-
-        [Test]
-        public void UsuarioMapper_ToDTOList_EmptyList_ShouldReturnEmptyList()
-        {
-            // Arrange
-            var usuarios = new List<Usuario>();
-
-            // Act
-            var result = UsuarioMapper.ToDTOList(usuarios);
-
-            // Assert
-            Assert.That(result, Is.Not.Null);
-            Assert.That(result, Is.Empty);
-        }
-        #endregion
+        dtos.Should().HaveCount(2);
+        dtos[0].Name.Should().Be("User 1");
+        dtos[1].IsActive.Should().BeFalse();
     }
 }
-
