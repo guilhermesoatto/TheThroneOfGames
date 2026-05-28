@@ -52,14 +52,14 @@ Feature: CD Pipeline — Automated Deployment
 
 ## Acceptance Criteria
 
-- [ ] CD pipeline file exists (`.github/workflows/cd.yml` or as a separate stage in Multistage pipeline)
+- [x] CD pipeline file exists (`.github/workflows/cd.yml` or as a separate stage in Multistage pipeline)
 - [ ] Trigger: `push` to `main` (merge event) only
 - [ ] Steps: checkout → docker build → **trivy CVE scan** → **trivy secret scan** → docker push → **kubectl dry-run** → cloud deploy
 - [ ] `trivy image --severity HIGH,CRITICAL --exit-code 1` — HIGH/CRITICAL blocks push
 - [ ] `trivy image --scanners secret --exit-code 1` — embedded secrets block push
 - [ ] `kubectl apply --dry-run=server -f k8s/` — invalid manifests block deploy
-- [ ] Build Artifact is tagged with `${{ github.sha }}` AND `latest`
-- [ ] Cloud credentials injected via secrets — never hardcoded in YAML
+- [x] Build Artifact is tagged with `${{ github.sha }}` AND `latest`
+- [x] Cloud credentials injected via secrets — never hardcoded in YAML
 - [ ] Post-deploy health check step validates the FCG Platform is live
 - [ ] Pipeline failure sends notification (email, Slack, or Teams)
 
@@ -141,6 +141,6 @@ jobs:
 ## Definition of Done
 
 - [ ] CD pipeline triggers on every merge to `main`
-- [ ] Build Artifact tagged with SHA visible in Container Registry
+- [x] Build Artifact tagged with SHA visible in Container Registry
 - [ ] FCG Platform accessible on Cloud URL after pipeline
 - [ ] Health check step passes at end of CD run

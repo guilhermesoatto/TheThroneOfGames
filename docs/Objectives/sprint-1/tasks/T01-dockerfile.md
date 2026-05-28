@@ -46,10 +46,10 @@ Feature: FCG Platform Dockerfile
 
 ## Acceptance Criteria
 
-- [ ] Dockerfile exists at repository root
-- [ ] Multi-stage build: `builder` stage compiles, `runtime` stage runs
+- [x] Dockerfile exists at repository root
+- [x] Multi-stage build: `builder` stage compiles, `runtime` stage runs
 - [ ] Base image pinned to **SHA digest** (e.g., `node:20-alpine@sha256:<digest>`) — never `node:latest` or bare tag
-- [ ] Application runs as a non-root user (UID ≥ 1000, e.g., `uid=1001`)
+- [x] Application runs as a non-root user (UID ≥ 1000, e.g., `uid=1001`)
 - [ ] `EXPOSE 8080` declared
 - [ ] `.dockerignore` excludes `node_modules`, `.git`, `*.log`, test files
 - [ ] `trivy image --severity HIGH,CRITICAL --exit-code 1 <image>` passes (zero CVEs)
@@ -95,6 +95,6 @@ ENTRYPOINT ["node", "dist/main.js"]
 
 ## Definition of Done
 
-- [ ] Dockerfile merged to `main`
+- [x] Dockerfile merged to `main`
 - [ ] CI runs `docker build` and scan — zero HIGH/CRITICAL CVEs
 - [ ] Image pushed to Container Registry (see T04)

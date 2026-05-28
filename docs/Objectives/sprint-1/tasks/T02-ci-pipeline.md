@@ -50,14 +50,14 @@ Feature: CI Pipeline — Automated Quality Gate
 
 ## Acceptance Criteria
 
-- [ ] CI pipeline file exists (`.github/workflows/ci.yml` or equivalent)
+- [x] CI pipeline file exists (`.github/workflows/ci.yml` or equivalent)
 - [ ] Triggers: `pull_request` targeting `main`, `push` to any branch
 - [ ] **Gate 1:** `npm audit --audit-level=high` — HIGH/CRITICAL blocks merge
 - [ ] **Gate 2:** SAST — `npx eslint src/ --plugin security` (or Semgrep) runs and reports
 - [ ] **Gate 3:** `npx tsc --noEmit` — TypeScript compiles with zero errors
 - [ ] **Gate 4:** Steps include lint → audit → SAST → unit tests → integration tests
-- [ ] Pipeline fails fast: any gate failure stops subsequent gates
-- [ ] Test results published as pipeline artifact or check annotation
+- [x] Pipeline fails fast: any gate failure stops subsequent gates
+- [x] Test results published as pipeline artifact or check annotation
 - [ ] Branch protection rule on `main` requires CI to pass before merge
 - [ ] Pipeline runs in under 10 minutes
 
@@ -125,6 +125,6 @@ jobs:
 
 ## Definition of Done
 
-- [ ] CI pipeline file committed and running
+- [x] CI pipeline file committed and running
 - [ ] Branch protection rule active
 - [ ] Green CI badge visible on README

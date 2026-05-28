@@ -52,11 +52,11 @@ Feature: Monitoring Stack — Health Metrics Collection
 
 ## Acceptance Criteria
 
-- [ ] At least one monitoring tool configured: Prometheus + Grafana **or** Datadog **or** New Relic **or** AWS CloudWatch **or** Azure Monitor
+- [x] At least one monitoring tool configured: Prometheus + Grafana **or** Datadog **or** New Relic **or** AWS CloudWatch **or** Azure Monitor
 - [ ] Metrics collected: CPU, memory, HTTP request rate, HTTP error rate, uptime
 - [ ] At least one alert rule configured (CPU > 80% or error rate > 5%)
 - [ ] Dashboard accessible via URL (screenshot included in video demo)
-- [ ] Metrics scraping/collection is automated — no manual steps after deploy
+- [x] Metrics scraping/collection is automated — no manual steps after deploy
 - [ ] Application exposes a `/metrics` endpoint if using Prometheus
 
 ## Best Practices
@@ -106,4 +106,4 @@ app.get('/metrics', async (req, res) => {
 
 - [ ] Dashboard screenshot included in the demo video
 - [ ] At least one alert rule active and tested
-- [ ] Monitoring Stack URL documented in README
+- [x] Monitoring Stack URL documented in README
