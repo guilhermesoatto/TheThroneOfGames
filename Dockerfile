@@ -1,5 +1,5 @@
-# Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+# Build stage — SDK pinned to immutable SHA digest (amd64)
+FROM mcr.microsoft.com/dotnet/sdk:9.0@sha256:0d2d99c1f384a6b9c8f37aaea952937b2ffff20aa150c7eb4fdeb0a968797d31 AS build
 WORKDIR /src
 
 # Copy csproj files and restore dependencies
@@ -29,16 +29,30 @@ RUN dotnet build "TheThroneOfGames.API.csproj" -c Release -o /app/build
 FROM build AS publish
 RUN dotnet publish "TheThroneOfGames.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+# Runtime stage — ASP.NET runtime pinned to immutable SHA digest (amd64)
+FROM mcr.microsoft.com/dotnet/aspnet:9.0@sha256:906fe6afa26ebfb013a769a659a5bc1eb30424152bcec3c6cd8b0bd88dd69d1c AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
 
-# Create non-root user
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
+# Install curl (minimal — required for HEALTHCHECK only)
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user (uid 1000)
+RUN addgroup --system --gid 1000 appgroup \
+    && adduser --system --uid 1000 --ingroup appgroup appuser \
+    && chown -R appuser:appgroup /app
+
+# Copy published application with correct ownership
+COPY --from=publish --chown=appuser:appgroup /app/publish .
+
 USER appuser
 
-EXPOSE 80
-EXPOSE 443
+ENV ASPNETCORE_ENVIRONMENT=Production \
+    ASPNETCORE_URLS=http://+:8080
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+    CMD curl -sf http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "TheThroneOfGames.API.dll"]

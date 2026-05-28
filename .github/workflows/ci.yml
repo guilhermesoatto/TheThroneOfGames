@@ -1,0 +1,162 @@
+name: CI — Quality Gate
+
+# T02: CI Pipeline — runs on every PR and every push to non-main branches.
+# Gate 1: Dependency vulnerability scan
+# Gate 2: Solution build (compile check)
+# Gate 3: Unit tests (no external dependencies)
+# Gate 4: Integration tests (excluded via Category filter — require DB)
+# Fails fast: any gate failure stops subsequent gates.
+
+on:
+  pull_request:
+    branches: [ master, main, develop ]
+  push:
+    branches-ignore: [ master, main ]
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gate 1 — Dependency vulnerability scan
+  # Blocks merge on HIGH or CRITICAL CVEs in NuGet packages.
+  # ─────────────────────────────────────────────────────────────────────────────
+  vulnerability-scan:
+    name: Gate 1 — Dependency CVE Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore TheThroneOfGames.sln
+
+      - name: Scan for vulnerable packages
+        run: |
+          dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt
+          if grep -qiE "(High|Critical)" vuln-report.txt; then
+            echo "::error::HIGH or CRITICAL vulnerability found. Merge blocked."
+            cat vuln-report.txt
+            exit 1
+          fi
+          echo "No HIGH/CRITICAL vulnerabilities found."
+
+      - name: Upload vulnerability report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report
+          path: vuln-report.txt
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gate 2 — Build (compile check)
+  # Ensures the solution compiles cleanly before running tests.
+  # ─────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Gate 2 — Build
+    runs-on: ubuntu-latest
+    needs: vulnerability-scan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore TheThroneOfGames.sln
+
+      - name: Build — Release
+        run: dotnet build TheThroneOfGames.sln --configuration Release --no-restore --warnaserror
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gate 3 — Unit tests (no external DB / network dependencies)
+  # ─────────────────────────────────────────────────────────────────────────────
+  unit-tests:
+    name: Gate 3 — Unit Tests
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore TheThroneOfGames.sln
+
+      - name: Run unit tests (excluding integration)
+        run: |
+          dotnet test TheThroneOfGames.sln \
+            --configuration Release \
+            --no-restore \
+            --filter "Category!=Integration" \
+            --logger "trx;LogFileName=unit-test-results.trx" \
+            --logger "console;verbosity=normal" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: '**/TestResults/*.trx'
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: '**/TestResults/**/coverage.cobertura.xml'
+
+      - name: Check coverage threshold (≥ 70%)
+        run: |
+          COVERAGE=$(find . -name "coverage.cobertura.xml" | head -1)
+          if [ -f "$COVERAGE" ]; then
+            LINE_RATE=$(grep -oP 'line-rate="\K[^"]+' "$COVERAGE" | head -1)
+            PERCENT=$(echo "$LINE_RATE * 100" | bc)
+            echo "Coverage: ${PERCENT}%"
+            if (( $(echo "$LINE_RATE < 0.70" | bc -l) )); then
+              echo "::warning::Coverage ${PERCENT}% is below 70% threshold."
+            fi
+          else
+            echo "No coverage file found — skipping threshold check."
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Gate 4 — Container build smoke-check (validates Dockerfile syntax)
+  # Full push only happens in the CD pipeline on merge to main.
+  # ─────────────────────────────────────────────────────────────────────────────
+  dockerfile-lint:
+    name: Gate 4 — Dockerfile Lint
+    runs-on: ubuntu-latest
+    needs: build
+    strategy:
+      matrix:
+        service:
+          - { name: usuarios-api, file: GameStore.Usuarios.API/Dockerfile }
+          - { name: catalogo-api, file: GameStore.Catalogo.API/Dockerfile }
+          - { name: vendas-api,   file: GameStore.Vendas.API/Dockerfile   }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile — ${{ matrix.service.name }}
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.service.file }}
+          ignore: DL3008,DL3009
+          failure-threshold: warning

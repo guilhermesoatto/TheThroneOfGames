@@ -5,8 +5,16 @@
 **/obj
 **/.DS_Store
 **/node_modules
-docs/phase-4-evidence
+docs/
 *.trx
+*.log
 .github
 .vscode
 README.md
+**/*Tests*/
+**/TestResults/
+**/*.md
+docker-compose*.yml
+k8s/
+scripts/
+artifacts/

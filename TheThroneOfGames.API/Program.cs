@@ -25,6 +25,7 @@ using GameStore.Vendas.Application.Extensions;
 using GameStore.Vendas.Infrastructure.Extensions;
 using TheThroneOfGames.API.Extensions;
 using TheThroneOfGames.Application;
+using Prometheus;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -170,6 +171,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Prometheus metrics endpoint — scraped by the monitoring stack
+app.UseMetricServer("/metrics");
+app.UseHttpMetrics();
+
 // Global exception handling middleware
 app.UseMiddleware<TheThroneOfGames.API.Middleware.ExceptionMiddleware>();
 
@@ -177,6 +182,10 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers(); // Garante que os controllers sejam mapeados
+
+// Health check endpoint (required for CI/CD pipeline and Kubernetes probes)
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }))
+   .AllowAnonymous();
 
 app.Run(); // Mantém a aplicação rodando
 

@@ -1,0 +1,242 @@
+name: CD — Deploy Pipeline
+
+# T03: CD Pipeline — triggers ONLY on merge to main/master.
+# Steps per service: docker build → trivy CVE scan → trivy secret scan
+#                   → push to GHCR → kubectl dry-run → deploy → health check
+# Rollback: re-run workflow pointing at a previous commit SHA tag.
+# Cloud credentials injected via GitHub Secrets — never hardcoded.
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to deploy (default: commit SHA)'
+        required: false
+        default: ''
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 1: Build, scan and push each service image to GHCR
+  # ─────────────────────────────────────────────────────────────────────────────
+  build-scan-push:
+    name: Build → Scan → Push — ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - name: usuarios-api
+            dockerfile: GameStore.Usuarios.API/Dockerfile
+          - name: catalogo-api
+            dockerfile: GameStore.Catalogo.API/Dockerfile
+          - name: vendas-api
+            dockerfile: GameStore.Vendas.API/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
+          echo "sha=${TAG}" >> "$GITHUB_OUTPUT"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service.name }}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "full=${IMAGE}:${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build image locally (--load) so Trivy can scan it before pushing
+      - name: Build image (no push yet)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ steps.tag.outputs.full }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Gate: block push on HIGH/CRITICAL CVEs
+      - name: Trivy — CVE scan (blocks on HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.tag.outputs.full }}
+          format: 'sarif'
+          output: 'trivy-cve-${{ matrix.service.name }}.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '1'
+
+      # Gate: block push if secrets were accidentally baked into the image
+      - name: Trivy — Secret scan (blocks on any secret found)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.tag.outputs.full }}
+          scanners: 'secret'
+          format: 'table'
+          exit-code: '1'
+
+      - name: Upload CVE SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-cve-${{ matrix.service.name }}.sarif
+          category: trivy-${{ matrix.service.name }}
+
+      # Push image only after all scans pass
+      - name: Push image to GHCR (SHA tag + latest)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.tag.outputs.full }}
+            ${{ steps.tag.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output pushed image
+        run: echo "Pushed ${{ steps.tag.outputs.full }}"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 2: Validate K8s manifests (dry-run) before any live changes
+  # ─────────────────────────────────────────────────────────────────────────────
+  k8s-dry-run:
+    name: K8s Manifest Dry-Run
+    runs-on: ubuntu-latest
+    needs: build-scan-push
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+            --region ${{ secrets.GKE_ZONE }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Dry-run — validate K8s manifests (no live changes)
+        run: |
+          kubectl apply --dry-run=server -f k8s/configmaps/ 2>&1
+          kubectl apply --dry-run=server -f k8s/deployments/ 2>&1
+          kubectl apply --dry-run=server -f k8s/services/ 2>&1
+          echo "All manifests validated successfully."
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Job 3: Deploy to GKE and validate health
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to GKE
+    runs-on: ubuntu-latest
+    needs: k8s-dry-run
+    environment:
+      name: production
+      url: https://api.thethroneofgames.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.image_tag }}"
+          if [ -z "$TAG" ]; then TAG="${{ github.sha }}"; fi
+          echo "sha=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure kubectl
+        run: |
+          gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
+            --region ${{ secrets.GKE_ZONE }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+          gcloud components install gke-gcloud-auth-plugin --quiet
+
+      - name: Update image tags in deployments to commit SHA
+        run: |
+          REGISTRY="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+          SHA="${{ steps.tag.outputs.sha }}"
+          kubectl set image deployment/usuarios-api \
+            usuarios-api="${REGISTRY}/usuarios-api:${SHA}" \
+            -n thethroneofgames
+          kubectl set image deployment/catalogo-api \
+            catalogo-api="${REGISTRY}/catalogo-api:${SHA}" \
+            -n thethroneofgames
+          kubectl set image deployment/vendas-api \
+            vendas-api="${REGISTRY}/vendas-api:${SHA}" \
+            -n thethroneofgames
+
+      - name: Apply remaining K8s resources
+        run: |
+          kubectl apply -f k8s/configmaps/ --validate=false
+          kubectl apply -f k8s/services/   --validate=false
+
+      - name: Wait for rollout (rolling update — zero downtime)
+        run: |
+          kubectl rollout status deployment/usuarios-api -n thethroneofgames --timeout=300s
+          kubectl rollout status deployment/catalogo-api -n thethroneofgames --timeout=300s
+          kubectl rollout status deployment/vendas-api   -n thethroneofgames --timeout=300s
+
+      # Post-deploy health check — validates all services are live
+      - name: Post-deploy health check
+        run: |
+          echo "Waiting 15s for pods to become fully ready..."
+          sleep 15
+
+          for SVC in usuarios-api catalogo-api vendas-api; do
+            kubectl port-forward svc/${SVC} 8888:8080 -n thethroneofgames &
+            PF_PID=$!
+            sleep 3
+            HTTP_STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8888/health || echo "000")
+            kill $PF_PID 2>/dev/null || true
+            if [ "$HTTP_STATUS" != "200" ]; then
+              echo "::error::Health check failed for ${SVC}: HTTP ${HTTP_STATUS}"
+              exit 1
+            fi
+            echo "${SVC} health check: HTTP ${HTTP_STATUS} OK"
+          done
+
+      - name: Show deployment status
+        if: always()
+        run: |
+          kubectl get pods -n thethroneofgames
+          kubectl get svc  -n thethroneofgames
