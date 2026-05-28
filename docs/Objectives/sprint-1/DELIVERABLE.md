@@ -18,12 +18,12 @@
 
 ## Deliverables Checklist
 
-- [ ] `T01` — Dockerfile written and validated (lean, non-root, multi-stage)
-- [ ] `T02` — CI Pipeline: executes tests on every PR/Commit
-- [ ] `T03` — CD Pipeline: deploys on merge to `main`
-- [ ] `T04` — Container Registry configured and image published
-- [ ] `T05` — FCG Platform running on a Cloud Provider
-- [ ] `T06` — Monitoring Stack collecting Health Metrics
+- [ ] `T01` — Dockerfile written and validated (lean, non-root, multi-stage) _(Audit: partial)_
+- [ ] `T02` — CI Pipeline: executes tests on every PR/Commit _(Audit: partial)_
+- [ ] `T03` — CD Pipeline: deploys on merge to `main` _(Audit: partial)_
+- [ ] `T04` — Container Registry configured and image published _(Audit: partial)_
+- [ ] `T05` — FCG Platform running on a Cloud Provider _(Audit: partial)_
+- [ ] `T06` — Monitoring Stack collecting Health Metrics _(Audit: partial)_
 
 ## Architectural Constraints (Fase 2)
 

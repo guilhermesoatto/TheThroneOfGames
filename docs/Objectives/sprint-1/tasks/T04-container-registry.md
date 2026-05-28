@@ -48,9 +48,9 @@ Feature: Container Registry — Build Artifact Storage
 
 ## Acceptance Criteria
 
-- [ ] Registry provisioned and accessible from the CI/CD environment
+- [x] Registry provisioned and accessible from the CI/CD environment
 - [ ] Repository `fcg-platform` created inside the registry
-- [ ] Push/pull credentials stored as pipeline secrets (never in code)
+- [x] Push/pull credentials stored as pipeline secrets (never in code)
 - [ ] Image retention policy configured (keep last 20 tags minimum)
 - [ ] Vulnerability scanning enabled on push
 - [ ] README.md documents the registry URL and how to authenticate locally

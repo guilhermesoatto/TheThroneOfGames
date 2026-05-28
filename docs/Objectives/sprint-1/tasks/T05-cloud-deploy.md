@@ -49,13 +49,13 @@ Feature: FCG Platform — Cloud Deployment
 
 ## Acceptance Criteria
 
-- [ ] FCG Platform deployed to chosen Cloud Provider (AWS ECS / Azure App Service / GCP Cloud Run / K8s)
+- [x] FCG Platform deployed to chosen Cloud Provider (AWS ECS / Azure App Service / GCP Cloud Run / K8s)
 - [ ] Public URL documented in README
 - [ ] `/health` endpoint returns `200 OK` with `{ "status": "ok" }`
 - [ ] Rolling update or blue-green strategy configured (zero-downtime deploys)
-- [ ] Auto-restart enabled (ECS task restart policy / Kubernetes restart policy)
-- [ ] All secrets injected via cloud secret manager or environment variables — never in image
-- [ ] Resource limits defined (CPU and memory caps to control cloud costs)
+- [x] Auto-restart enabled (ECS task restart policy / Kubernetes restart policy)
+- [x] All secrets injected via cloud secret manager or environment variables — never in image
+- [x] Resource limits defined (CPU and memory caps to control cloud costs)
 
 ## Best Practices
 
