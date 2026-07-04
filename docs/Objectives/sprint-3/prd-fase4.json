@@ -1,0 +1,25 @@
+{
+  "prd": {
+    "fase": 4,
+    "titulo": "Kubernetes & Escala — GameStore",
+    "descricao": "Entrega acadêmica da Fase 4 — orquestração dos microsserviços GameStore em Kubernetes (GKE), com HPA, Ingress e monitoramento.",
+    "escopo": {
+      "base": "release/fase-3-microservices",
+      "adicionais": [
+        "k8s/ (manifests Kubernetes)",
+        "Infrastructure/ (Terraform/Helm)",
+        "monitoring/ (Prometheus/Grafana)",
+        ".github/workflows/ (CI/CD GKE)"
+      ]
+    },
+    "criterios_aceite": [
+      "Deploy automatizado via GitHub Actions para GKE",
+      "HPA configurado para todos os serviços",
+      "Ingress com TLS funcional",
+      "Dashboards Grafana operacionais",
+      "Load test documentado com resultados"
+    ],
+    "branch": "release/fase-4-kubernetes",
+    "status": "inicializado"
+  }
+}

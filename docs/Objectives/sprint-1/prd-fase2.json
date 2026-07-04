@@ -1,0 +1,30 @@
+{
+  "prd": {
+    "fase": 2,
+    "titulo": "Monolito TheThroneOfGames",
+    "descricao": "Entrega acadêmica da Fase 2 — aplicação monolítica ASP.NET Core com DDD, CQRS e testes integrados.",
+    "escopo": {
+      "projetos": [
+        "TheThroneOfGames.API",
+        "TheThroneOfGames.Application",
+        "TheThroneOfGames.Domain",
+        "TheThroneOfGames.Infrastructure",
+        "TheThroneOfGames.Application.Tests",
+        "TheThroneOfGames.Domain.Tests",
+        "TheThroneOfGames.Infrastructure.Tests"
+      ],
+      "excluidos": [
+        "GameStore.*",
+        "PlataformaJogos.Tests"
+      ]
+    },
+    "criterios_aceite": [
+      "Build sem erros",
+      "Cobertura de testes > 80%",
+      "Endpoints CRUD funcionais via Swagger",
+      "Arquitetura DDD documentada"
+    ],
+    "branch": "release/fase-2-monolito",
+    "status": "isolado"
+  }
+}
