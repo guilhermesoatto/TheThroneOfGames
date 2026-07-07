@@ -1,12 +1,18 @@
-# TheThroneOfGames — Fase 3 (Microsserviços)
+# TheThroneOfGames — Fase 4 (Kubernetes & Escala)
 
 ## Visão Geral
 
-FIAP Cloud Games (FCG) na Fase 3: migração do monólito (Fase 2) para **3 microsserviços independentes**, com busca avançada via **Elasticsearch**, processamento assíncrono via **Serverless Functions**, um **API Gateway** único e **Event Sourcing** no fluxo de pedidos.
+FIAP Cloud Games (FCG) evoluiu em duas fases sobre a mesma base de **3 microsserviços independentes** (Fase 3 — Usuários, Catálogo, Vendas):
 
-Requisitos originais do desafio: [`docs/Objectives/TC NETT - Fase 3.md`](docs/Objectives/TC%20NETT%20-%20Fase%203.md).
+- **Fase 3**: busca avançada via **Elasticsearch**, processamento assíncrono via **Serverless Functions**, um **API Gateway** único e **Event Sourcing** no fluxo de pedidos.
+- **Fase 4** (esta branch, `release/fase-4-kubernetes`): imagens Docker otimizadas (Alpine, non-root), orquestração completa via **Kubernetes** (Deployments, Services, ConfigMaps/Secrets, Ingress), **autoscaling horizontal (HPA)** validado com teste de carga real, **Monitoramento** (Prometheus + Grafana) e **APM** (Jaeger) rodando no cluster.
+
+Requisitos originais do desafio: [`docs/Objectives/TC NETT - Fase 4 (1).md`](<docs/Objectives/TC%20NETT%20-%20Fase%204%20(1).md>) (Fase 4) e [`docs/Objectives/TC NETT - Fase 3.md`](docs/Objectives/TC%20NETT%20-%20Fase%203.md) (Fase 3).
 Governança/IA (Suitcase): [`CLAUDE.md`](CLAUDE.md).
-PRD técnico + status real tarefa a tarefa: [`docs/ai/tasks/prd-sprint-02-fase3.json`](docs/ai/tasks/prd-sprint-02-fase3.json) e [`docs/Objectives/sprint-2/DELIVERABLE.md`](docs/Objectives/sprint-2/DELIVERABLE.md).
+PRD técnico Fase 4 + status real tarefa a tarefa: [`docs/Objectives/sprint-3/prd-fase4.json`](docs/Objectives/sprint-3/prd-fase4.json) — validar com `node tools/validate-prd.js docs/Objectives/sprint-3/prd-fase4.json`.
+PRD técnico Fase 3: [`docs/ai/tasks/prd-sprint-02-fase3.json`](docs/ai/tasks/prd-sprint-02-fase3.json) e [`docs/Objectives/sprint-2/DELIVERABLE.md`](docs/Objectives/sprint-2/DELIVERABLE.md).
+Arquitetura Fase 3 (fluxo assíncrono): [`docs/architecture-flow.md`](docs/architecture-flow.md).
+Arquitetura Fase 4 (fluxo de rede no Kubernetes): [`docs/k8s-architecture-flow.md`](docs/k8s-architecture-flow.md).
 
 ## Bounded Contexts
 
@@ -89,6 +95,39 @@ dotnet test TheThroneOfGames.sln
 
 Os testes de integração sobem containers reais via Testcontainers (RabbitMQ, Elasticsearch) — não usam mocks para infraestrutura externa. Alguns projetos `*.API.Tests` esperam um PostgreSQL alcançável em `localhost:5432` (ver `docker-compose.yml`).
 
+## Kubernetes (Fase 4)
+
+Manifestos completos em [`k8s/`](k8s/): namespace, ConfigMaps/Secrets, Deployments/Services das 3 APIs + Function serverless + API Gateway + infraestrutura (Postgres, RabbitMQ, Elasticsearch, Azurite), HPA, Ingress (TLS) e a stack de observabilidade (Prometheus, Grafana, Jaeger).
+
+### Pré-requisitos
+- Um cluster Kubernetes acessível via `kubectl` — gerenciado na cloud (GKE/EKS/AKS) **ou** local para desenvolvimento/validação ([kind](https://kind.sigs.k8s.io/) ou [minikube](https://minikube.sigs.k8s.io/)).
+- As 4 imagens (`GameStore.Usuarios.API`, `GameStore.Catalogo.API`, `GameStore.Vendas.API`, `GameStore.Notifications.Functions`) publicadas num registry acessível pelo cluster — os manifestos usam `image: gamestore/<serviço>:latest` como placeholder; ajuste antes do deploy (ou use `kind load docker-image` para um cluster kind local).
+
+### Deploy
+
+```sh
+# build das 4 imagens (repita para cada Dockerfile em GameStore.*.API/ e GameStore.Notifications.Functions/)
+docker build -t gamestore/usuarios-api:latest -f GameStore.Usuarios.API/Dockerfile .
+# ... catalogo-api, vendas-api, notifications-functions
+
+kubectl apply -f k8s/namespaces.yaml
+kubectl apply -f k8s/configmaps/ -f k8s/secrets/
+kubectl apply -f k8s/deployments/ -f k8s/services/
+kubectl apply -f k8s/hpa/ -f k8s/ingress/
+
+kubectl -n gamestore get pods -w
+```
+
+### Validar o autoscaling (HPA) com carga real
+
+```sh
+kubectl apply -f k8s/load-test/load-test-job.yaml
+kubectl -n gamestore get hpa -w          # observar TARGETS (%CPU) e REPLICAS subindo
+kubectl delete job load-test -n gamestore  # remover depois do teste
+```
+
+**Status real:** toda a stack acima foi implantada e validada de ponta a ponta contra um cluster Kubernetes real local (kind) durante o desenvolvimento — não um cluster gerenciado na nuvem (ver `docs/Objectives/sprint-3/prd-fase4.json`, tarefa `fase4-T03`, e `docs/k8s-architecture-flow.md` §7 para o relato completo, incluindo dois bugs reais encontrados e corrigidos: bind non-root na porta 80 e esgotamento de conexões do Postgres sob HPA escalado). O teste de carga confirmou o `catalogo-api-hpa` escalando de 2 para 6 réplicas (105% de CPU) e voltando ao mínimo após o fim da carga.
+
 ## Estrutura do Projeto
 
 ```
@@ -100,10 +139,28 @@ TheThroneOfGames.sln
 ├── GameStore.CQRS.Abstractions             # Abstrações Commands/Queries
 ├── GameStore.Notifications.Functions       # Azure Functions (isolated worker)
 ├── api-gateway/                            # nginx (API Gateway)
-├── monitoring/                             # Prometheus/Grafana provisioning
+├── k8s/                                    # Manifestos Kubernetes (Fase 4)
+├── monitoring/                             # Prometheus/Grafana provisioning (docker-compose)
 ├── docs/ai/                                # Governança IA (Suitcase): knowledge base, tasks, skills
-└── docs/Objectives/sprint-2/               # PRD e deliverable da Fase 3
+├── docs/Objectives/sprint-2/               # PRD e deliverable da Fase 3
+└── docs/Objectives/sprint-3/               # PRD da Fase 4
 ```
+
+## Status Real da Fase 4
+
+Ver `docs/Objectives/sprint-3/prd-fase4.json` para o checklist tarefa a tarefa. Resumo:
+
+| Item | Status |
+|---|---|
+| Comunicação assíncrona entre microsserviços (RabbitMQ) | ✅ (herdado da Fase 3) |
+| Imagens Docker otimizadas (Alpine, non-root) para os 3 APIs + Function | ✅ |
+| Manifestos Kubernetes (Namespace, Deployments, Services, ConfigMaps, Secrets, Ingress) | ✅ |
+| HPA (autoscaling por CPU, 3 APIs) — validado com teste de carga real | ✅ |
+| Monitoramento (Prometheus + Grafana) | ✅ |
+| APM (Jaeger) | ✅ |
+| Validação de ponta a ponta em cluster Kubernetes real (local — kind) | ✅ |
+| Cluster Kubernetes **gerenciado na nuvem** (GKE/EKS/AKS) | ❌ não provisionado nesta entrega — ver PRD `fase4-T03` |
+| Retry/DLQ em mensageria (opcional) | ❌ não implementado (flag opcional no edital) |
 
 ## Status Real da Fase 3
 
