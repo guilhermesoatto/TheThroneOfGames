@@ -89,6 +89,15 @@ dotnet test TheThroneOfGames.sln
 
 Os testes de integração sobem containers reais via Testcontainers (RabbitMQ, Elasticsearch) — não usam mocks para infraestrutura externa. Alguns projetos `*.API.Tests` esperam um PostgreSQL alcançável em `localhost:5432` (ver `docker-compose.yml`).
 
+### Gravação do vídeo de demonstração
+
+[`tools/record-delivery.js`](tools/record-delivery.js) (Playwright) automatiza a navegação pelos Swagger de cada serviço (executando uma chamada real) e pelos Prometheus targets, gravando em `docs/videos/FCG_ENTREGA_FASE_3.mp4`. Pressupõe a stack já rodando (`docker compose up -d --build`, ver acima).
+
+```sh
+cd tools && npm install && npm run playwright:install
+node record-delivery.js
+```
+
 ## Estrutura do Projeto
 
 ```
