@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using GameStore.Common.Events;
+using GameStore.Common.Tracing;
 
 namespace GameStore.Common.Messaging
 {
@@ -87,6 +89,16 @@ namespace GameStore.Common.Messaging
                     _logger.LogWarning("Failed to deserialize message to {EventType}", typeof(TEvent).Name);
                     return;
                 }
+
+                // Continua o trace distribuído do publisher, se o traceparent tiver sido embutido
+                // no payload — ver GameStore.Common.Tracing.TraceContextPropagator.
+                var hasParent = TraceContextPropagator.TryExtract(messageBody, out var parentContext);
+                using var activity = RabbitMqAdapter.ActivitySource.StartActivity(
+                    $"{typeof(TEvent).Name} consume",
+                    ActivityKind.Consumer,
+                    hasParent ? parentContext : default);
+                activity?.SetTag("messaging.system", "rabbitmq");
+                activity?.SetTag("messaging.destination", _queueName);
 
                 await ProcessEventAsync(domainEvent);
             }

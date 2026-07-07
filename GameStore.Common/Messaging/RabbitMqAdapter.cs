@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using GameStore.Common.Events;
+using GameStore.Common.Tracing;
 
 namespace GameStore.Common.Messaging
 {
@@ -12,6 +14,8 @@ namespace GameStore.Common.Messaging
     /// </summary>
     public class RabbitMqAdapter : IEventBus, IDisposable
     {
+        internal static readonly ActivitySource ActivitySource = new("GameStore.Common.Messaging");
+
         private readonly IConnectionFactory _connectionFactory;
         private readonly IConnection? _connection;
         private readonly IModel? _channel;
@@ -215,7 +219,15 @@ namespace GameStore.Common.Messaging
             {
                 var eventType = typeof(TEvent);
                 var routingKey = GetRoutingKey(eventType);
-                var messageBody = SerializeEvent(domainEvent);
+
+                using var activity = ActivitySource.StartActivity(
+                    $"{eventType.Name} publish", ActivityKind.Producer);
+                activity?.SetTag("messaging.system", "rabbitmq");
+                activity?.SetTag("messaging.destination", routingKey);
+
+                // Embute o traceparent/tracestate da Activity atual no corpo da mensagem — ver
+                // GameStore.Common.Tracing.TraceContextPropagator para o motivo de não usar headers AMQP.
+                var messageBody = TraceContextPropagator.Inject(SerializeEvent(domainEvent));
 
                 var properties = _channel.CreateBasicProperties();
                 properties.Persistent = true;

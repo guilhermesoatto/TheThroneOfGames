@@ -25,6 +25,7 @@ Compartilhado: `GameStore.Common` (eventos de domínio + mensageria RabbitMQ) e 
 - **Busca via Elasticsearch**: jogos são indexados em Create/Update/Remove (`GameStore.Catalogo/Infrastructure/Search/ElasticsearchJogoIndexer.cs`) e expostos via `GET /api/game/search?q=<termo>` — com fallback automático para busca no banco se o Elasticsearch estiver indisponível.
 - **Serverless (Azure Functions, isolated worker)**: `GameStore.Notifications.Functions` consome `PedidoFinalizadoEvent` via `[RabbitMQTrigger]` real (filas fan-out dedicadas, sem competir com outros consumers) para notificação e processamento de pagamento assíncronos.
 - **Event Sourcing**: `GameStore.Vendas/Domain/EventSourcing` + `Infrastructure/EventSourcing` registram toda transição de estado do aggregate `Pedido` em um Event Store append-only (sem replay/projeções ainda — ver PRD).
+- **Distributed Tracing**: OpenTelemetry (HTTP + EF Core) exportado via OTLP para Jaeger (`docker-compose.yml`, UI em `http://localhost:16686`); o `trace_id` propaga entre serviços mesmo através do RabbitMQ, embutido no payload da mensagem (`GameStore.Common.Tracing.TraceContextPropagator`) já que o binding `[RabbitMQTrigger]` do Functions isolated worker não expõe headers AMQP.
 
 ## Stack Tecnológico
 
@@ -46,7 +47,7 @@ Compartilhado: `GameStore.Common` (eventos de domínio + mensageria RabbitMQ) e 
 docker compose up -d --build
 ```
 
-Isso sobe: PostgreSQL, RabbitMQ, Elasticsearch, os 3 microsserviços, o API Gateway (nginx) e Prometheus/Grafana.
+Isso sobe: PostgreSQL, RabbitMQ, Elasticsearch, Jaeger, os 3 microsserviços, o API Gateway (nginx) e Prometheus/Grafana.
 
 **Serviços disponíveis:**
 - API Gateway: http://localhost:8080
@@ -54,6 +55,7 @@ Isso sobe: PostgreSQL, RabbitMQ, Elasticsearch, os 3 microsserviços, o API Gate
 - Catálogo API: http://localhost:5002/swagger
 - Vendas API: http://localhost:5003/swagger
 - Elasticsearch: http://localhost:9200
+- Jaeger UI (traces): http://localhost:16686
 - RabbitMQ Management: http://localhost:15672 (guest/guest)
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3000 (admin/admin)
@@ -114,7 +116,7 @@ Ver `docs/Objectives/sprint-2/DELIVERABLE.md` para o checklist tarefa a tarefa. 
 | Busca via Elasticsearch (indexação + endpoint HTTP) | ✅ |
 | Serverless (triggers reais via RabbitMQ) | ✅ |
 | Event Sourcing (append-only, sem replay/projeções) | ⚠️ Parcial |
-| Distributed Tracing (instrumentado, sem collector) | ⚠️ Em andamento |
+| Distributed Tracing (Jaeger real, HTTP+DB spans, trace_id em logs — verificado ao vivo) | ✅ |
 
 ## Licença
 Licença MIT

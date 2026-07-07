@@ -4,6 +4,7 @@ using System.Text;
 using GameStore.Usuarios.Infrastructure.Extensions;
 using Prometheus;
 using Serilog;
+using Serilog.Enrichers.Span;
 using Serilog.Formatting.Compact;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -11,6 +12,7 @@ using OpenTelemetry.Trace;
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(new CompactJsonFormatter())
     .Enrich.FromLogContext()
+    .Enrich.WithSpan()
     .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,7 @@ builder.Host.UseSerilog((ctx, services, config) => config
     .ReadFrom.Configuration(ctx.Configuration)
     .ReadFrom.Services(services)
     .Enrich.FromLogContext()
+    .Enrich.WithSpan()
     .Enrich.WithProperty("ServiceName", "usuarios-api")
     .WriteTo.Console(new CompactJsonFormatter()));
 
@@ -46,13 +49,21 @@ builder.Services.AddSwaggerGen();
 // Prometheus Metrics
 builder.Services.AddSingleton<IMetricServer>(new KestrelMetricServer(port: 9091));
 
-// OpenTelemetry
+// OpenTelemetry — Distributed Tracing (fase3-T08)
+var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"] ?? "http://localhost:4317";
+var sampleRatio = double.TryParse(builder.Configuration["OTEL_TRACES_SAMPLER_ARG"], out var configuredRatio)
+    ? configuredRatio
+    : 1.0;
+
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("usuarios-api"))
     .WithTracing(t => t
+        .SetSampler(new TraceIdRatioBasedSampler(sampleRatio))
         .AddAspNetCoreInstrumentation()
         .AddHttpClientInstrumentation()
-        .AddOtlpExporter());
+        .AddEntityFrameworkCoreInstrumentation()
+        .AddSource("GameStore.Common.Messaging")
+        .AddOtlpExporter(o => o.Endpoint = new Uri(otlpEndpoint)));
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"] 

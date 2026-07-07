@@ -89,15 +89,24 @@
       "id": "fase3-T06",
       "phase": "7-observability",
       "description": "Observabilidade com Tracing distribuído entre os 3 microsserviços",
-      "status": "in-progress",
-      "passes": false,
-      "testCommand": "verificação manual — validar spans exportados via OpenTelemetry (AddOpenTelemetry().WithTracing(...) em cada Program.cs)",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Common.Tests/GameStore.Common.Tests.csproj --filter FullyQualifiedName~TraceContextPropagationTests; docker compose up -d jaeger elasticsearch catalogo-api mssql rabbitmq && curl http://localhost:5002/api/game && curl http://localhost:16686/api/traces?service=catalogo-api",
       "artifacts": [
+        "docker-compose.yml",
+        "GameStore.Common/Tracing/TraceContextPropagator.cs",
+        "GameStore.Common/Messaging/RabbitMqAdapter.cs",
+        "GameStore.Common/Messaging/BaseEventConsumer.cs",
+        "GameStore.Common.Tests/TraceContextPropagationTests.cs",
         "GameStore.Usuarios.API/Program.cs",
         "GameStore.Catalogo.API/Program.cs",
         "GameStore.Vendas.API/Program.cs",
+        "GameStore.Notifications.Functions/Program.cs",
+        "GameStore.Notifications.Functions/Functions/NotificacaoPedidoFunction.cs",
+        "GameStore.Notifications.Functions/Functions/ProcessarPagamentoFunction.cs",
         "docs/architecture-flow.md"
       ],
+      "blockReason": "Backend real (Jaeger + storage Elasticsearch), spans HTTP e de banco (EF Core, pacote beta) verificados ao vivo com trace_id idêntico em log e Jaeger. Propagação via RabbitMQ (traceparent embutido no payload, não em header AMQP — binding do Functions isolated worker só expõe string) comprovada por teste real publish→consume contra broker real. Limitação: sem consumer rodando ao vivo neste docker-compose para uma trace única ponta a ponta Vendas→Functions (Functions não containerizado; consumer equivalente em Usuarios existe mas não está registrado no DI — gaps pré-existentes, fora do escopo desta tarefa). Ver docs/Objectives/sprint-2/tasks/T08-distributed-tracing.md.",
       "blockReason": "Instrumentação OpenTelemetry presente e configurada nos 3 serviços (propagação W3C traceparent habilitada via AddHttpClientInstrumentation), mas sem um collector/backend (Jaeger, Zipkin, Tempo) validado neste repositório, e sem nenhuma chamada síncrona entre serviços hoje para exercitar a propagação."
     },
     {
