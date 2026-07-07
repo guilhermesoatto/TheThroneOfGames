@@ -241,11 +241,11 @@ async function demoSwagger(page, serviceName, swaggerUrl, demoCall) {
   log('SWAGGER', `Abrindo ${serviceName} — ${url}`);
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('.swagger-ui', { timeout: 30000 });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2400);
 
   // Rola a lista de endpoints para o espectador ver a superfície da API antes de focar em um.
   await page.mouse.wheel(0, 400);
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(1900);
 
   if (!demoCall) {
     log('SWAGGER', `${serviceName}: sem chamada de demonstração configurada, seguindo em frente.`);
@@ -266,26 +266,26 @@ async function demoSwagger(page, serviceName, swaggerUrl, demoCall) {
   log('SWAGGER', `${serviceName}: expandindo ${demoCall.method} ${demoCall.path}`);
   await opblock.scrollIntoViewIfNeeded();
   await opblock.locator('.opblock-summary').click();
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(1600);
 
   const tryItOutBtn = opblock.locator('button.try-out__btn');
   if (await tryItOutBtn.count()) {
     await tryItOutBtn.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(800);
   }
 
   if (demoCall.body) {
     const textarea = opblock.locator('textarea');
     if (await textarea.count()) {
       await textarea.first().fill(JSON.stringify(demoCall.body, null, 2));
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(800);
     }
   }
 
   log('SWAGGER', `${serviceName}: executando ${demoCall.method} ${demoCall.path}`);
   await opblock.locator('button.execute').click();
   await opblock.locator('.responses-wrapper').waitFor({ timeout: 15000 }).catch(() => {});
-  await page.waitForTimeout(2500); // dá tempo do espectador ver o status code/response body
+  await page.waitForTimeout(4000); // dá tempo do espectador ver o status code/response body
 }
 
 // ── Navegação: Observabilidade ───────────────────────────────────────────────
@@ -293,11 +293,11 @@ async function demoSwagger(page, serviceName, swaggerUrl, demoCall) {
 async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
   log('OBS', `Prometheus targets — ${prometheusUrl}/targets`);
   await page.goto(`${prometheusUrl}/targets`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(3000);
+  await page.waitForTimeout(4800);
 
   log('OBS', `Grafana — ${grafanaUrl}`);
   await page.goto(grafanaUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(2400);
 
   // Login padrão (admin/admin) — só tenta se a tela de login aparecer.
   const userField = page.locator('input[name="user"], input[aria-label="Username input field"]');
@@ -306,19 +306,19 @@ async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
     await userField.first().fill('admin');
     await page.locator('input[name="password"], input[aria-label="Password input field"]').first().fill('admin');
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3200);
     // Pula o prompt de troca de senha, se aparecer.
     const skipBtn = page.locator('button:has-text("Skip")');
     if (await skipBtn.count().then((c) => c > 0).catch(() => false)) await skipBtn.first().click();
   }
 
-  await page.waitForTimeout(3000); // mostra o dashboard/lista carregada
+  await page.waitForTimeout(4800); // mostra o dashboard/lista carregada
 }
 
 async function demoPrometheusTargets(page, { prometheusUrl }) {
   log('OBS', `Prometheus targets — ${prometheusUrl}/targets`);
   await page.goto(`${prometheusUrl}/targets`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(4000);
+  await page.waitForTimeout(6400);
 }
 
 /**
@@ -330,7 +330,7 @@ async function demoPrometheusTargets(page, { prometheusUrl }) {
 async function demoJaeger(page, { jaegerUrl }) {
   log('OBS', `Jaeger UI — ${jaegerUrl}/search`);
   await page.goto(`${jaegerUrl}/search`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3200);
 
   // Jaeger 1.60 usa Ant Design — o combo de serviço é um .ant-select (não um <select> nativo),
   // e o botão "Find Traces" ([data-test="submit-btn"]) fica desabilitado até um serviço ser
@@ -339,7 +339,7 @@ async function demoJaeger(page, { jaegerUrl }) {
   try {
     const serviceSelect = page.locator('.ant-select').first();
     await serviceSelect.click();
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1000);
 
     const preferredServices = ['catalogo-api', 'usuarios-api', 'vendas-api'];
     let picked = false;
@@ -356,7 +356,7 @@ async function demoJaeger(page, { jaegerUrl }) {
       log('WARN', 'Jaeger: nenhum dos serviços esperados apareceu no dropdown — usando a primeira opção.');
       await page.locator('.ant-select-item-option').first().click();
     }
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(800);
 
     const findBtn = page.locator('button[data-test="submit-btn"]');
     await page.waitForFunction(
@@ -367,13 +367,13 @@ async function demoJaeger(page, { jaegerUrl }) {
       { timeout: 5000 }
     ).catch(() => log('WARN', 'Jaeger: botão "Find Traces" não habilitou a tempo — tentando clicar mesmo assim.'));
     await findBtn.click();
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(4000);
 
     const firstTraceLink = page.locator('a[href^="/trace/"]').first();
     if (await firstTraceLink.count()) {
       log('OBS', 'Jaeger: abrindo o trace mais recente (grafo de spans)');
       await firstTraceLink.click();
-      await page.waitForTimeout(3500);
+      await page.waitForTimeout(5600);
     } else {
       log('WARN', 'Jaeger: nenhum trace encontrado na busca — mostrando só a tela de resultados.');
     }
@@ -381,7 +381,7 @@ async function demoJaeger(page, { jaegerUrl }) {
     log('WARN', `Jaeger: navegação best-effort falhou (${err.message}) — seguindo com a tela atual.`);
   }
 
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3200);
 }
 
 // ── Execução principal ────────────────────────────────────────────────────────
@@ -414,7 +414,7 @@ async function main() {
         bullets: [summary.paragraph].filter(Boolean),
       })
     );
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(6400);
 
     // Passo 2 — Swagger de cada serviço ativo na fase, com uma chamada real de sucesso.
     log('STEP-2', 'Navegação pelos Swagger dos serviços');
@@ -443,7 +443,7 @@ async function main() {
     // Passo 4 — slide de encerramento.
     log('STEP-4', 'Slide de encerramento');
     await page.goto(buildSlideDataUrl({ title: 'Fim da demonstração', subtitle: config.label, bullets: [] }));
-    await page.waitForTimeout(2500);
+    await page.waitForTimeout(4000);
   } finally {
     log('CLOSE', 'Finalizando gravação...');
     await context.close();
