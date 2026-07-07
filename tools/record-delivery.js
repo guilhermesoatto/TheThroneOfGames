@@ -3,8 +3,9 @@
  * tools/record-delivery.js
  *
  * Automatiza a gravação de tela da demonstração de entrega (FIAP Tech Challenge) usando
- * Playwright: abre o navegador em modo headed, navega pelos Swagger de cada serviço ativo
- * na fase atual, executa uma chamada real de sucesso, e depois navega pela ferramenta de
+ * Playwright: aquece todos os serviços (evita loading demorado aparecendo no vídeo), abre o
+ * navegador em modo headed, navega pelos Swagger de cada serviço ativo na fase atual,
+ * executa algumas chamadas reais de sucesso, e depois navega pela ferramenta de
  * observabilidade correspondente à fase (Grafana/Prometheus, Prometheus targets ou Jaeger).
  *
  * O script é agnóstico de fase: detecta a branch git atual (ou aceita --phase=N), lê o
@@ -15,7 +16,10 @@
  * localhost.
  *
  * NÃO sobe nem derruba infraestrutura (docker compose / kubectl) — pressupõe que o
- * ambiente da fase já está de pé, seguindo as instruções do README.md da branch.
+ * ambiente da fase já está de pé e ESTÁVEL (rodando há um tempo, não acabou de subir),
+ * seguindo as instruções do README.md da branch. O aquecimento (ver warmUp()) reduz mas
+ * não elimina o efeito de containers recém-iniciados — para o melhor resultado, espere os
+ * healthchecks do `docker compose ps` ficarem "healthy" antes de rodar este script.
  *
  * Uso:
  *   cd tools && npm install && npm run playwright:install
@@ -40,6 +44,12 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const README_PATH = path.join(REPO_ROOT, 'README.md');
 const VIDEOS_DIR = path.join(REPO_ROOT, 'docs', 'videos');
 const VIEWPORT = { width: 1920, height: 1080 };
+
+// Pausa padrão para o espectador ler o que está na tela (resposta de um endpoint, dashboard
+// carregado, etc). 4s é o suficiente — mais que isso só deixa o vídeo arrastado.
+const PAUSE = 4000;
+// Pausa curta para transições que não precisam de leitura (clique em botão, troca de aba).
+const BEAT = 1200;
 
 // ── Logging ──────────────────────────────────────────────────────────────────
 
@@ -123,7 +133,7 @@ function findUrlByLabel(readmeUrls, terms) {
 /**
  * Cada fase define:
  *  - swaggerTargets: serviços a demonstrar (nome, termos para achar a URL no README,
- *    default de fallback, e endpoint opcional para a chamada real de sucesso).
+ *    default de fallback, e demoCalls opcionais — uma ou mais chamadas reais de sucesso).
  *  - observability: qual fluxo de navegação de observabilidade rodar depois dos Swaggers.
  */
 const PHASE_CONFIG = {
@@ -135,16 +145,18 @@ const PHASE_CONFIG = {
         envVar: 'BASE_URL_API',
         readmeTerms: ['api'],
         default: 'http://localhost:5000',
-        demoCall: {
-          method: 'POST',
-          path: '/api/usuario/pre-register',
-          body: {
-            name: 'Demo FIAP',
-            email: `demo.fiap+${Date.now()}@example.com`,
-            password: 'Demo@12345',
-            role: 'Player',
+        demoCalls: [
+          {
+            method: 'POST',
+            path: '/api/usuario/pre-register',
+            body: {
+              name: 'Demo FIAP',
+              email: `demo.fiap+${Date.now()}@example.com`,
+              password: 'Demo@12345',
+              role: 'Player',
+            },
           },
-        },
+        ],
       },
     ],
     observability: {
@@ -156,13 +168,33 @@ const PHASE_CONFIG = {
   3: {
     label: 'Fase 3 — Microsserviços',
     swaggerTargets: [
-      { name: 'Usuários API', envVar: 'BASE_URL_USUARIOS', readmeTerms: ['usuário', 'usuarios'], default: 'http://localhost:5001' },
+      {
+        name: 'Usuários API',
+        envVar: 'BASE_URL_USUARIOS',
+        readmeTerms: ['usuário', 'usuarios'],
+        default: 'http://localhost:5001',
+        demoCalls: [
+          {
+            method: 'POST',
+            path: '/api/usuario/pre-register',
+            body: {
+              name: 'Demo FIAP',
+              email: `demo.fiap+${Date.now()}@example.com`,
+              password: 'Demo@12345',
+              role: 'Player',
+            },
+          },
+        ],
+      },
       {
         name: 'Catálogo API',
         envVar: 'BASE_URL_CATALOGO',
         readmeTerms: ['catálogo', 'catalogo'],
         default: 'http://localhost:5002',
-        demoCall: { method: 'GET', path: '/api/game' },
+        demoCalls: [
+          { method: 'GET', path: '/api/game' },
+          { method: 'GET', path: '/api/game/available' },
+        ],
       },
       { name: 'Vendas API', envVar: 'BASE_URL_VENDAS', readmeTerms: ['vendas'], default: 'http://localhost:5003' },
     ],
@@ -174,13 +206,33 @@ const PHASE_CONFIG = {
   4: {
     label: 'Fase 4 — Kubernetes & Escala',
     swaggerTargets: [
-      { name: 'Usuários API', envVar: 'BASE_URL_USUARIOS', readmeTerms: ['usuário', 'usuarios'], default: 'http://localhost:5001' },
+      {
+        name: 'Usuários API',
+        envVar: 'BASE_URL_USUARIOS',
+        readmeTerms: ['usuário', 'usuarios'],
+        default: 'http://localhost:5001',
+        demoCalls: [
+          {
+            method: 'POST',
+            path: '/api/usuario/pre-register',
+            body: {
+              name: 'Demo FIAP',
+              email: `demo.fiap+${Date.now()}@example.com`,
+              password: 'Demo@12345',
+              role: 'Player',
+            },
+          },
+        ],
+      },
       {
         name: 'Catálogo API',
         envVar: 'BASE_URL_CATALOGO',
         readmeTerms: ['catálogo', 'catalogo'],
         default: 'http://localhost:5002',
-        demoCall: { method: 'GET', path: '/api/game' },
+        demoCalls: [
+          { method: 'GET', path: '/api/game' },
+          { method: 'GET', path: '/api/game/available' },
+        ],
       },
       { name: 'Vendas API', envVar: 'BASE_URL_VENDAS', readmeTerms: ['vendas'], default: 'http://localhost:5003' },
     ],
@@ -195,6 +247,45 @@ function resolveUrl(target, readmeUrls) {
   if (target.envVar && process.env[target.envVar]) return process.env[target.envVar];
   const fromReadme = findUrlByLabel(readmeUrls, target.readmeTerms);
   return fromReadme || target.default;
+}
+
+function swaggerUrlOf(baseUrl) {
+  return /\/swagger\/?$/.test(baseUrl) ? baseUrl : `${baseUrl.replace(/\/$/, '')}/swagger`;
+}
+
+// ── Aquecimento (evita loading/JIT/cold-start aparecendo no vídeo gravado) ──────
+
+/**
+ * Faz uma requisição HTTP simples pra cada URL (fora do navegador, sem gravar) até
+ * responder ou esgotar as tentativas. O primeiro request de uma API .NET recém-iniciada
+ * (JIT, geração do JSON do Swagger, migrations) é sempre o mais lento — aquecer aqui evita
+ * que essa lentidão apareça gravada quando o Playwright navegar de verdade.
+ */
+async function warmUpUrl(url, { retries = 15, delayMs = 2000 } = {}) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+      // Qualquer resposta HTTP (mesmo 401/404) já prova que a aplicação respondeu e "esquentou".
+      if (res.status) return true;
+    } catch {
+      // ainda subindo — tenta de novo
+    }
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  return false;
+}
+
+async function warmUp(urls) {
+  log('WARMUP', `Aquecendo ${urls.length} serviço(s) antes de iniciar a gravação...`);
+  const results = await Promise.all(
+    urls.map(async (url) => ({ url, ok: await warmUpUrl(url) }))
+  );
+  for (const { url, ok } of results) {
+    log('WARMUP', `${ok ? 'OK' : 'TIMEOUT'} — ${url}`);
+  }
+  if (results.some((r) => !r.ok)) {
+    log('WARN', 'Um ou mais serviços não responderam a tempo — confira `docker compose ps` antes de gravar.');
+  }
 }
 
 // ── Slide de abertura/encerramento (HTML inline, sem depender de renderizar o .md) ──
@@ -229,63 +320,70 @@ function extractReadmeSummary(readmePath) {
 // ── Navegação: Swagger UI ────────────────────────────────────────────────────
 
 /**
- * Abre o Swagger de um serviço, expande a lista de endpoints e, se `demoCall` for
- * informado, executa "Try it out" -> preenche o body (se houver) -> "Execute", esperando
- * a resposta aparecer. Os seletores usados são os do Swashbuckle/Swagger UI padrão do
- * ASP.NET Core — se o tema/layout do Swagger mudar, ajuste os seletores `.opblock*` abaixo.
+ * Abre o Swagger de um serviço, expande a lista de endpoints e executa cada chamada em
+ * `demoCalls` ("Try it out" -> preenche o body, se houver -> "Execute" -> rola até a
+ * resposta ficar visível -> pausa PAUSE ms para o espectador ler). Os seletores usados são
+ * os do Swashbuckle/Swagger UI padrão do ASP.NET Core — se o tema/layout do Swagger mudar,
+ * ajuste os seletores `.opblock*` abaixo.
  */
-async function demoSwagger(page, serviceName, swaggerUrl, demoCall) {
-  // Aceita tanto uma URL base ("http://host:port") quanto uma já apontando pro Swagger
-  // ("http://host:port/swagger", como o README costuma listar) sem duplicar o path.
-  const url = /\/swagger\/?$/.test(swaggerUrl) ? swaggerUrl : `${swaggerUrl.replace(/\/$/, '')}/swagger`;
+async function demoSwagger(page, serviceName, baseUrl, demoCalls) {
+  const url = swaggerUrlOf(baseUrl);
   log('SWAGGER', `Abrindo ${serviceName} — ${url}`);
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
   await page.waitForSelector('.swagger-ui', { timeout: 30000 });
-  await page.waitForTimeout(2400);
+  await page.waitForTimeout(BEAT);
 
   // Rola a lista de endpoints para o espectador ver a superfície da API antes de focar em um.
-  await page.mouse.wheel(0, 400);
-  await page.waitForTimeout(1900);
+  await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(BEAT);
 
-  if (!demoCall) {
+  if (!demoCalls || demoCalls.length === 0) {
     log('SWAGGER', `${serviceName}: sem chamada de demonstração configurada, seguindo em frente.`);
     return;
   }
 
-  const opblock = page
-    .locator('.opblock')
-    .filter({ has: page.locator('.opblock-summary-method', { hasText: demoCall.method.toUpperCase() }) })
-    .filter({ has: page.locator('.opblock-summary-path', { hasText: demoCall.path } ) })
-    .first();
+  for (const demoCall of demoCalls) {
+    const opblock = page
+      .locator('.opblock')
+      .filter({ has: page.locator('.opblock-summary-method', { hasText: demoCall.method.toUpperCase() }) })
+      .filter({ has: page.locator('.opblock-summary-path', { hasText: demoCall.path }) })
+      .first();
 
-  if ((await opblock.count()) === 0) {
-    log('WARN', `${serviceName}: endpoint ${demoCall.method} ${demoCall.path} não encontrado no Swagger — pulando a chamada real.`);
-    return;
-  }
-
-  log('SWAGGER', `${serviceName}: expandindo ${demoCall.method} ${demoCall.path}`);
-  await opblock.scrollIntoViewIfNeeded();
-  await opblock.locator('.opblock-summary').click();
-  await page.waitForTimeout(1600);
-
-  const tryItOutBtn = opblock.locator('button.try-out__btn');
-  if (await tryItOutBtn.count()) {
-    await tryItOutBtn.click();
-    await page.waitForTimeout(800);
-  }
-
-  if (demoCall.body) {
-    const textarea = opblock.locator('textarea');
-    if (await textarea.count()) {
-      await textarea.first().fill(JSON.stringify(demoCall.body, null, 2));
-      await page.waitForTimeout(800);
+    if ((await opblock.count()) === 0) {
+      log('WARN', `${serviceName}: endpoint ${demoCall.method} ${demoCall.path} não encontrado no Swagger — pulando.`);
+      continue;
     }
-  }
 
-  log('SWAGGER', `${serviceName}: executando ${demoCall.method} ${demoCall.path}`);
-  await opblock.locator('button.execute').click();
-  await opblock.locator('.responses-wrapper').waitFor({ timeout: 15000 }).catch(() => {});
-  await page.waitForTimeout(4000); // dá tempo do espectador ver o status code/response body
+    log('SWAGGER', `${serviceName}: expandindo ${demoCall.method} ${demoCall.path}`);
+    await opblock.scrollIntoViewIfNeeded();
+    await opblock.locator('.opblock-summary').click();
+    await page.waitForTimeout(BEAT);
+
+    const tryItOutBtn = opblock.locator('button.try-out__btn');
+    if (await tryItOutBtn.count()) {
+      await tryItOutBtn.click();
+      await page.waitForTimeout(BEAT);
+    }
+
+    if (demoCall.body) {
+      const textarea = opblock.locator('textarea');
+      if (await textarea.count()) {
+        await textarea.first().fill(JSON.stringify(demoCall.body, null, 2));
+        await page.waitForTimeout(BEAT);
+      }
+    }
+
+    log('SWAGGER', `${serviceName}: executando ${demoCall.method} ${demoCall.path}`);
+    await opblock.locator('button.execute').click();
+    await opblock.locator('.responses-wrapper').waitFor({ timeout: 15000 }).catch(() => {});
+    // Garante que a resposta (não só o botão Execute) fique visível no quadro gravado.
+    await opblock.locator('.responses-wrapper').scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(PAUSE); // dá tempo do espectador ver o status code/response body
+
+    // Recolhe o bloco antes do próximo, pra não empilhar respostas gigantes na tela.
+    await opblock.locator('.opblock-summary').click();
+    await page.waitForTimeout(BEAT);
+  }
 }
 
 // ── Navegação: Observabilidade ───────────────────────────────────────────────
@@ -293,11 +391,11 @@ async function demoSwagger(page, serviceName, swaggerUrl, demoCall) {
 async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
   log('OBS', `Prometheus targets — ${prometheusUrl}/targets`);
   await page.goto(`${prometheusUrl}/targets`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(4800);
+  await page.waitForTimeout(PAUSE);
 
   log('OBS', `Grafana — ${grafanaUrl}`);
   await page.goto(grafanaUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(2400);
+  await page.waitForTimeout(BEAT);
 
   // Login padrão (admin/admin) — só tenta se a tela de login aparecer.
   const userField = page.locator('input[name="user"], input[aria-label="Username input field"]');
@@ -306,19 +404,19 @@ async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
     await userField.first().fill('admin');
     await page.locator('input[name="password"], input[aria-label="Password input field"]').first().fill('admin');
     await page.keyboard.press('Enter');
-    await page.waitForTimeout(3200);
+    await page.waitForTimeout(BEAT);
     // Pula o prompt de troca de senha, se aparecer.
     const skipBtn = page.locator('button:has-text("Skip")');
     if (await skipBtn.count().then((c) => c > 0).catch(() => false)) await skipBtn.first().click();
   }
 
-  await page.waitForTimeout(4800); // mostra o dashboard/lista carregada
+  await page.waitForTimeout(PAUSE); // mostra o dashboard/lista carregada
 }
 
 async function demoPrometheusTargets(page, { prometheusUrl }) {
   log('OBS', `Prometheus targets — ${prometheusUrl}/targets`);
   await page.goto(`${prometheusUrl}/targets`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(6400);
+  await page.waitForTimeout(PAUSE);
 }
 
 /**
@@ -330,7 +428,7 @@ async function demoPrometheusTargets(page, { prometheusUrl }) {
 async function demoJaeger(page, { jaegerUrl }) {
   log('OBS', `Jaeger UI — ${jaegerUrl}/search`);
   await page.goto(`${jaegerUrl}/search`, { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(3200);
+  await page.waitForTimeout(BEAT);
 
   // Jaeger 1.60 usa Ant Design — o combo de serviço é um .ant-select (não um <select> nativo),
   // e o botão "Find Traces" ([data-test="submit-btn"]) fica desabilitado até um serviço ser
@@ -339,7 +437,7 @@ async function demoJaeger(page, { jaegerUrl }) {
   try {
     const serviceSelect = page.locator('.ant-select').first();
     await serviceSelect.click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(BEAT);
 
     const preferredServices = ['catalogo-api', 'usuarios-api', 'vendas-api'];
     let picked = false;
@@ -356,7 +454,7 @@ async function demoJaeger(page, { jaegerUrl }) {
       log('WARN', 'Jaeger: nenhum dos serviços esperados apareceu no dropdown — usando a primeira opção.');
       await page.locator('.ant-select-item-option').first().click();
     }
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(BEAT);
 
     const findBtn = page.locator('button[data-test="submit-btn"]');
     await page.waitForFunction(
@@ -367,13 +465,13 @@ async function demoJaeger(page, { jaegerUrl }) {
       { timeout: 5000 }
     ).catch(() => log('WARN', 'Jaeger: botão "Find Traces" não habilitou a tempo — tentando clicar mesmo assim.'));
     await findBtn.click();
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(PAUSE);
 
     const firstTraceLink = page.locator('a[href^="/trace/"]').first();
     if (await firstTraceLink.count()) {
       log('OBS', 'Jaeger: abrindo o trace mais recente (grafo de spans)');
       await firstTraceLink.click();
-      await page.waitForTimeout(5600);
+      await page.waitForTimeout(PAUSE);
     } else {
       log('WARN', 'Jaeger: nenhum trace encontrado na busca — mostrando só a tela de resultados.');
     }
@@ -381,7 +479,7 @@ async function demoJaeger(page, { jaegerUrl }) {
     log('WARN', `Jaeger: navegação best-effort falhou (${err.message}) — seguindo com a tela atual.`);
   }
 
-  await page.waitForTimeout(3200);
+  await page.waitForTimeout(BEAT);
 }
 
 // ── Execução principal ────────────────────────────────────────────────────────
@@ -396,6 +494,20 @@ async function main() {
 
   const readmeUrls = parseReadmeUrls(README_PATH);
   const summary = extractReadmeSummary(README_PATH);
+
+  // Resolve todas as URLs (Swagger + observabilidade) uma vez, antes de aquecer e gravar.
+  const swaggerUrls = config.swaggerTargets.map((t) => ({ ...t, url: resolveUrl(t, readmeUrls) }));
+  const obsUrls = Object.entries(config.observability)
+    .filter(([key]) => key !== 'type')
+    .map(([, target]) => resolveUrl(target, readmeUrls));
+
+  // Aquece TUDO antes de abrir o navegador de gravação — elimina o loading demorado do
+  // primeiro request de cada serviço aparecendo no vídeo (ver warmUp()).
+  const warmUpTargets = [
+    ...swaggerUrls.map((t) => swaggerUrlOf(t.url)),
+    ...obsUrls,
+  ];
+  await warmUp(warmUpTargets);
 
   const browser = await chromium.launch({ headless: false, args: ['--start-maximized'] });
   const context = await browser.newContext({
@@ -414,13 +526,12 @@ async function main() {
         bullets: [summary.paragraph].filter(Boolean),
       })
     );
-    await page.waitForTimeout(6400);
+    await page.waitForTimeout(PAUSE);
 
-    // Passo 2 — Swagger de cada serviço ativo na fase, com uma chamada real de sucesso.
+    // Passo 2 — Swagger de cada serviço ativo na fase, com chamadas reais de sucesso.
     log('STEP-2', 'Navegação pelos Swagger dos serviços');
-    for (const target of config.swaggerTargets) {
-      const url = resolveUrl(target, readmeUrls);
-      await demoSwagger(page, target.name, url, target.demoCall);
+    for (const target of swaggerUrls) {
+      await demoSwagger(page, target.name, target.url, target.demoCalls);
     }
 
     // Passo 3 — observabilidade específica da fase.
@@ -443,7 +554,7 @@ async function main() {
     // Passo 4 — slide de encerramento.
     log('STEP-4', 'Slide de encerramento');
     await page.goto(buildSlideDataUrl({ title: 'Fim da demonstração', subtitle: config.label, bullets: [] }));
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(PAUSE);
   } finally {
     log('CLOSE', 'Finalizando gravação...');
     await context.close();
