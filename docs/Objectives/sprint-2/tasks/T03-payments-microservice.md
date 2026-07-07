@@ -89,6 +89,6 @@ Feature: Payments Microservice — Transaction Processing
 
 ## Definition of Done
 
-- [ ] All Gherkin scenarios have passing automated tests
-- [ ] No payment credentials appear in logs, images, or code
-- [ ] Service deployed and reachable via API Gateway
+- [ ] All Gherkin scenarios have passing automated tests (sem idempotency-key, sem callback de provedor de pagamento real, sem cenário de reembolso)
+- [ ] No payment credentials appear in logs, images, or code (não aplicável ainda — nenhum provedor de pagamento real está integrado)
+- [x] Service deployed and reachable via API Gateway (`/api/pedidos/*` via `api-gateway/nginx.conf`)

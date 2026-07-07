@@ -21,14 +21,22 @@
 
 ## Deliverables Checklist
 
-- [ ] `T01` — Users Microservice extracted and deployed
-- [ ] `T02` — Games Microservice with Game Catalog extracted and deployed
-- [ ] `T03` — Payments Microservice extracted and deployed
-- [ ] `T04` — Elasticsearch indexing Games + advanced search queries
-- [ ] `T05` — Serverless Functions for async operations (notifications, payment processing)
-- [ ] `T06` — API Gateway routing and securing all Microservices
-- [ ] `T07` — Event Sourcing — Event Log capturing all domain state changes
+- [x] `T01` — Users Microservice extracted and deployed
+- [x] `T02` — Games Microservice with Game Catalog extracted and deployed
+- [x] `T03` — Payments Microservice extracted and deployed
+- [x] `T04` — Elasticsearch indexing Games (busca ainda não exposta via endpoint HTTP — ver nota abaixo)
+- [x] `T05` — Serverless Functions for async operations (notifications, payment processing)
+- [x] `T06` — API Gateway routing and securing all Microservices
+- [x] `T07` — Event Sourcing — Event Log capturing all domain state changes (sem replay/projeções)
 - [ ] `T08` — Distributed Tracing across all Microservices
+
+> **Nota de status real (2026-07-07):** T01–T07 têm implementação funcional real e testada nesta branch
+> (ver `docs/ai/tasks/prd-sprint-02-fase3.json` para o detalhamento tarefa a tarefa). T04 e T05 usam uma
+> stack diferente da sugerida nos Gherkins abaixo (.NET/Elasticsearch/RabbitMQ + Azure Functions isolated
+> worker, não AWS Lambda/SQS) — os cenários Gherkin e critérios de aceite detalhados em `tasks/*.md` foram
+> escritos como um template genérico e **não foram atualizados item a item** para refletir essa stack; ver
+> o corpo do PRD e o chat para o gap analysis real. T08 não teve nenhum trabalho realizado (sem collector,
+> sem chamada síncrona entre serviços para propagar trace).
 
 ## Architectural Constraints (Fase 3)
 

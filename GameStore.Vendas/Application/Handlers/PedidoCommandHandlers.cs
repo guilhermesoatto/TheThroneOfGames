@@ -2,6 +2,7 @@ using GameStore.Vendas.Application.Commands;
 using GameStore.Vendas.Domain.Repositories;
 using GameStore.Vendas.Domain.Entities;
 using GameStore.Vendas.Domain.ValueObjects;
+using GameStore.Vendas.Domain.EventSourcing;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Vendas.Application.Handlers
@@ -12,10 +13,12 @@ namespace GameStore.Vendas.Application.Handlers
     public class CriarPedidoCommandHandler : ICommandHandler<CriarPedidoCommand>
     {
         private readonly IPedidoRepository _pedidoRepository;
+        private readonly IEventStore _eventStore;
 
-        public CriarPedidoCommandHandler(IPedidoRepository pedidoRepository)
+        public CriarPedidoCommandHandler(IPedidoRepository pedidoRepository, IEventStore eventStore)
         {
             _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
+            _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
         }
 
         public async Task<CommandResult> HandleAsync(CriarPedidoCommand command)
@@ -24,6 +27,16 @@ namespace GameStore.Vendas.Application.Handlers
             {
                 var pedido = new Pedido(command.UsuarioId);
                 await _pedidoRepository.AddAsync(pedido);
+
+                await _eventStore.AppendAsync(new PedidoDomainEvent
+                {
+                    EventType = "PedidoCriado",
+                    EventVersion = 1,
+                    AggregateId = pedido.Id,
+                    AggregateName = nameof(Pedido),
+                    CorrelationId = pedido.Id.ToString(),
+                    Payload = new Dictionary<string, object> { ["UsuarioId"] = pedido.UsuarioId }
+                });
 
                 return new CommandResult
                 {
@@ -51,10 +64,12 @@ namespace GameStore.Vendas.Application.Handlers
     public class AdicionarItemPedidoCommandHandler : ICommandHandler<AdicionarItemPedidoCommand>
     {
         private readonly IPedidoRepository _pedidoRepository;
+        private readonly IEventStore _eventStore;
 
-        public AdicionarItemPedidoCommandHandler(IPedidoRepository pedidoRepository)
+        public AdicionarItemPedidoCommandHandler(IPedidoRepository pedidoRepository, IEventStore eventStore)
         {
             _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
+            _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
         }
 
         public async Task<CommandResult> HandleAsync(AdicionarItemPedidoCommand command)
@@ -74,6 +89,21 @@ namespace GameStore.Vendas.Application.Handlers
 
                 pedido.AdicionarItem(command.JogoId, command.NomeJogo, new Money(command.Preco));
                 await _pedidoRepository.UpdateAsync(pedido);
+
+                await _eventStore.AppendAsync(new PedidoDomainEvent
+                {
+                    EventType = "ItemAdicionado",
+                    EventVersion = 1,
+                    AggregateId = pedido.Id,
+                    AggregateName = nameof(Pedido),
+                    CorrelationId = pedido.Id.ToString(),
+                    Payload = new Dictionary<string, object>
+                    {
+                        ["JogoId"] = command.JogoId,
+                        ["NomeJogo"] = command.NomeJogo,
+                        ["Preco"] = command.Preco
+                    }
+                });
 
                 return new CommandResult
                 {
@@ -109,10 +139,12 @@ namespace GameStore.Vendas.Application.Handlers
     public class RemoverItemPedidoCommandHandler : ICommandHandler<RemoverItemPedidoCommand>
     {
         private readonly IPedidoRepository _pedidoRepository;
+        private readonly IEventStore _eventStore;
 
-        public RemoverItemPedidoCommandHandler(IPedidoRepository pedidoRepository)
+        public RemoverItemPedidoCommandHandler(IPedidoRepository pedidoRepository, IEventStore eventStore)
         {
             _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
+            _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
         }
 
         public async Task<CommandResult> HandleAsync(RemoverItemPedidoCommand command)
@@ -132,6 +164,16 @@ namespace GameStore.Vendas.Application.Handlers
 
                 pedido.RemoverItem(command.JogoId);
                 await _pedidoRepository.UpdateAsync(pedido);
+
+                await _eventStore.AppendAsync(new PedidoDomainEvent
+                {
+                    EventType = "ItemRemovido",
+                    EventVersion = 1,
+                    AggregateId = pedido.Id,
+                    AggregateName = nameof(Pedido),
+                    CorrelationId = pedido.Id.ToString(),
+                    Payload = new Dictionary<string, object> { ["JogoId"] = command.JogoId }
+                });
 
                 return new CommandResult
                 {
@@ -167,10 +209,12 @@ namespace GameStore.Vendas.Application.Handlers
     public class FinalizarPedidoCommandHandler : ICommandHandler<FinalizarPedidoCommand>
     {
         private readonly IPedidoRepository _pedidoRepository;
+        private readonly IEventStore _eventStore;
 
-        public FinalizarPedidoCommandHandler(IPedidoRepository pedidoRepository)
+        public FinalizarPedidoCommandHandler(IPedidoRepository pedidoRepository, IEventStore eventStore)
         {
             _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
+            _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
         }
 
         public async Task<CommandResult> HandleAsync(FinalizarPedidoCommand command)
@@ -190,6 +234,20 @@ namespace GameStore.Vendas.Application.Handlers
 
                 pedido.Finalizar(command.MetodoPagamento);
                 await _pedidoRepository.UpdateAsync(pedido);
+
+                await _eventStore.AppendAsync(new PedidoDomainEvent
+                {
+                    EventType = "PedidoFinalizado",
+                    EventVersion = 1,
+                    AggregateId = pedido.Id,
+                    AggregateName = nameof(Pedido),
+                    CorrelationId = pedido.Id.ToString(),
+                    Payload = new Dictionary<string, object>
+                    {
+                        ["MetodoPagamento"] = command.MetodoPagamento,
+                        ["ValorTotal"] = pedido.ValorTotal.Amount
+                    }
+                });
 
                 return new CommandResult
                 {
@@ -225,10 +283,12 @@ namespace GameStore.Vendas.Application.Handlers
     public class CancelarPedidoCommandHandler : ICommandHandler<CancelarPedidoCommand>
     {
         private readonly IPedidoRepository _pedidoRepository;
+        private readonly IEventStore _eventStore;
 
-        public CancelarPedidoCommandHandler(IPedidoRepository pedidoRepository)
+        public CancelarPedidoCommandHandler(IPedidoRepository pedidoRepository, IEventStore eventStore)
         {
             _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
+            _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
         }
 
         public async Task<CommandResult> HandleAsync(CancelarPedidoCommand command)
@@ -248,6 +308,16 @@ namespace GameStore.Vendas.Application.Handlers
 
                 pedido.Cancelar(command.Motivo);
                 await _pedidoRepository.UpdateAsync(pedido);
+
+                await _eventStore.AppendAsync(new PedidoDomainEvent
+                {
+                    EventType = "PedidoCancelado",
+                    EventVersion = 1,
+                    AggregateId = pedido.Id,
+                    AggregateName = nameof(Pedido),
+                    CorrelationId = pedido.Id.ToString(),
+                    Payload = new Dictionary<string, object> { ["Motivo"] = command.Motivo }
+                });
 
                 return new CommandResult
                 {

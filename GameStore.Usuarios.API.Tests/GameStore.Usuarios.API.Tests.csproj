@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\TheThroneOfGames.API\TheThroneOfGames.API.csproj" />
+    <ProjectReference Include="..\GameStore.Usuarios.API\GameStore.Usuarios.API.csproj" />
     <ProjectReference Include="..\GameStore.Usuarios\GameStore.Usuarios.csproj" />
     <ProjectReference Include="..\GameStore.Catalogo\GameStore.Catalogo.csproj" />
   </ItemGroup>

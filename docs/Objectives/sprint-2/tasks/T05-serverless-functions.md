@@ -102,6 +102,6 @@ export const handler = async (event: SQSEvent): Promise<void> => {
 
 ## Definition of Done
 
-- [ ] Both Functions deployed and triggered by Events in staging environment
-- [ ] Retry policy and dead-letter queue verified with a forced failure test
-- [ ] Execution logs show `correlation_id` on every invocation
+- [ ] Both Functions deployed and triggered by Events in staging environment — **triggers reais implementados** (`[RabbitMQTrigger]` do `Microsoft.Azure.Functions.Worker.Extensions.RabbitMQ` escutando `PedidoFinalizadoEvent` via filas fan-out dedicadas em `GameStore.Notifications.Functions`, build verificado), mas sem deploy em nenhum ambiente de staging/cloud
+- [ ] Retry policy and dead-letter queue verified with a forced failure test (não testado)
+- [ ] Execution logs show `correlation_id` on every invocation (logs incluem `PedidoId`/`UserId`, não um `correlation_id` dedicado)

@@ -14,11 +14,11 @@
     <PackageReference Include="NUnit3TestAdapter" Version="4.5.0" />
     <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.5" />
+    <PackageReference Include="Testcontainers.RabbitMq" Version="4.13.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\GameStore.Common\GameStore.Common.csproj" />
-    <ProjectReference Include="..\TheThroneOfGames.Domain\TheThroneOfGames.Domain.csproj" />
   </ItemGroup>
 
 </Project>

@@ -6,7 +6,9 @@ using GameStore.Catalogo.Domain.Entities;
 using GameStore.Catalogo.Domain.Interfaces;
 using GameStore.Common.Events;
 using GameStore.Catalogo.Infrastructure.Persistence;
+using GameStore.Catalogo.Infrastructure.Search;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Catalogo.Application.Handlers
@@ -18,11 +20,19 @@ namespace GameStore.Catalogo.Application.Handlers
     {
         private readonly IJogoRepository _jogoRepository;
         private readonly IEventBus _eventBus;
+        private readonly IJogoSearchIndexer _searchIndexer;
+        private readonly ILogger<CreateGameCommandHandler> _logger;
 
-        public CreateGameCommandHandler(IJogoRepository jogoRepository, IEventBus eventBus)
+        public CreateGameCommandHandler(
+            IJogoRepository jogoRepository,
+            IEventBus eventBus,
+            IJogoSearchIndexer searchIndexer,
+            ILogger<CreateGameCommandHandler> logger)
         {
             _jogoRepository = jogoRepository;
             _eventBus = eventBus;
+            _searchIndexer = searchIndexer;
+            _logger = logger;
         }
 
         public async Task<CommandResult> HandleAsync(CreateGameCommand command)
@@ -66,6 +76,19 @@ namespace GameStore.Catalogo.Application.Handlers
                 );
 
                 await _jogoRepository.AddAsync(jogo);
+
+                // Indexar no Elasticsearch para busca avançada (fase3-T04). Best-effort: uma falha
+                // no motor de busca (indisponibilidade temporária) não deve impedir a criação do jogo,
+                // que é a operação primária — o índice pode ser reconciliado depois.
+                try
+                {
+                    await _searchIndexer.IndexAsync(jogo);
+                }
+                catch (Exception indexEx)
+                {
+                    _logger.LogWarning(indexEx, "Falha ao indexar jogo {GameId} no Elasticsearch após criação", jogo.Id);
+                }
+
                 // Publicar evento de domínio
                 var gameCriadoEvent = new GameStore.Common.Events.GameCriadoEvent
                 {
@@ -102,11 +125,19 @@ namespace GameStore.Catalogo.Application.Handlers
     {
         private readonly IJogoRepository _jogoRepository;
         private readonly IEventBus _eventBus;
+        private readonly IJogoSearchIndexer _searchIndexer;
+        private readonly ILogger<UpdateGameCommandHandler> _logger;
 
-        public UpdateGameCommandHandler(IJogoRepository jogoRepository, IEventBus eventBus)
+        public UpdateGameCommandHandler(
+            IJogoRepository jogoRepository,
+            IEventBus eventBus,
+            IJogoSearchIndexer searchIndexer,
+            ILogger<UpdateGameCommandHandler> logger)
         {
             _jogoRepository = jogoRepository;
             _eventBus = eventBus;
+            _searchIndexer = searchIndexer;
+            _logger = logger;
         }
 
         public async Task<CommandResult> HandleAsync(UpdateGameCommand command)
@@ -162,6 +193,17 @@ namespace GameStore.Catalogo.Application.Handlers
 
                 await _jogoRepository.UpdateAsync(jogo);
 
+                // Reindexar no Elasticsearch para busca avançada (fase3-T04). Best-effort — ver
+                // comentário equivalente em CreateGameCommandHandler.
+                try
+                {
+                    await _searchIndexer.IndexAsync(jogo);
+                }
+                catch (Exception indexEx)
+                {
+                    _logger.LogWarning(indexEx, "Falha ao reindexar jogo {GameId} no Elasticsearch após atualização", jogo.Id);
+                }
+
                 // Publicar evento de domínio
                 var gameAtualizadoEvent = new GameStore.Common.Events.GameAtualizadoEvent
                 {
@@ -199,11 +241,19 @@ namespace GameStore.Catalogo.Application.Handlers
     {
         private readonly IJogoRepository _jogoRepository;
         private readonly IEventBus _eventBus;
+        private readonly IJogoSearchIndexer _searchIndexer;
+        private readonly ILogger<RemoveGameCommandHandler> _logger;
 
-        public RemoveGameCommandHandler(IJogoRepository jogoRepository, IEventBus eventBus)
+        public RemoveGameCommandHandler(
+            IJogoRepository jogoRepository,
+            IEventBus eventBus,
+            IJogoSearchIndexer searchIndexer,
+            ILogger<RemoveGameCommandHandler> logger)
         {
             _jogoRepository = jogoRepository;
             _eventBus = eventBus;
+            _searchIndexer = searchIndexer;
+            _logger = logger;
         }
 
         public async Task<CommandResult> HandleAsync(RemoveGameCommand command)
@@ -237,6 +287,17 @@ namespace GameStore.Catalogo.Application.Handlers
                 // Remover jogo (soft delete usando método do domínio)
                 jogo.Indisponibilizar();
                 await _jogoRepository.UpdateAsync(jogo);
+
+                // Reindexar no Elasticsearch (mantém Disponivel=false em sincronia com o soft-delete).
+                // Best-effort — ver comentário equivalente em CreateGameCommandHandler.
+                try
+                {
+                    await _searchIndexer.IndexAsync(jogo);
+                }
+                catch (Exception indexEx)
+                {
+                    _logger.LogWarning(indexEx, "Falha ao reindexar jogo {GameId} no Elasticsearch após remoção", jogo.Id);
+                }
 
                 // Publicar evento de domínio
                 var gameRemovidoEvent = new GameStore.Common.Events.GameRemovidoEvent

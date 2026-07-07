@@ -6,9 +6,6 @@ WORKDIR /src
 COPY ["GameStore.Catalogo.API/GameStore.Catalogo.API.csproj", "GameStore.Catalogo.API/"]
 COPY ["GameStore.Catalogo/GameStore.Catalogo.csproj", "GameStore.Catalogo/"]
 COPY ["GameStore.Common/GameStore.Common.csproj", "GameStore.Common/"]
-COPY ["TheThroneOfGames.Application/TheThroneOfGames.Application.csproj", "TheThroneOfGames.Application/"]
-COPY ["TheThroneOfGames.Domain/TheThroneOfGames.Domain.csproj", "TheThroneOfGames.Domain/"]
-COPY ["TheThroneOfGames.Infrastructure/TheThroneOfGames.Infrastructure.csproj", "TheThroneOfGames.Infrastructure/"]
 COPY ["GameStore.CQRS.Abstractions/GameStore.CQRS.Abstractions.csproj", "GameStore.CQRS.Abstractions/"]
 
 # Restore dependencies

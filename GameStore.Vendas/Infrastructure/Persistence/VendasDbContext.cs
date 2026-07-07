@@ -10,6 +10,7 @@ namespace GameStore.Vendas.Infrastructure.Persistence
 
         public DbSet<Pedido> Pedidos { get; set; }
         public DbSet<ItemPedido> ItensPedido { get; set; }
+        public DbSet<EventStoreEntry> EventStore { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -57,6 +58,18 @@ namespace GameStore.Vendas.Infrastructure.Persistence
                     money.Property(m => m.Amount).HasColumnName("Preco").IsRequired();
                     money.Property(m => m.Currency).HasColumnName("PrecoMoeda").HasMaxLength(3).IsRequired();
                 });
+
+            // Event Store (esboço de Event Sourcing) — log append-only de eventos de domínio
+            modelBuilder.Entity<EventStoreEntry>(entity =>
+            {
+                entity.ToTable("EventStore");
+                entity.HasKey(e => e.EventId);
+                entity.Property(e => e.EventType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.AggregateName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.CorrelationId).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.PayloadJson).IsRequired();
+                entity.HasIndex(e => e.AggregateId);
+            });
         }
     }
 }

@@ -92,6 +92,6 @@ Feature: Games Microservice — Game Catalog
 
 ## Definition of Done
 
-- [ ] All Gherkin scenarios have passing automated tests
-- [ ] Search returns results in < 200ms (load test evidence)
-- [ ] Service deployed and reachable via API Gateway
+- [ ] All Gherkin scenarios have passing automated tests (sem endpoint `?q=`/recomendações via HTTP; compra é responsabilidade de `GameStore.Vendas`, não deste serviço)
+- [ ] Search returns results in < 200ms (load test evidence) — busca via Elasticsearch implementada e testada em `GameStore.Catalogo.Tests`, mas não exposta em nenhum endpoint HTTP do `GameController` nem load-testada
+- [x] Service deployed and reachable via API Gateway (`/api/game/*` via `api-gateway/nginx.conf`)

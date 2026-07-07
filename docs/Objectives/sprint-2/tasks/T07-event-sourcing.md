@@ -108,7 +108,7 @@ CREATE RULE no_delete_events AS ON DELETE TO events DO INSTEAD NOTHING;
 
 ## Definition of Done
 
-- [ ] Event Log table created with constraints
-- [ ] All Gherkin scenarios have passing automated tests
-- [ ] Outbox worker running and publishing Events reliably
-- [ ] Event Catalog documented in repository
+- [ ] Event Log table created with constraints — tabela `EventStore` append-only criada via migration real (`GameStore.Vendas/Infrastructure/Migrations/20260707050321_AddEventStore.cs`), mas sem constraint de banco impedindo UPDATE/DELETE (imutabilidade garantida só por convenção de código em `IEventStore.AppendAsync`)
+- [ ] All Gherkin scenarios have passing automated tests — apenas o append é testado; **sem replay/reconstrução de estado a partir do Event Log**
+- [ ] Outbox worker running and publishing Events reliably (não implementado — não usa Transactional Outbox Pattern)
+- [ ] Event Catalog documented in repository (parcial — eventos existem em código, sem catálogo dedicado com nomes/payloads como o deste template)

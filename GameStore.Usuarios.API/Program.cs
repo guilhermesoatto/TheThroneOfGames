@@ -25,9 +25,12 @@ builder.Host.UseSerilog((ctx, services, config) => config
 // Configure Kestrel to listen on port 80
 builder.WebHost.UseUrls("http://*:80");
 
-// Add configuration
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+// appsettings.json / appsettings.{Environment}.json / variáveis de ambiente já são
+// carregados por WebApplication.CreateBuilder() na ordem correta de precedência
+// (env vars por último = maior prioridade). Re-adicionar os arquivos JSON aqui
+// os colocava DEPOIS das env vars na cadeia de configuração, fazendo o valor
+// hardcoded de appsettings.Development.json (localhost) sobrescrever a
+// ConnectionStrings__DefaultConnection do docker-compose.yml.
 
 // Database Configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -66,6 +69,10 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // Sem isso, o ASP.NET Core remapeia claims JWT curtas para URIs longas
+    // (ex: "sub" -> ClaimTypes.NameIdentifier), quebrando User.FindFirst("sub")
+    // usado em UsuarioController.GetProfile.
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -118,3 +125,6 @@ app.MapMetrics();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
 
 app.Run();
+
+// Make Program accessible for integration tests
+public partial class Program { }

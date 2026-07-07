@@ -1,6 +1,8 @@
 using GameStore.Vendas.Domain.Repositories;
+using GameStore.Vendas.Domain.EventSourcing;
 using GameStore.Vendas.Infrastructure.Persistence;
 using GameStore.Vendas.Infrastructure.Repository;
+using GameStore.Vendas.Infrastructure.EventSourcing;
 using GameStore.Vendas.Application.Commands;
 using GameStore.Vendas.Application.Handlers;
 using GameStore.CQRS.Abstractions;
@@ -25,6 +27,9 @@ namespace GameStore.Vendas.Infrastructure.Extensions
 
             // Repositories
             services.AddScoped<IPedidoRepository, PedidoRepository>();
+
+            // Event Store (esboço de Event Sourcing)
+            services.AddScoped<IEventStore, EventStore>();
 
             // Command Handlers
             services.AddScoped<ICommandHandler<CriarPedidoCommand>, CriarPedidoCommandHandler>();

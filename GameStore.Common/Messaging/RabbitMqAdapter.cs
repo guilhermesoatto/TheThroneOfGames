@@ -24,13 +24,25 @@ namespace GameStore.Common.Messaging
         private static readonly Dictionary<Type, string> EventQueueMapping = new()
         {
             // Eventos publicados pelo contexto Usuarios
-            { typeof(TheThroneOfGames.Domain.Events.UsuarioAtivadoEvent), "catalogo.usuario-ativado" },
+            { typeof(GameStore.Common.Events.UsuarioAtivadoEvent), "catalogo.usuario-ativado" },
 
             // Eventos publicados pelo contexto Catalogo
-            { typeof(TheThroneOfGames.Domain.Events.GameCompradoEvent), "usuarios.game-comprado" },
+            { typeof(GameStore.Common.Events.GameCompradoEvent), "usuarios.game-comprado" },
 
             // Eventos publicados pelo contexto Vendas
-            { typeof(TheThroneOfGames.Domain.Events.PedidoFinalizadoEvent), "usuarios.pedido-finalizado" },
+            { typeof(GameStore.Common.Events.PedidoFinalizadoEvent), "usuarios.pedido-finalizado" },
+        };
+
+        // Filas adicionais que recebem uma cópia (fan-out) do mesmo evento, para consumidores
+        // independentes do primeiro (ex: Functions serverless). Cada fila é bindada com a MESMA
+        // routing key da fila principal do evento, então o exchange Direct entrega uma cópia a
+        // cada fila sem afetar o consumer original (GameStore.Usuarios.PedidoFinalizadoEventConsumer).
+        private static readonly Dictionary<Type, string[]> AdditionalQueueBindings = new()
+        {
+            {
+                typeof(GameStore.Common.Events.PedidoFinalizadoEvent),
+                new[] { "notificacoes.pedido-finalizado", "pagamentos.pedido-finalizado" }
+            },
         };
 
         public RabbitMqAdapter(
@@ -139,6 +151,50 @@ namespace GameStore.Common.Messaging
                     exchange: _exchangeName,
                     routingKey: queueName
                 );
+            }
+
+            // Declarar filas adicionais de fan-out (consumidores independentes do mesmo evento)
+            foreach (var kvp in AdditionalQueueBindings)
+            {
+                var routingKey = EventQueueMapping[kvp.Key];
+
+                foreach (var queueName in kvp.Value)
+                {
+                    var dlqQueueName = $"{queueName}.dlq";
+                    _channel.QueueDeclare(
+                        queue: dlqQueueName,
+                        durable: true,
+                        exclusive: false,
+                        autoDelete: false
+                    );
+
+                    _channel.QueueBind(
+                        queue: dlqQueueName,
+                        exchange: _dlqExchangeName,
+                        routingKey: queueName
+                    );
+
+                    var queueArgs = new Dictionary<string, object>
+                    {
+                        { "x-dead-letter-exchange", _dlqExchangeName },
+                        { "x-dead-letter-routing-key", queueName }
+                    };
+
+                    _channel.QueueDeclare(
+                        queue: queueName,
+                        durable: true,
+                        exclusive: false,
+                        autoDelete: false,
+                        arguments: queueArgs
+                    );
+
+                    // Bind com a MESMA routing key da fila principal — recebe uma cópia do evento
+                    _channel.QueueBind(
+                        queue: queueName,
+                        exchange: _exchangeName,
+                        routingKey: routingKey
+                    );
+                }
             }
 
             _logger.LogInformation("RabbitMQ exchanges and queues initialized for {QueueCount} event types", EventQueueMapping.Count);

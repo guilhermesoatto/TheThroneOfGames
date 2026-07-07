@@ -1,0 +1,137 @@
+{
+  "$schema": "prd-v1",
+  "aggregate": "GameStore.Microservices",
+  "boundedContext": "platform",
+  "createdAt": "2026-07-07T00:00:00-03:00",
+  "currentPhase": "1-domain",
+  "description": "PRD técnico da Fase 3 (Microsserviços) — 3 bounded contexts (Usuários, Catálogo, Vendas), busca via Elasticsearch, pagamentos/notificações Serverless, API Gateway e Event Sourcing, conforme edital FIAP.",
+  "tasks": [
+    {
+      "id": "fase3-T01",
+      "phase": "2-application",
+      "description": "Microsserviço de Usuários (GameStore.Usuarios) — autenticação, cadastro e gestão de usuários",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Usuarios.API.Tests/GameStore.Usuarios.API.Tests.csproj",
+      "artifacts": [
+        "GameStore.Usuarios/GameStore.Usuarios.csproj",
+        "GameStore.Usuarios.API/GameStore.Usuarios.API.csproj",
+        "GameStore.Usuarios.API/Controllers/UsuarioController.cs",
+        "GameStore.Usuarios.API.Tests/GameStore.Usuarios.API.Tests.csproj"
+      ]
+    },
+    {
+      "id": "fase3-T02",
+      "phase": "2-application",
+      "description": "Microsserviço de Catálogo (GameStore.Catalogo) — CRUD de jogos e disponibilidade",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Catalogo.API.Tests/GameStore.Catalogo.API.Tests.csproj",
+      "artifacts": [
+        "GameStore.Catalogo/GameStore.Catalogo.csproj",
+        "GameStore.Catalogo/Infrastructure/Extensions/CatalogoInfrastructureExtensions.cs",
+        "GameStore.Catalogo.API/GameStore.Catalogo.API.csproj",
+        "GameStore.Catalogo.API/Controllers/GameController.cs",
+        "GameStore.Catalogo.API.Tests/GameStore.Catalogo.API.Tests.csproj"
+      ]
+    },
+    {
+      "id": "fase3-T03",
+      "phase": "2-application",
+      "description": "Microsserviço de Vendas (GameStore.Vendas) — processamento de pedidos e compras",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Vendas.API.Tests/GameStore.Vendas.API.Tests.csproj",
+      "artifacts": [
+        "GameStore.Vendas/GameStore.Vendas.csproj",
+        "GameStore.Vendas.API/GameStore.Vendas.API.csproj",
+        "GameStore.Vendas.API.Tests/GameStore.Vendas.API.Tests.csproj"
+      ]
+    },
+    {
+      "id": "fase3-T04",
+      "phase": "3-infrastructure",
+      "description": "Elasticsearch para busca avançada de jogos no Catálogo",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Catalogo.Tests/GameStore.Catalogo.Tests.csproj --filter FullyQualifiedName~ElasticsearchJogoIndexerTests",
+      "artifacts": [
+        "docker-compose.yml",
+        "GameStore.Catalogo/GameStore.Catalogo.csproj",
+        "GameStore.Catalogo/Infrastructure/Search/JogoSearchDocument.cs",
+        "GameStore.Catalogo/Infrastructure/Search/IJogoSearchIndexer.cs",
+        "GameStore.Catalogo/Infrastructure/Search/ElasticsearchJogoIndexer.cs",
+        "GameStore.Catalogo/Application/Handlers/CatalogoCommandHandlers.cs",
+        "GameStore.Catalogo/Infrastructure/Extensions/CatalogoInfrastructureExtensions.cs",
+        "GameStore.Catalogo.API/Program.cs",
+        "GameStore.Catalogo.Tests/ElasticsearchJogoIndexerTests.cs",
+        "docs/architecture-flow.md"
+      ]
+    },
+    {
+      "id": "fase3-T05",
+      "phase": "3-infrastructure",
+      "description": "Serverless (Functions) para pagamentos e notificações assíncronas",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet build GameStore.Notifications.Functions/GameStore.Notifications.Functions.csproj",
+      "artifacts": [
+        "GameStore.Notifications.Functions/GameStore.Notifications.Functions.csproj",
+        "GameStore.Notifications.Functions/Functions/NotificacaoPedidoFunction.cs",
+        "GameStore.Notifications.Functions/Functions/ProcessarPagamentoFunction.cs",
+        "GameStore.Common/Messaging/RabbitMqAdapter.cs",
+        "docs/architecture-flow.md"
+      ]
+    },
+    {
+      "id": "fase3-T06",
+      "phase": "7-observability",
+      "description": "Observabilidade com Tracing distribuído entre os 3 microsserviços",
+      "status": "in-progress",
+      "passes": false,
+      "testCommand": "verificação manual — validar spans exportados via OpenTelemetry (AddOpenTelemetry().WithTracing(...) em cada Program.cs)",
+      "artifacts": [
+        "GameStore.Usuarios.API/Program.cs",
+        "GameStore.Catalogo.API/Program.cs",
+        "GameStore.Vendas.API/Program.cs",
+        "docs/architecture-flow.md"
+      ],
+      "blockReason": "Instrumentação OpenTelemetry presente e configurada nos 3 serviços (propagação W3C traceparent habilitada via AddHttpClientInstrumentation), mas sem um collector/backend (Jaeger, Zipkin, Tempo) validado neste repositório, e sem nenhuma chamada síncrona entre serviços hoje para exercitar a propagação."
+    },
+    {
+      "id": "fase3-T07",
+      "phase": "1-domain",
+      "description": "Event Sourcing — Event Log capturando mudanças de estado do aggregate Pedido (GameStore.Vendas)",
+      "status": "in-progress",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Vendas.Tests/GameStore.Vendas.Tests.csproj",
+      "artifacts": [
+        "GameStore.Vendas/Domain/EventSourcing/IEventStore.cs",
+        "GameStore.Vendas/Domain/EventSourcing/PedidoDomainEvent.cs",
+        "GameStore.Vendas/Infrastructure/EventSourcing/EventStore.cs",
+        "GameStore.Vendas/Infrastructure/Persistence/EventStoreEntry.cs",
+        "GameStore.Vendas/Infrastructure/Migrations/20260707050321_AddEventStore.cs",
+        "GameStore.Vendas/Application/Handlers/PedidoCommandHandlers.cs",
+        "GameStore.Vendas.Tests/PedidoCommandHandlerTests.cs",
+        "docs/architecture-flow.md"
+      ],
+      "blockReason": "Esboço funcional: tabela EventStore (append-only) criada via migration, validada com Postgres real; os 5 command handlers de Pedido registram evento a cada transição de estado. 18/18 testes passam. Não há replay/reconstrução de estado a partir dos eventos nem projeções — ver docs/architecture-flow.md §3 para limitações conhecidas."
+    },
+    {
+      "id": "fase3-T08",
+      "phase": "3-infrastructure",
+      "description": "API Gateway roteando e protegendo os 3 microsserviços",
+      "status": "done",
+      "passes": true,
+      "testCommand": "docker compose up -d usuarios-api catalogo-api vendas-api api-gateway && curl http://localhost:8080/health/usuarios && curl http://localhost:8080/api/game/",
+      "artifacts": [
+        "api-gateway/nginx.conf",
+        "docker-compose.yml",
+        "docs/architecture-flow.md"
+      ]
+    }
+  ],
+  "acceptanceCriteria": {
+    "fiapObjectives": "Demonstrar decomposição em 3 microsserviços independentes (Usuários, Catálogo, Vendas) protegidos por API Gateway, com Event Sourcing no fluxo de Pedidos, esboço de Serverless para pagamentos/notificações, observabilidade com tracing distribuído, e fundação de busca via Elasticsearch — ver docs/Objectives/sprint-2/DELIVERABLE.md e docs/architecture-flow.md."
+  }
+}

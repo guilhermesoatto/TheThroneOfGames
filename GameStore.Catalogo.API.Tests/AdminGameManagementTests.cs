@@ -1,14 +1,26 @@
+using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using System.Text;
+using GameStore.Catalogo.Application.Commands;
+using Microsoft.IdentityModel.Tokens;
 using Xunit;
-using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Catalogo.API.Tests;
 
+/// <summary>
+/// Gera o token JWT localmente (mesma chave de assinatura do appsettings.json do
+/// GameStore.Catalogo.API) em vez de chamar POST /api/Usuario/login — essa rota pertence ao
+/// GameStore.Usuarios.API, que não faz parte deste host de teste (isolamento de bounded context;
+/// ver CLAUDE.md). Antes, este arquivo chamava um endpoint inexistente aqui e todo teste falhava
+/// com 404 já na obtenção do token.
+/// </summary>
 [Trait("Category", "Integration")]
 public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
 {
+    private const string JwtKey = "your-super-secret-key-that-is-at-least-32-characters-long!";
     private readonly HttpClient _client;
 
     public AdminGameManagementTests(IntegrationTestFixture fixture)
@@ -16,20 +28,24 @@ public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
         _client = fixture.Client;
     }
 
-    private async Task<string> GetAdminToken()
+    private static string CreateToken(string role)
     {
-        var response = await _client.PostAsJsonAsync("/api/Usuario/login", new LoginDTO
+        var key = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(JwtKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
         {
-            Email = "admin@test.com",
-            Password = "Admin@123!"
-        });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            new Claim(JwtRegisteredClaimNames.Sub, Guid.NewGuid().ToString()),
+            new Claim(ClaimTypes.Email, "test-user@test.com"),
+            new Claim(ClaimTypes.Role, role)
+        };
 
-        var result = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.NotNull(result);
-        Assert.True(result.ContainsKey("token"), "Token not found in response");
+        var token = new JwtSecurityToken(
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(1),
+            signingCredentials: creds);
 
-        return result["token"];
+        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private void SetAuthToken(string token)
@@ -40,9 +56,8 @@ public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
     [Fact]
     public async Task AdminCanCreateAndUpdateGame()
     {
-        // Arrange - Get admin token
-        var token = await GetAdminToken();
-        SetAuthToken(token);
+        // Arrange
+        SetAuthToken(CreateToken("Admin"));
 
         var newGame = new GameDTO
         {
@@ -61,23 +76,23 @@ public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
         Assert.NotEqual(Guid.Empty, createdGame!.Id);
         Assert.Equal(newGame.Name, createdGame.Name);
 
-        // Act - Update game
-        var updateGame = new GameDTO
-        {
-            Name = "Updated Game",
-            Genre = "RPG",
-            Price = 39.99m
-        };
+        // Act - Update game (o corpo precisa ser um UpdateGameCommand — GameController.Update
+        // rejeita com 400 se o "gameId" do corpo não bater com o :id da rota)
+        var updateCommand = new UpdateGameCommand(
+            GameId: createdGame.Id!.Value,
+            Name: "Updated Game",
+            Genre: "RPG",
+            Price: 39.99m);
 
-        var updateResponse = await _client.PutAsJsonAsync($"/api/admin/game/{createdGame.Id}", updateGame);
+        var updateResponse = await _client.PutAsJsonAsync($"/api/admin/game/{createdGame.Id}", updateCommand);
 
         // Assert - Update successful
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         var updatedGame = await updateResponse.Content.ReadFromJsonAsync<GameDTO>();
         Assert.NotNull(updatedGame);
-        Assert.Equal(updateGame.Name, updatedGame!.Name);
-        Assert.Equal(updateGame.Genre, updatedGame.Genre);
-        Assert.Equal(updateGame.Price, updatedGame.Price);
+        Assert.Equal(updateCommand.Name, updatedGame!.Name);
+        Assert.Equal(updateCommand.Genre, updatedGame.Genre);
+        Assert.Equal(updateCommand.Price, updatedGame.Price);
 
         // Act - Delete game (soft delete - marca como indisponível)
         var deleteResponse = await _client.DeleteAsync($"/api/admin/game/{createdGame.Id}");
@@ -96,53 +111,8 @@ public class AdminGameManagementTests : IClassFixture<IntegrationTestFixture>
     [Fact]
     public async Task NonAdminCannotAccessGameManagement()
     {
-        // Limpar emails antigos antes do teste
-        var outboxPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Infrastructure", "Outbox"));
-        if (Directory.Exists(outboxPath))
-        {
-            foreach (var file in Directory.GetFiles(outboxPath, "*.eml"))
-            {
-                File.Delete(file);
-            }
-        }
-
-        // Arrange - Create and login as regular user
-        var user = new UserDTO
-        {
-            Name = "Regular User",
-            Email = "user@test.com",
-            Password = "User@123!",
-            Role = "User"
-        };
-
-        var preRegisterResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
-        Assert.Equal(HttpStatusCode.OK, preRegisterResponse.StatusCode);
-
-        // Need to wait for the email file to be written
-        await Task.Delay(100);
-
-        // Get activation token from email
-        var emailFiles = Directory.GetFiles(outboxPath, "*.eml");
-        Assert.Single(emailFiles);
-        var emailContent = await File.ReadAllTextAsync(emailFiles[0]);
-
-        var activationTokenStart = emailContent.IndexOf("activationToken=") + "activationToken=".Length;
-        var activationTokenEnd = emailContent.IndexOf("\n", activationTokenStart);
-        var activationToken = emailContent.Substring(activationTokenStart, activationTokenEnd - activationTokenStart).Trim();
-
-        // Activate the account
-        var activateResponse = await _client.PostAsync($"/api/Usuario/activate?activationToken={activationToken}", null);
-        Assert.Equal(HttpStatusCode.OK, activateResponse.StatusCode);
-
-        var loginResponse = await _client.PostAsJsonAsync("/api/Usuario/login", new LoginDTO
-        {
-            Email = user.Email,
-            Password = user.Password
-        });
-
-        var result = await loginResponse.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        Assert.NotNull(result);
-        SetAuthToken(result!["token"]);
+        // Arrange - token com role "User" (não-admin)
+        SetAuthToken(CreateToken("User"));
 
         // Act & Assert - Try to access admin endpoints
         var createResponse = await _client.PostAsJsonAsync("/api/admin/game", new GameDTO

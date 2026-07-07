@@ -90,6 +90,6 @@ Feature: Users Microservice — Player Identity Management
 
 ## Definition of Done
 
-- [ ] All Gherkin scenarios have passing automated tests
-- [ ] CI/CD pipeline for `fcg-users` is green
-- [ ] Service deployed and reachable via API Gateway
+- [ ] All Gherkin scenarios have passing automated tests (endpoints reais: `pre-register`/`activate`/`login`/`profile`, não `register`/`me`; hashing é PBKDF2+SHA256, não bcrypt; sem endpoint `PATCH` de perfil)
+- [ ] CI/CD pipeline for `fcg-users` is green (monorepo — não há repositório/pipeline dedicado)
+- [x] Service deployed and reachable via API Gateway (`/api/usuario/*` via `api-gateway/nginx.conf`)

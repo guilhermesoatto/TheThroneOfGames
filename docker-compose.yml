@@ -40,32 +40,40 @@ services:
       timeout: 5s
       retries: 5
 
-  # TheThroneOfGames API (Monolithic - for backward compatibility)
-  api:
-    build:
-      context: .
-      dockerfile: TheThroneOfGames.API/Dockerfile
-    container_name: thethroneofgames-api
-    environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_HTTP_PORT: 80
-      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Initial Catalog=TheThroneOfGames;User ID=sa;Password=YourSecurePassword123!;Encrypt=False"
-      RabbitMq__Host: rabbitmq
-      RabbitMq__Port: 5672
-      RabbitMq__Username: guest
-      RabbitMq__Password: guest
+  # API Gateway (nginx) — único ponto de entrada externo; roteia para os 3 microsserviços
+  api-gateway:
+    image: nginx:1.27-alpine
+    container_name: api-gateway
+    volumes:
+      - ./api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "5000:80"
+      - "8080:80"
     depends_on:
-      - mssql
-      - rabbitmq
+      - usuarios-api
+      - catalogo-api
+      - vendas-api
+    networks:
+      - thethroneofgames-network
+
+  # Elasticsearch — busca avançada de jogos no Catálogo
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
     networks:
       - thethroneofgames-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/api/usuario/public-info" ]
+      test: [ "CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   # Usuarios Microservice
   usuarios-api:
@@ -118,12 +126,14 @@ services:
       EventBus__RabbitMq__Port: "5672"
       EventBus__RabbitMq__UserName: "guest"
       EventBus__RabbitMq__Password: "guest"
+      Elasticsearch__Uri: "http://elasticsearch:9200"
     ports:
       - "5002:80"
       - "9092:9092"  # Prometheus metrics
     depends_on:
       - mssql
       - rabbitmq
+      - elasticsearch
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -179,7 +189,9 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - api
+      - usuarios-api
+      - catalogo-api
+      - vendas-api
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -225,4 +237,6 @@ volumes:
   prometheus-data:
     driver: local
   grafana-data:
+    driver: local
+  elasticsearch-data:
     driver: local

@@ -104,6 +104,6 @@ Feature: Elasticsearch — Game Catalog Indexing and Search
 
 ## Definition of Done
 
-- [ ] All Gherkin scenarios have passing automated tests
-- [ ] Search latency p95 < 200ms under 50 concurrent requests
-- [ ] Index mapping documented in repository
+- [ ] All Gherkin scenarios have passing automated tests — **indexação real implementada e testada** (`ElasticsearchJogoIndexerTests`, 3/3 passando com Testcontainers.Elasticsearch real, ver `GameStore.Catalogo/Infrastructure/Search/`), mas nenhum endpoint HTTP expõe busca/agregação/recomendação ao cliente
+- [ ] Search latency p95 < 200ms under 50 concurrent requests (sem load test)
+- [ ] Index mapping documented in repository (mapping inferido automaticamente do POCO `JogoSearchDocument`, sem mapping explícito documentado)

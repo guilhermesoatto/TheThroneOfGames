@@ -98,8 +98,10 @@ namespace GameStore.Common.Tests
         [Test]
         public void RabbitMqAdapter_Constructor_WithInvalidHost_ThrowsException()
         {
-            // Act & Assert
-            Assert.Throws<Exception>(() =>
+            // Act & Assert - Assert.Catch (não Assert.Throws) porque a exceção real lançada
+            // é RabbitMQ.Client.Exceptions.BrokerUnreachableException, uma subclasse de
+            // Exception; Assert.Throws<Exception> no NUnit exige o tipo exato.
+            Assert.Catch<Exception>(() =>
                 new RabbitMqAdapter(
                     host: "invalid-host-xyz",
                     port: 5672,

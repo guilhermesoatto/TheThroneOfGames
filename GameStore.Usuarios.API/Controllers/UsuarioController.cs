@@ -81,10 +81,20 @@ namespace GameStore.Usuarios.API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var email = loginRequest.Email ?? loginRequest.Username;
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { message = "Email é obrigatório." });
+
             try
             {
-                var result = await _authService.AuthenticateAsync(loginRequest.Email ?? loginRequest.Username, loginRequest.Password);
-                return Ok(result);
+                var token = await _authService.AuthenticateAsync(email, loginRequest.Password);
+                if (token == null)
+                    return Unauthorized(new { message = "Credenciais inválidas ou conta não ativada." });
+
+                var user = await _authService.GetUserByEmailAsync(email);
+                var role = user?.Role ?? "User";
+
+                return Ok(new { token, role });
             }
             catch (Exception ex)
             {

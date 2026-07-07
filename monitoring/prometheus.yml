@@ -18,12 +18,6 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'api-monolithic'
-    static_configs:
-      - targets: ['api:80']
-    metrics_path: '/metrics'
-    scrape_interval: 5s
-
   - job_name: 'usuarios-api'
     static_configs:
       - targets: ['usuarios-api:9091']

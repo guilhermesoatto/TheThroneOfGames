@@ -6,7 +6,9 @@ using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Domain.Interfaces;
 using GameStore.Catalogo.Domain.Entities;
 using GameStore.Common.Events;
+using GameStore.Catalogo.Infrastructure.Search;
 using GameStore.Catalogo.Tests.Helpers;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GameStore.Catalogo.Tests;
 
@@ -14,11 +16,13 @@ public class CommandHandlerTests
 {
     private readonly IJogoRepository _jogoRepository;
     private readonly IEventBus _eventBus;
+    private readonly IJogoSearchIndexer _searchIndexer;
 
     public CommandHandlerTests()
     {
         _jogoRepository = Substitute.For<IJogoRepository>();
         _eventBus = Substitute.For<IEventBus>();
+        _searchIndexer = Substitute.For<IJogoSearchIndexer>();
     }
 
     private static Jogo CreateTestJogo(string nome = "Test Game", decimal preco = 59.99m, string genero = "Action")
@@ -39,7 +43,7 @@ public class CommandHandlerTests
     {
         // Arrange
         var command = new CreateGameCommand("Test Game", "Action", 59.99m, "Test Description");
-        var handler = new CreateGameCommandHandler(_jogoRepository, _eventBus);
+        var handler = new CreateGameCommandHandler(_jogoRepository, _eventBus, _searchIndexer, NullLogger<CreateGameCommandHandler>.Instance);
 
         _jogoRepository.GetByNomeAsync("Test Game").Returns(new List<Jogo>());
 
@@ -63,7 +67,7 @@ public class CommandHandlerTests
         // Arrange
         var existingGame = CreateTestJogo("Test Game");
         var command = new CreateGameCommand("Test Game", "Action", 59.99m);
-        var handler = new CreateGameCommandHandler(_jogoRepository, _eventBus);
+        var handler = new CreateGameCommandHandler(_jogoRepository, _eventBus, _searchIndexer, NullLogger<CreateGameCommandHandler>.Instance);
 
         _jogoRepository.GetByNomeAsync("Test Game").Returns(new List<Jogo> { existingGame });
 
@@ -83,7 +87,7 @@ public class CommandHandlerTests
     {
         // Arrange
         var command = new CreateGameCommand("Test Game", "Action", -10m);
-        var handler = new CreateGameCommandHandler(_jogoRepository, _eventBus);
+        var handler = new CreateGameCommandHandler(_jogoRepository, _eventBus, _searchIndexer, NullLogger<CreateGameCommandHandler>.Instance);
 
         // Act
         var result = await handler.HandleAsync(command);
@@ -107,7 +111,7 @@ public class CommandHandlerTests
         var gameId = Guid.NewGuid();
         var existingGame = TestDataBuilder.CreateJogoWithId(gameId);
         var command = new UpdateGameCommand(gameId, "New Name", "Action", 59.99m, "Updated Description");
-        var handler = new UpdateGameCommandHandler(_jogoRepository, _eventBus);
+        var handler = new UpdateGameCommandHandler(_jogoRepository, _eventBus, _searchIndexer, NullLogger<UpdateGameCommandHandler>.Instance);
 
         _jogoRepository.GetByIdAsync(gameId).Returns(existingGame);
         _jogoRepository.GetByNomeAsync("New Name").Returns(new List<Jogo>());
@@ -133,7 +137,7 @@ public class CommandHandlerTests
         // Arrange
         var gameId = Guid.NewGuid();
         var command = new UpdateGameCommand(gameId, "New Name", "Action", 59.99m);
-        var handler = new UpdateGameCommandHandler(_jogoRepository, _eventBus);
+        var handler = new UpdateGameCommandHandler(_jogoRepository, _eventBus, _searchIndexer, NullLogger<UpdateGameCommandHandler>.Instance);
 
         _jogoRepository.GetByIdAsync(gameId).Returns((Jogo?)null);
 

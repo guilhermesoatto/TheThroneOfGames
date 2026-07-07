@@ -75,8 +75,10 @@ namespace GameStore.Common.Tests
         [Test]
         public void RabbitMqConsumer_Constructor_WithInvalidHost_ThrowsException()
         {
-            // Act & Assert
-            Assert.Throws<Exception>(() =>
+            // Act & Assert - Assert.Catch (não Assert.Throws) porque a exceção real lançada
+            // é RabbitMQ.Client.Exceptions.BrokerUnreachableException, uma subclasse de
+            // Exception; Assert.Throws<Exception> no NUnit exige o tipo exato.
+            Assert.Catch<Exception>(() =>
                 new RabbitMqConsumer(
                     host: "invalid-host-xyz",
                     port: 5672,
@@ -90,7 +92,14 @@ namespace GameStore.Common.Tests
         [Test]
         public async Task RabbitMqConsumer_StartConsuming_WithValidQueue_StartsSuccessfully()
         {
-            // Arrange
+            // Arrange - BasicConsume exige que a fila já exista num broker real
+            var factory = new ConnectionFactory { HostName = "localhost", Port = 5672, UserName = "guest", Password = "guest" };
+            using (var connection = factory.CreateConnection())
+            using (var channel = connection.CreateModel())
+            {
+                channel.QueueDeclare("test.queue", durable: false, exclusive: false, autoDelete: false);
+            }
+
             _consumer = new RabbitMqConsumer(
                 host: "localhost",
                 port: 5672,

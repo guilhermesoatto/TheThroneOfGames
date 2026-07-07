@@ -34,7 +34,6 @@
   <ItemGroup>
     <ProjectReference Include="..\GameStore.Vendas\GameStore.Vendas.csproj" />
     <ProjectReference Include="..\GameStore.Common\GameStore.Common.csproj" />
-    <ProjectReference Include="..\TheThroneOfGames.Infrastructure\TheThroneOfGames.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

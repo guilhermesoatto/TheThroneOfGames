@@ -110,7 +110,7 @@ Routes:
 
 ## Definition of Done
 
-- [ ] All routes reachable through single Gateway URL
-- [ ] JWT validation tested with valid and invalid tokens
-- [ ] Rate limiting verified with load test (e.g., `hey -n 200 -c 20 <url>`)
-- [ ] IaC code for Gateway in repository
+- [x] All routes reachable through single Gateway URL (`/api/usuario/*`, `/api/game/*`, `/api/admin/*`, `/api/pedidos/*` — ver `api-gateway/nginx.conf`)
+- [ ] JWT validation tested with valid and invalid tokens (validação do JWT acontece em cada microsserviço, não no Gateway em si — o nginx apenas roteia)
+- [ ] Rate limiting verified with load test (configurado no nginx — `limit_req_zone` 20r/s, burst 40 — mas sem load test executado)
+- [x] IaC code for Gateway in repository (`api-gateway/nginx.conf` + `docker-compose.yml`)

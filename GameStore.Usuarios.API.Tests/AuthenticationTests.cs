@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Xunit;
-using TheThroneOfGames.API.Models.DTO;
 
 namespace GameStore.Usuarios.API.Tests;
 
@@ -9,21 +8,10 @@ namespace GameStore.Usuarios.API.Tests;
 public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
 {
     private readonly HttpClient _client;
-    private readonly string _outboxPath;
 
     public AuthenticationTests(IntegrationTestFixture fixture)
     {
         _client = fixture.Client;
-        _outboxPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Infrastructure", "Outbox"));
-        
-        // Limpar emails antes de cada teste
-        if (Directory.Exists(_outboxPath))
-        {
-            foreach (var file in Directory.GetFiles(_outboxPath, "*.eml"))
-            {
-                File.Delete(file);
-            }
-        }
     }
 
     [Fact]
@@ -39,7 +27,7 @@ public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/Usuario/register", newUser);
+        var response = await _client.PostAsJsonAsync("/api/Usuario/pre-register", newUser);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -61,7 +49,7 @@ public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/Usuario/register", newUser);
+        var response = await _client.PostAsJsonAsync("/api/Usuario/pre-register", newUser);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -80,11 +68,11 @@ public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
         };
 
         // Act - Registrar primeiro usuário
-        var firstResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
+        var firstResponse = await _client.PostAsJsonAsync("/api/Usuario/pre-register", user);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
 
         // Act - Tentar registrar com mesmo email
-        var secondResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
+        var secondResponse = await _client.PostAsJsonAsync("/api/Usuario/pre-register", user);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, secondResponse.StatusCode);
@@ -102,23 +90,17 @@ public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
             Role = "User"
         };
 
-        var registerResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
+        var registerResponse = await _client.PostAsJsonAsync("/api/Usuario/pre-register", user);
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
 
-        // Aguardar email ser escrito
-        await Task.Delay(100);
+        // O envio de e-mail foi removido nesta fase (microsserviço independente — ver comentário
+        // em UsuarioController.PreRegisterUser); o token de ativação é retornado diretamente no
+        // corpo da resposta do pré-registro para uso pelo fluxo assíncrono de notificação (Serverless).
+        var registerResult = await registerResponse.Content.ReadFromJsonAsync<Dictionary<string, object>>();
+        var activationToken = registerResult!["activationToken"].ToString();
 
-        // Obter token de ativação do email
-        var emailFiles = Directory.GetFiles(_outboxPath, "*.eml");
-        Assert.Single(emailFiles);
-        
-        var emailContent = await File.ReadAllTextAsync(emailFiles[0]);
-        var tokenStart = emailContent.IndexOf("activationToken=") + "activationToken=".Length;
-        var tokenEnd = emailContent.IndexOf("\n", tokenStart);
-        var activationToken = emailContent.Substring(tokenStart, tokenEnd - tokenStart).Trim();
-
-        // Act - Ativar conta
-        var activateResponse = await _client.GetAsync($"/api/Usuario/activate?activationToken={Uri.EscapeDataString(activationToken)}");
+        // Act - Ativar conta (UsuarioController expõe apenas [HttpPost("activate")])
+        var activateResponse = await _client.PostAsync($"/api/Usuario/activate?activationToken={Uri.EscapeDataString(activationToken)}", null);
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, activateResponse.StatusCode);
@@ -176,7 +158,7 @@ public class AuthenticationTests : IClassFixture<IntegrationTestFixture>
             Role = "User"
         };
 
-        var registerResponse = await _client.PostAsJsonAsync("/api/Usuario/register", user);
+        var registerResponse = await _client.PostAsJsonAsync("/api/Usuario/pre-register", user);
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
 
         var loginRequest = new LoginDTO
