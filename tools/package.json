@@ -1,0 +1,12 @@
+{
+  "name": "thethroneofgames-tools",
+  "private": true,
+  "description": "Ferramentas de automação do repositório (não faz parte da solução .NET) — validação de PRD, geração de README e gravação de vídeo de entrega via Playwright.",
+  "scripts": {
+    "record-delivery": "node record-delivery.js",
+    "playwright:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.48.0"
+  }
+}

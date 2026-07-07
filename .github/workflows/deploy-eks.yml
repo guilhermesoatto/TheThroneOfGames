@@ -1,0 +1,186 @@
+name: Deploy to AWS EKS (Fase 4)
+
+# Builda as 4 imagens (3 APIs + Function), publica no Amazon ECR e implanta em um cluster
+# EKS já existente (a criação do cluster é manual/deliberada — ver docs/eks-deploy.md —
+# não é feita por este pipeline, para evitar provisionar infra cobrável a cada push).
+#
+# Requer, configurados como Secrets do repositório (Settings > Secrets and variables >
+# Actions) — ver docs/eks-deploy.md para o passo a passo completo:
+#   AWS_ACCESS_KEY_ID       — chave de acesso IAM com permissão em ECR + EKS (ver docs/eks-deploy.md)
+#   AWS_SECRET_ACCESS_KEY   — segredo correspondente
+# Opcionais como Variables do repositório (Settings > Secrets and variables > Actions > Variables):
+#   AWS_REGION              — default: sa-east-1
+#   EKS_CLUSTER_NAME         — default: gamestore-cluster
+
+on:
+  push:
+    branches: [ release/fase-4-kubernetes ]
+  workflow_dispatch:
+    inputs:
+      run_load_test:
+        description: 'Rodar k8s/load-test/load-test-job.yaml após o deploy para validar o HPA (T05)'
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'sa-east-1' }}
+  EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME || 'gamestore-cluster' }}
+  K8S_NAMESPACE: gamestore
+
+jobs:
+  build-and-test:
+    name: Build & Test (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet restore TheThroneOfGames.sln
+      - run: dotnet build TheThroneOfGames.sln --configuration Release --no-restore
+      - name: Testes unitários (sem infra — ver deploy-eks para a suíte completa com Postgres/RabbitMQ reais)
+        run: dotnet test TheThroneOfGames.sln --configuration Release --no-build --verbosity normal --filter "Category!=Integration"
+
+  build-push-ecr:
+    name: Build & Push (ECR) — ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        service:
+          - name: usuarios-api
+            dockerfile: GameStore.Usuarios.API/Dockerfile
+          - name: catalogo-api
+            dockerfile: GameStore.Catalogo.API/Dockerfile
+          - name: vendas-api
+            dockerfile: GameStore.Vendas.API/Dockerfile
+          - name: notifications-functions
+            dockerfile: GameStore.Notifications.Functions/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # ECR (diferente do ghcr.io/Docker Hub) exige que o repositório já exista antes do
+      # push — cria de forma idempotente (não falha se já existir).
+      - name: Garantir que o repositório ECR existe
+        run: |
+          aws ecr describe-repositories --repository-names "gamestore/${{ matrix.service.name }}" --region "$AWS_REGION" \
+            || aws ecr create-repository --repository-name "gamestore/${{ matrix.service.name }}" --region "$AWS_REGION" --image-scanning-configuration scanOnPush=true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build e push para o ECR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.ecr-login.outputs.registry }}/gamestore/${{ matrix.service.name }}:${{ github.sha }}
+            ${{ steps.ecr-login.outputs.registry }}/gamestore/${{ matrix.service.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy no EKS
+    runs-on: ubuntu-latest
+    needs: build-push-ecr
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR (só para obter a URL do registry)
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Atualizar kubeconfig para o cluster EKS
+        run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Aplicar namespace, ConfigMaps e Secrets
+        run: |
+          kubectl apply -f k8s/namespaces.yaml
+          kubectl apply -f k8s/configmaps/
+          kubectl apply -f k8s/secrets/
+
+      # Aplica os Deployments/Services com a imagem placeholder do repositório e então
+      # substitui pela imagem recém-publicada no ECR (tag = SHA do commit) — mantém k8s/
+      # reutilizável tanto para EKS quanto para um cluster local (kind), sem hardcodar o
+      # registry nos manifests versionados.
+      - name: Aplicar infraestrutura, APIs, Function e Gateway
+        run: |
+          kubectl apply -f k8s/deployments/ -f k8s/services/
+
+      - name: Apontar Deployments para as imagens publicadas nesta execução
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          kubectl set image deployment/usuarios-api usuarios-api="$REGISTRY/gamestore/usuarios-api:$TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/catalogo-api catalogo-api="$REGISTRY/gamestore/catalogo-api:$TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/vendas-api vendas-api="$REGISTRY/gamestore/vendas-api:$TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/notifications-functions notifications-functions="$REGISTRY/gamestore/notifications-functions:$TAG" -n "$K8S_NAMESPACE"
+
+      - name: Aplicar HPA e Ingress
+        run: kubectl apply -f k8s/hpa/ -f k8s/ingress/
+
+      - name: Aguardar rollout
+        run: |
+          kubectl rollout status deployment/usuarios-api -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/catalogo-api -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/vendas-api -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/notifications-functions -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/api-gateway -n "$K8S_NAMESPACE" --timeout=300s
+
+      - name: Smoke test (pods, services, ingress)
+        run: |
+          kubectl get pods -n "$K8S_NAMESPACE"
+          kubectl get svc -n "$K8S_NAMESPACE"
+          kubectl get ingress -n "$K8S_NAMESPACE"
+          kubectl get hpa -n "$K8S_NAMESPACE"
+
+  # Job opcional — só roda quando disparado manualmente com run_load_test=true. Gera carga
+  # real contra as 3 APIs para validar o HPA (T05) no cluster de verdade, igual à validação
+  # feita localmente em kind (ver docs/k8s-architecture-flow.md §7).
+  load-test:
+    name: Load Test (validação do HPA)
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'workflow_dispatch' && inputs.run_load_test == true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - run: aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_REGION"
+
+      - name: Rodar o Job de carga e observar o HPA
+        run: |
+          kubectl apply -f k8s/load-test/load-test-job.yaml
+          echo "Aguardando o Job de carga terminar (até 6min)..."
+          kubectl wait --for=condition=complete job/load-test -n "$K8S_NAMESPACE" --timeout=360s || true
+          echo "--- HPA logo após a carga ---"
+          kubectl get hpa -n "$K8S_NAMESPACE"
+          kubectl delete job load-test -n "$K8S_NAMESPACE" --ignore-not-found

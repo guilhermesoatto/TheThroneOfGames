@@ -1,10 +1,14 @@
-name: CI/CD Pipeline - The Throne of Games
+name: CI - The Throne of Games
+
+# CI genérico (build, testes, imagens, segurança) — agnóstico de nuvem. O deploy real na
+# AWS EKS (Fase 4) tem workflow dedicado em .github/workflows/deploy-eks.yml, que reusa as
+# imagens publicadas pelo job docker-build abaixo.
 
 on:
   push:
-    branches: [ master, develop, clean-after-secret-removal ]
+    branches: [ master, develop, release/fase-4-kubernetes ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master, develop, release/fase-4-kubernetes ]
   workflow_dispatch:
 
 env:
@@ -17,25 +21,28 @@ jobs:
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
+
     - name: Restore dependencies
       run: dotnet restore TheThroneOfGames.sln
-      
+
     - name: Build solution
       run: dotnet build TheThroneOfGames.sln --configuration Release --no-restore
-      
+
+    # Category=Integration marca os testes que precisam de infra real (Postgres em
+    # localhost:5432, Testcontainers para RabbitMQ/Elasticsearch) — não executam neste job
+    # de CI genérico. Ver a suíte completa rodando com infra real em deploy-eks.yml.
     - name: Run unit tests only (excluding integration tests)
       run: dotnet test TheThroneOfGames.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --filter "Category!=Integration"
-      
+
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
@@ -43,43 +50,44 @@ jobs:
         name: test-results
         path: '**/TestResults/*.trx'
 
-  # Job 2: Docker Build & Push
+  # Job 2: Docker Build & Push (ghcr.io) — imagens de referência para PR/branches genéricas.
+  # O deploy-eks.yml builda e publica as mesmas 4 imagens direto no ECR, então este job não
+  # é pré-requisito do deploy — mantido para dar visibilidade de build em qualquer branch.
   docker-build:
     name: Build Docker Images
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
-    
+
     strategy:
       matrix:
         service:
           - name: usuarios-api
             dockerfile: GameStore.Usuarios.API/Dockerfile
-            context: .
           - name: catalogo-api
             dockerfile: GameStore.Catalogo.API/Dockerfile
-            context: .
           - name: vendas-api
             dockerfile: GameStore.Vendas.API/Dockerfile
-            context: .
-    
+          - name: notifications-functions
+            dockerfile: GameStore.Notifications.Functions/Dockerfile
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      
+
     - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-        
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
@@ -88,13 +96,12 @@ jobs:
         tags: |
           type=ref,event=branch
           type=sha,prefix={{branch}}-
-          type=semver,pattern={{version}}
           type=raw,value=latest,enable={{is_default_branch}}
-          
+
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
-        context: ${{ matrix.service.context }}
+        context: .
         file: ${{ matrix.service.dockerfile }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
@@ -109,11 +116,11 @@ jobs:
     needs: build-and-test
     permissions:
       security-events: write
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
@@ -121,13 +128,13 @@ jobs:
         scan-ref: '.'
         format: 'sarif'
         output: 'trivy-results.sarif'
-        
+
     - name: Upload Trivy results to GitHub Security (master only)
       uses: github/codeql-action/upload-sarif@v3
       if: always() && github.ref == 'refs/heads/master'
       with:
         sarif_file: 'trivy-results.sarif'
-        
+
     - name: Upload Trivy results as artifact (all branches)
       uses: actions/upload-artifact@v4
       if: always()
@@ -140,21 +147,21 @@ jobs:
     name: Code Quality Analysis
     runs-on: ubuntu-latest
     needs: build-and-test
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
-        
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
+
     - name: Install SonarScanner
       run: dotnet tool install --global dotnet-sonarscanner
-      
+
     - name: Analyze with SonarQube
       if: false  # Desabilitado - configure SONAR_TOKEN secret para habilitar
       env:
@@ -172,83 +179,3 @@ jobs:
           /p:CollectCoverage=true \
           /p:CoverletOutputFormat=opencover
         dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
-
-  # Job 5: Deploy to GKE
-  deploy-gke:
-    name: Deploy to GKE
-    runs-on: ubuntu-latest
-    needs: [docker-build, security-scan]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
-      
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-      
-    - name: Configure kubectl
-      run: |
-        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
-          --region ${{ secrets.GKE_ZONE }} \
-          --project ${{ secrets.GCP_PROJECT_ID }}
-        
-    - name: Install GKE auth plugin
-      run: |
-        gcloud components install gke-gcloud-auth-plugin
-
-    - name: Deploy to Kubernetes
-      run: |
-        kubectl apply -f k8s/configmaps/ --validate=false
-        kubectl apply -f k8s/secrets/ --validate=false
-        kubectl apply -f k8s/deployments/ --validate=false
-        kubectl apply -f k8s/services/ --validate=false
-        
-    - name: Wait for rollout
-      run: |
-        kubectl rollout status deployment/usuarios-api -n thethroneofgames --timeout=300s
-        kubectl rollout status deployment/catalogo-api -n thethroneofgames --timeout=300s
-        kubectl rollout status deployment/vendas-api -n thethroneofgames --timeout=300s
-        
-    - name: Run smoke tests
-      run: |
-        kubectl get pods -n thethroneofgames
-        kubectl get svc -n thethroneofgames
-        
-    - name: Performance validation
-      shell: pwsh
-      run: |
-        cd scripts
-        ./k8s-performance-validation.ps1 -Namespace thethroneofgames -Requests 5
-
-
-  # Job 6: Performance Testing
-  performance-test:
-    name: Performance Testing
-    runs-on: ubuntu-latest
-    needs: deploy-gke
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-        
-    - name: Run load tests
-      shell: pwsh
-      run: |
-        cd scripts
-        if (Test-Path ".\load-test.ps1") {
-          .\load-test.ps1 -NumUsuarios 20 -NumJogos 50 -NumPedidos 100 -ConcurrentUsers 5 -GenerateReport
-        }
-        
-    - name: Upload performance report
-      uses: actions/upload-artifact@v4
-      with:
-        name: performance-report
-        path: scripts/load-test-report-*.txt
-

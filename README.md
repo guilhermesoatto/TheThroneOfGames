@@ -126,7 +126,20 @@ kubectl -n gamestore get hpa -w          # observar TARGETS (%CPU) e REPLICAS su
 kubectl delete job load-test -n gamestore  # remover depois do teste
 ```
 
-**Status real:** toda a stack acima foi implantada e validada de ponta a ponta contra um cluster Kubernetes real local (kind) durante o desenvolvimento — não um cluster gerenciado na nuvem (ver `docs/Objectives/sprint-3/prd-fase4.json`, tarefa `fase4-T03`, e `docs/k8s-architecture-flow.md` §7 para o relato completo, incluindo dois bugs reais encontrados e corrigidos: bind non-root na porta 80 e esgotamento de conexões do Postgres sob HPA escalado). O teste de carga confirmou o `catalogo-api-hpa` escalando de 2 para 6 réplicas (105% de CPU) e voltando ao mínimo após o fim da carga.
+**Status real:** toda a stack acima foi implantada e validada de ponta a ponta contra um cluster Kubernetes real local (kind) durante o desenvolvimento (ver `docs/k8s-architecture-flow.md` §7 para o relato completo, incluindo dois bugs reais encontrados e corrigidos: bind non-root na porta 80 e esgotamento de conexões do Postgres sob HPA escalado). O teste de carga confirmou o `catalogo-api-hpa` escalando de 2 para 6 réplicas (105% de CPU) e voltando ao mínimo após o fim da carga.
+
+### Deploy na nuvem (Amazon EKS) via pipeline
+
+Pipeline dedicado em [`.github/workflows/deploy-eks.yml`](.github/workflows/deploy-eks.yml): builda as 4 imagens, publica no Amazon ECR e implanta `k8s/` inteiro num cluster EKS a cada push em `release/fase-4-kubernetes` (ou sob demanda, com opção de rodar o teste de carga do HPA contra o cluster real). Passo a passo completo — criação do cluster (manual, deliberada, para não gerar custo a cada push), permissões IAM necessárias e configuração dos Secrets do GitHub — em [`docs/eks-deploy.md`](docs/eks-deploy.md).
+
+### Gravação do vídeo de demonstração
+
+[`tools/record-delivery.js`](tools/record-delivery.js) (Playwright) automatiza a navegação pelos Swagger de cada serviço (executando uma chamada real) e pelo Jaeger UI (grafo de traces), gravando em `docs/videos/FCG_ENTREGA_FASE_4.mp4`. Pressupõe o ambiente já rodando (local via `docker compose up`/`kubectl`, ou os `BASE_URL_*` apontando para o Ingress do EKS — ver `docs/eks-deploy.md` §5).
+
+```sh
+cd tools && npm install && npm run playwright:install
+node record-delivery.js
+```
 
 ## Estrutura do Projeto
 
@@ -159,7 +172,8 @@ Ver `docs/Objectives/sprint-3/prd-fase4.json` para o checklist tarefa a tarefa. 
 | Monitoramento (Prometheus + Grafana) | ✅ |
 | APM (Jaeger) | ✅ |
 | Validação de ponta a ponta em cluster Kubernetes real (local — kind) | ✅ |
-| Cluster Kubernetes **gerenciado na nuvem** (GKE/EKS/AKS) | ❌ não provisionado nesta entrega — ver PRD `fase4-T03` |
+| Pipeline de deploy no Amazon EKS (build ECR + kubectl apply + HPA opcional) | ✅ pronto (`.github/workflows/deploy-eks.yml`, ver `docs/eks-deploy.md`) |
+| Cluster EKS **provisionado e pipeline executada contra ele** | ⚠️ pendente — depende das credenciais AWS/execução do pipeline, ver PRD `fase4-T03` |
 | Retry/DLQ em mensageria (opcional) | ❌ não implementado (flag opcional no edital) |
 
 ## Status Real da Fase 3

@@ -43,15 +43,17 @@
     {
       "id": "fase4-T03",
       "phase": "5-kubernetes",
-      "description": "Cluster Kubernetes gerenciado provisionado na nuvem (GKE/EKS/AKS) para orquestrar os microsserviços",
+      "description": "Cluster Kubernetes gerenciado provisionado na nuvem (Amazon EKS) para orquestrar os microsserviços",
       "status": "blocked",
       "passes": false,
       "testCommand": "kubectl cluster-info",
       "artifacts": [
         "k8s/namespaces.yaml",
-        "docs/k8s-architecture-flow.md"
+        "docs/k8s-architecture-flow.md",
+        ".github/workflows/deploy-eks.yml",
+        "docs/eks-deploy.md"
       ],
-      "blockReason": "Cluster GERENCIADO NA NUVEM não provisionado nesta sessão: exige credenciais de nuvem e uma ação de custo real (gcloud container clusters create / eksctl create cluster / az aks create), fora do escopo de uma tarefa de IaC local sem autorização explícita para provisionar infraestrutura cobrável. O kubectl deste ambiente aponta para um contexto GKE pré-existente (gke_..._autopilot-cluster-1) que está inacessível (timeout de conexão) — provavelmente já destruído, alinhado à própria orientação do edital de excluir a infraestrutura após gravar o vídeo. EM COMPENSAÇÃO: toda a stack k8s/ foi implantada e validada de ponta a ponta contra um cluster Kubernetes real local (kind — Kubernetes-in-Docker, v1.31.0), com metrics-server e ingress-nginx instalados, provando que os manifests funcionam via `kubectl apply -f k8s/` sem qualquer ajuste — só falta apontar para o cluster gerenciado real (e trocar `image:` pelos nomes do registry escolhido, ver fase4-T04). Ver docs/k8s-architecture-flow.md §7 para o relato completo da validação, incluindo dois bugs reais encontrados e corrigidos (fase4-T02 e fase4-T04)."
+      "blockReason": "Cluster EKS ainda não provisionado nem o pipeline executado: exige credenciais AWS reais e uma ação de custo real (eksctl create cluster), fora do escopo de uma tarefa de IaC local sem acesso às credenciais da conta de nuvem do grupo. Decisão tomada com o Domain Expert: publicar em Amazon EKS. Em compensação, esta sessão entregou (1) toda a stack k8s/ implantada e validada de ponta a ponta contra um cluster Kubernetes real local (kind v1.31.0, com metrics-server e ingress-nginx), provando que os manifests funcionam via `kubectl apply -f k8s/` sem ajuste algum, e (2) o pipeline completo de deploy para EKS (.github/workflows/deploy-eks.yml — build das 4 imagens, push para ECR, kubectl apply/set image, HPA/Ingress, teste de carga opcional) e o guia de provisionamento (docs/eks-deploy.md — criação do cluster via eksctl, IAM/Access Entries, Secrets do GitHub). Falta apenas: o grupo configurar as credenciais AWS como Secrets do repositório e disparar o pipeline contra um cluster EKS real (criado manualmente seguindo docs/eks-deploy.md §1) para a gravação do vídeo de demonstração."
     },
     {
       "id": "fase4-T04",
