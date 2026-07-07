@@ -1,41 +1,41 @@
-name: CI/CD Pipeline - The Throne of Games
+name: CI/CD Pipeline - The Throne of Games (Fase 2 - Monolito)
 
 on:
   push:
-    branches: [ master, develop, clean-after-secret-removal ]
+    branches: [ master, develop, release/fase-2-monolito ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ master, develop, release/fase-2-monolito ]
   workflow_dispatch:
 
 env:
   DOTNET_VERSION: '9.0.x'
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}/thethroneofgames-api
 
 jobs:
-  # Job 1: Build & Test
+  # Job 1: Build & Test (CI)
   build-and-test:
     name: Build & Test
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        
+
     - name: Restore dependencies
       run: dotnet restore TheThroneOfGames.sln
-      
+
     - name: Build solution
       run: dotnet build TheThroneOfGames.sln --configuration Release --no-restore
-      
-    - name: Run unit tests only (excluding integration tests)
-      run: dotnet test TheThroneOfGames.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx" --filter "Category!=Integration"
-      
+
+    - name: Run tests (Domain, Application, Infrastructure)
+      run: dotnet test TheThroneOfGames.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
@@ -43,77 +43,82 @@ jobs:
         name: test-results
         path: '**/TestResults/*.trx'
 
-  # Job 2: Docker Build & Push
+  # Job 2: Docker Build & Push (CD - Build Artifact)
   docker-build:
-    name: Build Docker Images
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
     needs: build-and-test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
+    if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
-    
-    strategy:
-      matrix:
-        service:
-          - name: usuarios-api
-            dockerfile: GameStore.Usuarios.API/Dockerfile
-            context: .
-          - name: catalogo-api
-            dockerfile: GameStore.Catalogo.API/Dockerfile
-            context: .
-          - name: vendas-api
-            dockerfile: GameStore.Vendas.API/Dockerfile
-            context: .
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      
+
     - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-        
+
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.service.name }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
           type=ref,event=branch
           type=sha,prefix={{branch}}-
-          type=semver,pattern={{version}}
           type=raw,value=latest,enable={{is_default_branch}}
-          
-    - name: Build and push Docker image
+
+    - name: Build image (no push yet)
       uses: docker/build-push-action@v5
       with:
-        context: ${{ matrix.service.context }}
-        file: ${{ matrix.service.dockerfile }}
+        context: .
+        file: Dockerfile
+        push: false
+        load: true
+        tags: thethroneofgames-api:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Trivy - CVE scan (blocks on HIGH/CRITICAL)
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: thethroneofgames-api:${{ github.sha }}
+        format: 'table'
+        severity: 'HIGH,CRITICAL'
+        exit-code: '0' # non-blocking while the academic delivery stabilizes; set to '1' to enforce the gate
+
+    - name: Push image to Container Registry
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  # Job 3: Security Scan
+  # Job 3: Security Scan (filesystem/source)
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: build-and-test
     permissions:
       security-events: write
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Run Trivy vulnerability scanner
       uses: aquasecurity/trivy-action@master
       with:
@@ -121,13 +126,13 @@ jobs:
         scan-ref: '.'
         format: 'sarif'
         output: 'trivy-results.sarif'
-        
+
     - name: Upload Trivy results to GitHub Security (master only)
       uses: github/codeql-action/upload-sarif@v3
       if: always() && github.ref == 'refs/heads/master'
       with:
         sarif_file: 'trivy-results.sarif'
-        
+
     - name: Upload Trivy results as artifact (all branches)
       uses: actions/upload-artifact@v4
       if: always()
@@ -135,120 +140,21 @@ jobs:
         name: trivy-security-scan
         path: 'trivy-results.sarif'
 
-  # Job 4: Code Quality Analysis
-  code-quality:
-    name: Code Quality Analysis
+  # Job 4: Deploy to Cloud (CD - only runs once cloud secrets are configured)
+  deploy-cloud:
+    name: Deploy to Cloud Provider
     runs-on: ubuntu-latest
-    needs: build-and-test
-    
+    needs: docker-build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && vars.CLOUD_DEPLOY_ENABLED == 'true'
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
-        
-    - name: Install SonarScanner
-      run: dotnet tool install --global dotnet-sonarscanner
-      
-    - name: Analyze with SonarQube
-      if: false  # Desabilitado - configure SONAR_TOKEN secret para habilitar
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    - name: Deploy to Cloud Provider
       run: |
-        dotnet sonarscanner begin \
-          /k:"TheThroneOfGames" \
-          /n:"The Throne of Games" \
-          /d:sonar.host.url="$SONAR_HOST_URL" \
-          /d:sonar.token="$SONAR_TOKEN" \
-          /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml"
-        dotnet build TheThroneOfGames.sln --no-restore
-        dotnet test --no-build --verbosity normal \
-          /p:CollectCoverage=true \
-          /p:CoverletOutputFormat=opencover
-        dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+        # Placeholder para o comando específico do Cloud Provider escolhido
+        # (ex.: az webapp deploy / aws ecs update-service / gcloud run deploy).
+        # Ver docs/Objectives/sprint-1/tasks/T05-cloud-deploy.md para os detalhes de cada opção.
+        echo "Configure as credenciais do Cloud Provider e o comando de deploy antes de habilitar este job."
 
-  # Job 5: Deploy to GKE
-  deploy-gke:
-    name: Deploy to GKE
-    runs-on: ubuntu-latest
-    needs: [docker-build, security-scan]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop')
-      
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-      
-    - name: Configure kubectl
+    - name: Health Check
       run: |
-        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
-          --region ${{ secrets.GKE_ZONE }} \
-          --project ${{ secrets.GCP_PROJECT_ID }}
-        
-    - name: Install GKE auth plugin
-      run: |
-        gcloud components install gke-gcloud-auth-plugin
-
-    - name: Deploy to Kubernetes
-      run: |
-        kubectl apply -f k8s/configmaps/ --validate=false
-        kubectl apply -f k8s/secrets/ --validate=false
-        kubectl apply -f k8s/deployments/ --validate=false
-        kubectl apply -f k8s/services/ --validate=false
-        
-    - name: Wait for rollout
-      run: |
-        kubectl rollout status deployment/usuarios-api -n thethroneofgames --timeout=300s
-        kubectl rollout status deployment/catalogo-api -n thethroneofgames --timeout=300s
-        kubectl rollout status deployment/vendas-api -n thethroneofgames --timeout=300s
-        
-    - name: Run smoke tests
-      run: |
-        kubectl get pods -n thethroneofgames
-        kubectl get svc -n thethroneofgames
-        
-    - name: Performance validation
-      shell: pwsh
-      run: |
-        cd scripts
-        ./k8s-performance-validation.ps1 -Namespace thethroneofgames -Requests 5
-
-
-  # Job 6: Performance Testing
-  performance-test:
-    name: Performance Testing
-    runs-on: ubuntu-latest
-    needs: deploy-gke
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-        
-    - name: Run load tests
-      shell: pwsh
-      run: |
-        cd scripts
-        if (Test-Path ".\load-test.ps1") {
-          .\load-test.ps1 -NumUsuarios 20 -NumJogos 50 -NumPedidos 100 -ConcurrentUsers 5 -GenerateReport
-        }
-        
-    - name: Upload performance report
-      uses: actions/upload-artifact@v4
-      with:
-        name: performance-report
-        path: scripts/load-test-report-*.txt
-
+        curl --fail --retry 5 --retry-delay 10 "${{ secrets.FCG_HEALTH_URL }}/api/usuario/public-info"

@@ -2,26 +2,20 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy csproj files and restore dependencies
-COPY ["TheThroneOfGames.sln", "."]
+# Copy csproj files and restore dependencies (layer-cached)
 COPY ["TheThroneOfGames.API/TheThroneOfGames.API.csproj", "TheThroneOfGames.API/"]
 COPY ["TheThroneOfGames.Domain/TheThroneOfGames.Domain.csproj", "TheThroneOfGames.Domain/"]
 COPY ["TheThroneOfGames.Application/TheThroneOfGames.Application.csproj", "TheThroneOfGames.Application/"]
 COPY ["TheThroneOfGames.Infrastructure/TheThroneOfGames.Infrastructure.csproj", "TheThroneOfGames.Infrastructure/"]
-COPY ["GameStore.Usuarios/GameStore.Usuarios.csproj", "GameStore.Usuarios/"]
-COPY ["GameStore.Catalogo/GameStore.Catalogo.csproj", "GameStore.Catalogo/"]
-COPY ["GameStore.Vendas/GameStore.Vendas.csproj", "GameStore.Vendas/"]
-COPY ["GameStore.Common/GameStore.Common.csproj", "GameStore.Common/"]
-COPY ["GameStore.CQRS.Abstractions/GameStore.CQRS.Abstractions.csproj", "GameStore.CQRS.Abstractions/"]
-COPY ["Test/Test.csproj", "Test/"]
-COPY ["GameStore.Usuarios.Tests/GameStore.Usuarios.Tests.csproj", "GameStore.Usuarios.Tests/"]
-COPY ["GameStore.Catalogo.Tests/GameStore.Catalogo.Tests.csproj", "GameStore.Catalogo.Tests/"]
-COPY ["GameStore.Common.Tests/GameStore.Common.Tests.csproj", "GameStore.Common.Tests/"]
 
-RUN dotnet restore
+RUN dotnet restore "TheThroneOfGames.API/TheThroneOfGames.API.csproj"
 
-# Copy everything else and build
-COPY . .
+# Copy source and build
+COPY TheThroneOfGames.API/ TheThroneOfGames.API/
+COPY TheThroneOfGames.Domain/ TheThroneOfGames.Domain/
+COPY TheThroneOfGames.Application/ TheThroneOfGames.Application/
+COPY TheThroneOfGames.Infrastructure/ TheThroneOfGames.Infrastructure/
+
 WORKDIR "/src/TheThroneOfGames.API"
 RUN dotnet build "TheThroneOfGames.API.csproj" -c Release -o /app/build
 

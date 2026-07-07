@@ -1,4 +1,85 @@
 {
+  "$schema": "prd-v1",
+  "aggregate": "TheThroneOfGames.Monolith",
+  "boundedContext": "monolith",
+  "createdAt": "2026-07-04T17:40:51-03:00",
+  "currentPhase": "4-containerization",
+  "description": "Entrega acadêmica da Fase 2 — aplicação monolítica ASP.NET Core com DDD, CQRS e testes integrados.",
+  "tasks": [
+    {
+      "id": "sprint1-T01",
+      "phase": "4-containerization",
+      "description": "Dockerfile written and validated (lean, non-root, multi-stage)",
+      "status": "not-started",
+      "passes": false,
+      "testCommand": "docker build -f Dockerfile -t thethroneofgames:test .",
+      "artifacts": [
+        "Dockerfile",
+        "docs/Objectives/sprint-1/tasks/T01-dockerfile.md"
+      ]
+    },
+    {
+      "id": "sprint1-T02",
+      "phase": "6-cicd",
+      "description": "CI Pipeline: executes tests on every PR/Commit",
+      "status": "not-started",
+      "passes": false,
+      "testCommand": "dotnet test (executado pelo workflow em cada PR/commit)",
+      "artifacts": [
+        ".github/workflows/ci-cd.yml",
+        "docs/Objectives/sprint-1/tasks/T02-ci-pipeline.md"
+      ]
+    },
+    {
+      "id": "sprint1-T03",
+      "phase": "6-cicd",
+      "description": "CD Pipeline: deploys on merge to main",
+      "status": "not-started",
+      "passes": false,
+      "testCommand": "verificação manual — histórico de execuções do workflow de deploy no GitHub Actions",
+      "artifacts": [
+        ".github/workflows/ci-cd.yml",
+        "docs/Objectives/sprint-1/tasks/T03-cd-pipeline.md"
+      ]
+    },
+    {
+      "id": "sprint1-T04",
+      "phase": "4-containerization",
+      "description": "Container Registry configured and image published",
+      "status": "not-started",
+      "passes": false,
+      "testCommand": "verificação manual — imagem publicada no Container Registry",
+      "artifacts": [
+        "Dockerfile",
+        "docs/Objectives/sprint-1/tasks/T04-container-registry.md"
+      ]
+    },
+    {
+      "id": "sprint1-T05",
+      "phase": "6-cicd",
+      "description": "FCG Platform running on a Cloud Provider",
+      "status": "not-started",
+      "passes": false,
+      "testCommand": "verificação manual — endpoint de saúde acessível na URL do Cloud Provider",
+      "artifacts": [
+        "docs/Objectives/sprint-1/tasks/T05-cloud-deploy.md"
+      ]
+    },
+    {
+      "id": "sprint1-T06",
+      "phase": "7-observability",
+      "description": "Monitoring Stack collecting Health Metrics",
+      "status": "not-started",
+      "passes": false,
+      "testCommand": "verificação manual — dashboard de monitoramento reportando métricas de saúde",
+      "artifacts": [
+        "docs/Objectives/sprint-1/tasks/T06-monitoring-stack.md"
+      ]
+    }
+  ],
+  "acceptanceCriteria": {
+    "fiapObjectives": "Entregar Deployment Pipeline automatizado (build, teste, publicação, deploy e observabilidade) para o monolito TheThroneOfGames — ver docs/Objectives/sprint-1/DELIVERABLE.md."
+  },
   "prd": {
     "fase": 2,
     "titulo": "Monolito TheThroneOfGames",

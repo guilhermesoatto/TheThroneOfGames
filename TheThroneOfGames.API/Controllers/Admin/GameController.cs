@@ -1,33 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
 using TheThroneOfGames.API.Controllers.Base;
-using GameStore.CQRS.Abstractions;
-using GameStore.Catalogo.Application.Commands;
-using GameStore.Catalogo.Application.Queries;
-using CatalogoDTO = GameStore.Catalogo.Application.DTOs.GameDTO;
+using TheThroneOfGames.Application.Interface;
+using TheThroneOfGames.Domain.Entities;
 using ApiDTO = TheThroneOfGames.API.Models.DTO;
 
 namespace TheThroneOfGames.API.Controllers.Admin;
 
 public class GameController : AdminControllerBase
 {
-    private readonly ICommandHandler<CreateGameCommand> _createGameHandler;
-    private readonly ICommandHandler<UpdateGameCommand> _updateGameHandler;
-    private readonly ICommandHandler<RemoveGameCommand> _removeGameHandler;
-    private readonly IQueryHandler<GetAllGamesQuery, IEnumerable<CatalogoDTO>> _getAllGamesHandler;
-    private readonly IQueryHandler<GetGameByIdQuery, CatalogoDTO?> _getGameByIdHandler;
+    private readonly IGameService _gameService;
 
-    public GameController(
-        ICommandHandler<CreateGameCommand> createGameHandler,
-        ICommandHandler<UpdateGameCommand> updateGameHandler,
-        ICommandHandler<RemoveGameCommand> removeGameHandler,
-        IQueryHandler<GetAllGamesQuery, IEnumerable<CatalogoDTO>> getAllGamesHandler,
-        IQueryHandler<GetGameByIdQuery, CatalogoDTO?> getGameByIdHandler)
+    public GameController(IGameService gameService)
     {
-        _createGameHandler = createGameHandler;
-        _updateGameHandler = updateGameHandler;
-        _removeGameHandler = removeGameHandler;
-        _getAllGamesHandler = getAllGamesHandler;
-        _getGameByIdHandler = getGameByIdHandler;
+        _gameService = gameService;
     }
 
     [HttpGet]
@@ -36,9 +21,8 @@ public class GameController : AdminControllerBase
     {
         try
         {
-            var query = new GetAllGamesQuery();
-            var games = await _getAllGamesHandler.HandleAsync(query);
-            
+            var games = await _gameService.GetAllAsync();
+
             var gameDtos = games.Select(g => new ApiDTO.GameListDTO
             {
                 Id = g.Id,
@@ -62,9 +46,8 @@ public class GameController : AdminControllerBase
     {
         try
         {
-            var query = new GetGameByIdQuery(id);
-            var game = await _getGameByIdHandler.HandleAsync(query);
-            
+            var game = await _gameService.GetByIdAsync(id);
+
             if (game == null)
             {
                 return NotFound(new { Message = $"Jogo com ID {id} não encontrado" });
@@ -96,22 +79,30 @@ public class GameController : AdminControllerBase
     {
         try
         {
-            var command = new CreateGameCommand(
-                Name: gameDto.Name,
-                Genre: gameDto.Genre,
-                Price: gameDto.Price,
-                Description: gameDto.Description ?? ""
-            );
-
-            var result = await _createGameHandler.HandleAsync(command);
-
-            if (!result.Success)
+            var game = new GameEntity
             {
-                return BadRequest(new { result.Message, result.Errors });
-            }
+                Id = Guid.NewGuid(),
+                Name = gameDto.Name,
+                Genre = gameDto.Genre,
+                Price = gameDto.Price,
+                Description = gameDto.Description,
+                IsAvailable = gameDto.IsAvailable
+            };
 
-            var createdGame = result.Data as CatalogoDTO;
-            return CreatedAtAction(nameof(GetById), new { id = result.EntityId }, createdGame);
+            await _gameService.AddAsync(game);
+
+            var createdDto = new ApiDTO.GameDTO
+            {
+                Id = game.Id,
+                Name = game.Name,
+                Genre = game.Genre,
+                Price = game.Price,
+                Description = game.Description,
+                CreatedAt = game.CreatedAt,
+                IsAvailable = game.IsAvailable
+            };
+
+            return CreatedAtAction(nameof(GetById), new { id = game.Id }, createdDto);
         }
         catch (Exception ex)
         {
@@ -126,27 +117,34 @@ public class GameController : AdminControllerBase
     {
         try
         {
-            var command = new UpdateGameCommand(
-                GameId: id,
-                Name: gameDto.Name,
-                Genre: gameDto.Genre,
-                Price: gameDto.Price,
-                Description: gameDto.Description ?? ""
-            );
-
-            var result = await _updateGameHandler.HandleAsync(command);
-
-            if (!result.Success)
+            var game = await _gameService.GetByIdAsync(id);
+            if (game == null)
             {
-                if (result.Message.Contains("não encontrado"))
-                {
-                    return NotFound(new { result.Message });
-                }
-                return BadRequest(new { result.Message, result.Errors });
+                return NotFound(new { Message = $"Jogo com ID {id} não encontrado" });
             }
 
-            var updatedGame = result.Data as CatalogoDTO;
-            return Ok(updatedGame);
+            game.Name = gameDto.Name;
+            game.Genre = gameDto.Genre;
+            game.Price = gameDto.Price;
+            game.Description = gameDto.Description;
+            game.IsAvailable = gameDto.IsAvailable;
+            game.UpdatedAt = DateTime.UtcNow;
+
+            await _gameService.UpdateAsync(game);
+
+            var updatedDto = new ApiDTO.GameDTO
+            {
+                Id = game.Id,
+                Name = game.Name,
+                Genre = game.Genre,
+                Price = game.Price,
+                Description = game.Description,
+                CreatedAt = game.CreatedAt,
+                UpdatedAt = game.UpdatedAt,
+                IsAvailable = game.IsAvailable
+            };
+
+            return Ok(updatedDto);
         }
         catch (Exception ex)
         {
@@ -161,17 +159,13 @@ public class GameController : AdminControllerBase
     {
         try
         {
-            var command = new RemoveGameCommand(id);
-            var result = await _removeGameHandler.HandleAsync(command);
-
-            if (!result.Success)
+            var game = await _gameService.GetByIdAsync(id);
+            if (game == null)
             {
-                if (result.Message.Contains("não encontrado"))
-                {
-                    return NotFound(new { result.Message });
-                }
-                return BadRequest(new { result.Message, result.Errors });
+                return NotFound(new { Message = $"Jogo com ID {id} não encontrado" });
             }
+
+            await _gameService.DeleteAsync(id);
 
             return NoContent();
         }

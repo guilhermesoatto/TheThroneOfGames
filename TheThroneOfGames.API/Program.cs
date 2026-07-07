@@ -1,31 +1,12 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.OpenApi.Models;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Events;
-using Microsoft.AspNetCore.Builder;
 using TheThroneOfGames.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using GameStore.Catalogo.Application.EventHandlers;
-using GameStore.Usuarios.Application.EventHandlers;
-// handler namespaces intentionally referenced by fully-qualified names to avoid ambiguity with Query handlers
-using GameStore.Usuarios.Application.Queries;
-using GameStore.Catalogo.Application.Queries;
-using CQRS = GameStore.CQRS.Abstractions;
-using GameStore.Usuarios.Application.Commands;
-using GameStore.Catalogo.Application.Commands;
-using GameStore.Vendas.Application.Commands;
-using GameStore.Usuarios.Application.DTOs;
-using GameStore.Catalogo.Application.DTOs;
-using GameStore.Vendas.Application.DTOs;
-using GameStore.Usuarios.Infrastructure.Extensions;
-using GameStore.Catalogo.Infrastructure.Extensions;
-using GameStore.Vendas.Application.Extensions;
-using GameStore.Vendas.Infrastructure.Extensions;
-using TheThroneOfGames.API.Extensions;
 using TheThroneOfGames.Application;
-
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,55 +17,12 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<MainDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-// Add bounded contexts
-builder.Services.AddUsuariosContext(connectionString);
-builder.Services.AddCatalogoContext(connectionString);
-builder.Services.AddVendasApplication();
-builder.Services.AddVendasInfrastructure(builder.Configuration);
-
-// Add legacy application services (for Admin controllers)
+// Application services (Fase 2 - Monolito)
 builder.Services.AddApplicationServices();
+builder.Services.AddScoped<TheThroneOfGames.API.Services.AuthenticationService>();
 
-// Event Bus - Barramento de eventos de domínio
-builder.Services.AddEventBus(builder.Configuration);
-
-// Register event handlers for cross-context communication (only for SimpleEventBus)
-var useRabbitMq = builder.Configuration.GetValue<bool>("EventBus:UseRabbitMq", false);
-if (!useRabbitMq)
-{
-    var eventBus = new GameStore.Common.Messaging.SimpleEventBus();
-    builder.Services.AddSingleton<GameStore.Common.Events.IEventBus>(eventBus);
-
-    // Subscribe handlers to events
-    eventBus.Subscribe<GameStore.Common.Events.UsuarioAtivadoEvent>(new GameStore.Catalogo.Application.EventHandlers.UsuarioAtivadoEventHandler());
-    eventBus.Subscribe<GameStore.Common.Events.UsuarioAtivadoEvent>(new GameStore.Usuarios.Application.EventHandlers.UsuarioAtivadoEventHandler());
-    eventBus.Subscribe<GameStore.Common.Events.GameCompradoEvent>(new GameStore.Usuarios.Application.EventHandlers.GameCompradoEventHandler());
-}
-
-// Command Handlers - CQRS Pattern
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Usuarios.Application.Commands.ActivateUserCommand>, GameStore.Usuarios.Application.Handlers.ActivateUserCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Usuarios.Application.Commands.UpdateUserProfileCommand>, GameStore.Usuarios.Application.Handlers.UpdateUserProfileCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Usuarios.Application.Commands.CreateUserCommand>, GameStore.Usuarios.Application.Handlers.CreateUserCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Usuarios.Application.Commands.ChangeUserRoleCommand>, GameStore.Usuarios.Application.Handlers.ChangeUserRoleCommandHandler>();
-
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Catalogo.Application.Commands.CreateGameCommand>, GameStore.Catalogo.Application.Handlers.CreateGameCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Catalogo.Application.Commands.UpdateGameCommand>, GameStore.Catalogo.Application.Handlers.UpdateGameCommandHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.ICommandHandler<GameStore.Catalogo.Application.Commands.RemoveGameCommand>, GameStore.Catalogo.Application.Handlers.RemoveGameCommandHandler>();
-
-// Query Handlers - CQRS Pattern
-// Query Handlers - CQRS Pattern
-// NOTE: user Query types/handlers currently live under the separate folder `GameStore.Usuarios.Application` and
-// are not included in the `GameStore.Usuarios` project referenced by the API. Skip registering those handlers
-// here until those types are compiled into a referenced project. See docs/ for guidance.
-
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGameByIdQuery, GameStore.Catalogo.Application.DTOs.GameDTO?>, GameStore.Catalogo.Application.Queries.GetGameByIdQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGameByNameQuery, GameStore.Catalogo.Application.DTOs.GameDTO?>, GameStore.Catalogo.Application.Queries.GetGameByNameQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetAllGamesQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetAllGamesQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGamesByGenreQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetGamesByGenreQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetAvailableGamesQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetAvailableGamesQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.GetGamesByPriceRangeQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.GetGamesByPriceRangeQueryHandler>();
-builder.Services.AddScoped<GameStore.CQRS.Abstractions.IQueryHandler<GameStore.Catalogo.Application.Queries.SearchGamesQuery, IEnumerable<GameStore.Catalogo.Application.DTOs.GameDTO>>, GameStore.Catalogo.Application.Queries.SearchGamesQueryHandler>();
-
+// Event Bus - Barramento de eventos de domínio (in-memory, monolito)
+builder.Services.AddSingleton<IEventBus, SimpleEventBus>();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -161,10 +99,19 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
+// Aplica as migrations pendentes automaticamente no startup (necessário para
+// `docker-compose up` funcionar em um ambiente limpo, sem passo manual de `dotnet ef database update`)
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MainDbContext>();
+    dbContext.Database.Migrate();
+}
+
 // Configure o pipeline HTTP para usar Swagger
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger(); 
+    app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "TheThroneOfGames API v1"));
 }
 
@@ -173,13 +120,15 @@ app.UseHttpsRedirection();
 // Global exception handling middleware
 app.UseMiddleware<TheThroneOfGames.API.Middleware.ExceptionMiddleware>();
 
+// Métricas Prometheus (scrape em /metrics, ver monitoring/prometheus.yml)
+app.UseHttpMetrics();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers(); // Garante que os controllers sejam mapeados
+app.MapMetrics(); // Expõe /metrics para o Prometheus
 
 app.Run(); // Mantém a aplicação rodando
 
 public partial class Program { }
-
-

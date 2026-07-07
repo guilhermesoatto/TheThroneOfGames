@@ -1,0 +1,25 @@
+{
+  "$schema": "prd-v1",
+  "aggregate": "MonolithToMicroservices",
+  "boundedContext": "platform",
+  "createdAt": "2026-07-04T18:00:00Z",
+  "currentPhase": "1-domain",
+  "description": "PoC de Injeção de Governança e Migração Acadêmica.",
+  "tasks": [
+    {
+      "id": "1",
+      "phase": "1-domain",
+      "description": "Validar injeção do validador de PRD.",
+      "status": "pending",
+      "passes": false,
+      "testCommand": "node tools/validate-prd.js docs/ai/tasks/prd-sprint-00-migration.json",
+      "artifacts": [
+        "tools/validate-prd.js",
+        "docs/ai/tasks/prd-sprint-00-migration.json"
+      ]
+    }
+  ],
+  "acceptanceCriteria": {
+    "fiapObjectives": "Garantir a rastreabilidade das fases acadêmicas através da validação mecânica de artefatos."
+  }
+}

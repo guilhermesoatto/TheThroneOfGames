@@ -8,16 +8,15 @@ COPY ["TheThroneOfGames.API/TheThroneOfGames.API.csproj", "TheThroneOfGames.API/
 COPY ["TheThroneOfGames.Application/TheThroneOfGames.Application.csproj", "TheThroneOfGames.Application/"]
 COPY ["TheThroneOfGames.Domain/TheThroneOfGames.Domain.csproj", "TheThroneOfGames.Domain/"]
 COPY ["TheThroneOfGames.Infrastructure/TheThroneOfGames.Infrastructure.csproj", "TheThroneOfGames.Infrastructure/"]
-COPY ["GameStore.Usuarios/GameStore.Usuarios.csproj", "GameStore.Usuarios/"]
-COPY ["GameStore.Catalogo/GameStore.Catalogo.csproj", "GameStore.Catalogo/"]
-COPY ["GameStore.Vendas/GameStore.Vendas.csproj", "GameStore.Vendas/"]
-COPY ["GameStore.CQRS.Abstractions/GameStore.CQRS.Abstractions.csproj", "GameStore.CQRS.Abstractions/"]
 
 # Restore dependencies
 RUN dotnet restore "TheThroneOfGames.API/TheThroneOfGames.API.csproj"
 
 # Copy source code
-COPY . .
+COPY TheThroneOfGames.API/ TheThroneOfGames.API/
+COPY TheThroneOfGames.Application/ TheThroneOfGames.Application/
+COPY TheThroneOfGames.Domain/ TheThroneOfGames.Domain/
+COPY TheThroneOfGames.Infrastructure/ TheThroneOfGames.Infrastructure/
 
 # Build
 WORKDIR "/src/TheThroneOfGames.API"

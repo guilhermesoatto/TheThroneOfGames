@@ -5,6 +5,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 
 namespace TheThroneOfGames.API.Services;
@@ -56,5 +57,10 @@ public class AuthenticationService
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public async Task<Usuario?> GetUserByEmailAsync(string email)
+    {
+        return await _userRepository.GetByEmailAsync(email);
     }
 }

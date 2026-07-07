@@ -1,9 +1,9 @@
-# [WORKFLOW: BUSINESS-TO-CODE (C# / .NET 10)]
+# [WORKFLOW: BUSINESS-TO-CODE (TypeScript / Node.js)]
 
-**Gatilho:** Acionado SEMPRE que o usuário fornecer um requisito em linguagem de negócio (ex: "Preciso gerenciar pontos de fidelidade", "Quero que o sistema notifique clientes inativos"). Este workflow DEVE ser concluído ANTES de qualquer scaffold de código C#.
+**Gatilho:** Acionado SEMPRE que o usuário fornecer um requisito em linguagem de negócio (ex: "Preciso gerenciar pontos de fidelidade", "Quero que o sistema notifique clientes inativos"). Este workflow DEVE ser concluído ANTES de qualquer scaffold de código.
 
 ## A FILOSOFIA
-O código fala a língua do negócio. Nenhum nome de classe, método, propriedade ou evento deve ser gerado sem primeiro validar que o termo existe e é aprovado no glossário do projeto (`docs/ai/knowledge/ubiquitous-language.md`). O agente atua como tradutor entre linguagem de negócio e código — não como inventor de nomes.
+O código fala a língua do negócio. Nenhum nome de classe, método, variável ou evento deve ser gerado sem primeiro validar que o termo existe e é aprovado no glossário do projeto (`docs/ai/knowledge/ubiquitous-language.md`). O agente atua como tradutor entre linguagem de negócio e código — não como inventor de nomes.
 
 ---
 
@@ -37,27 +37,20 @@ Com base no requisito e nos resultados do ChromaDB, extraia os conceitos de neg�
 
 **Bounded Context:** [Nome do contexto — validar com ubiquitous-language.md]
 **Aggregate Root:** [Nome da entidade central — validar com glossário]
-**Namespace .NET sugerido:** `[BoundedContext].[AggregateName]`
 
 **Value Objects identificados:**
-- `[VO1]` — [descrição curta, regras de validação, tipo C# sugerido: record/readonly struct]
+- `[VO1]` — [descrição curta, regras de validação]
 - `[VO2]` — [descrição curta]
 
 **Use Cases (ações de negócio):**
-- `[UseCase1UseCase]` — [ator, pré-condição, retorno: `Result<T>`]
-- `[UseCase2UseCase]` — [ator, pré-condição, retorno]
+- `[UseCase1]` — [ator que executa, pré-condição, resultado]
+- `[UseCase2]` — [ator que executa, pré-condição, resultado]
 
 **Eventos de Domínio emitidos:**
-- `[AggregateName][Event]Event : DomainEvent` — [quando, quem consome via MassTransit, payload]
+- `[EventName]` — [quando, quem consome, payload]
 
 **Design Patterns identificados (via ChromaDB):**
 - [Pattern name] — [motivo: "a regra X varia conforme Y"]
-
-**Estrutura de projetos .NET:**
-- `[AggregateName].Domain` — sem PackageReference
-- `[AggregateName].Application` — ref Domain
-- `[AggregateName].Infrastructure` — EF Core, MassTransit, StackExchange.Redis
-- `[AggregateName].WebApi` — ASP.NET Core
 
 **Termos validados no glossário:** ✅ / ❌ Pendente validação
 ```
@@ -68,44 +61,63 @@ Com base no requisito e nos resultados do ChromaDB, extraia os conceitos de neg�
 
 **PARAR.** Apresente o template da Fase 1 ao Domain Expert e aguarde:
 
-1. **Confirmação ou correção** dos nomes de Aggregate, Value Objects (record vs readonly struct) e Use Cases.
-2. **Aprovação** do Bounded Context e do namespace .NET correspondente.
-3. **Clarificação** de regras de negócio ambíguas (RNs não documentadas).
+1. **Confirmação ou correção** dos nomes de Aggregate, Value Objects e Use Cases.
+2. **Aprovação** do Bounded Context em que a feature pertence.
+3. **Clarificação** de quaisquer regras de negócio ambíguas (RNs não documentadas).
 4. **Adição ao glossário** se algum termo novo foi proposto: pedir ao Domain Expert que atualize `docs/ai/knowledge/ubiquitous-language.md`.
 
-> **Regra:** O agente NÃO avança para a Fase 3 sem a aprovação explícita do Domain Expert.
+> **Regra:** O agente NÃO avança para a Fase 3 sem a aprovação explícita do Domain Expert. Não implemente premissas de negócio.
 
 ---
 
 ## FASE 3: GERAÇÃO DO PRD
 
-Após validação, gere o arquivo `docs/ai/tasks/prd-[nome-do-aggregate].json` seguindo o schema definido em `dotnet/docs/ai/workflows/new-aggregate.md §FASE 1.5`.
+Após validação, gere o arquivo `docs/ai/tasks/prd-[nome-do-aggregate].json` seguindo o schema definido em `docs/ai/workflows/new-aggregate.md §FASE 1.5`.
 
 O PRD deve incluir:
-- `aggregate`: nome validado (PascalCase)
+- `aggregate`: nome validado pelo Domain Expert
 - `boundedContext`: contexto validado
-- `tasks`: micro-tarefas na ordem DDD — Value Objects xUnit → Entities xUnit → Ports → Use Cases NSubstitute → Infrastructure Testcontainers
-- `acceptanceCriteria`: baseado nas regras de negócio validadas
+- `tasks`: lista completa das micro-tarefas (Domain → Use Cases → Adapters), cada uma com `testCommand`
+- `acceptanceCriteria`: preenchido com base nas regras de negócio validadas
 
-### Ordens obrigatórias de criação em .NET:
+### 3.1 — Salvar Cenários BDD (obrigatório se Gherkin for validado)
+
+Se durante a Fase 2 o Domain Expert validou critérios de aceite em linguagem Gherkin, salve os cenários antes de iniciar o scaffold:
+
+```bash
+# Criar (ou atualizar) o arquivo de feature do Aggregate
+docs/ai/knowledge/bdd/[nome-do-aggregate].feature
 ```
-[1] Domain.Tests/[VO]Tests.cs — xUnit + FluentAssertions
-[2] Domain/[VO].cs — record com factory método retornando Result<T>
-[3] Domain.Tests/[Aggregate]Tests.cs
-[4] Domain/[Aggregate].cs — com métodos de negócio
-[5] Application/Ports/I[Aggregate]Repository.cs — CancellationToken em todo método
-[6] Application/UseCases/[Action]UseCase.cs
-[7] Application.Tests/[Action]UseCaseTests.cs — NSubstitute
-[8] Infrastructure/EfCore[Aggregate]Repository.cs
-[9] Integration.Tests/[Aggregate]IntegrationTests.cs — Testcontainers.NET
-[10] WebApi/Controllers/[Aggregate]Controller.cs
+
+Formato obrigatório:
+```gherkin
+# [NomeDoAggregate] — Cenários de Aceite
+# Gerado em: <data ISO 8601>
+# Bounded Context: <contexto>
+
+Feature: <nome do Aggregate em linguagem de negócio>
+
+  Scenario: <critério de aceite 1 validado pelo Domain Expert>
+    Given <pré-condição>
+    When  <ação de negócio>
+    Then  <resultado esperado>
+
+  Scenario: <critério de aceite 2>
+    ...
 ```
+
+Após salvar, re-embeda a coleção BDD no ChromaDB:
+```bash
+python tools/embed-knowledge.py --collection bdd
+```
+
+> **Por quê?** Os cenários Gherkin ficam disponíveis para consulta semântica via `python tools/query-knowledge.py "<query>" --collection bdd`, permitindo que o agente verifique cobertura de cenários em sessões futuras sem precisar reler o histórico da conversa.
 
 ---
 
 ## FASE 4: EXECUÇÃO (Delegar ao new-aggregate.md)
 
-Com o PRD gerado e validado, inicie o workflow `dotnet/docs/ai/workflows/new-aggregate.md` na **Fase 2** (Loop de Execução).
+Com o PRD gerado e validado, inicie o workflow `docs/ai/workflows/new-aggregate.md` na **Fase 2** (Loop de Execução).
 
 O agente lê o `prd.json` como única fonte de verdade — não o histórico da conversa.
 
@@ -114,10 +126,8 @@ O agente lê o `prd.json` como única fonte de verdade — não o histórico da 
 ## CHECKLIST DO AGENTE (antes de codificar)
 
 - [ ] ChromaDB consultado para o requisito
-- [ ] Todos os nomes C# propostos existem no glossário ou foram aprovados pelo Domain Expert
-- [ ] Nenhum sinônimo proibido usado (validar `ubiquitous-language.md`)
+- [ ] Todos os nomes propostos existem no glossário ou foram aprovados pelo Domain Expert
+- [ ] Nenhum sinônimo proibido usado (validar coluna "Proibido" em `ubiquitous-language.md`)
 - [ ] Design Pattern identificado tem relevância ≥ 80% ou foi explicitamente aprovado
-- [ ] `prd.json` criado com tasks em ordem DDD estrita
-- [ ] Projeto Domain.csproj sem `<PackageReference>` — apenas BCL nativo
-- [ ] `Directory.Build.props` com `TreatWarningsAsErrors=true`
-- [ ] Regras de negócio ambíguas resolvidas antes de qualquer classe C#
+- [ ] `prd.json` criado e validado antes de qualquer linha de código TypeScript
+- [ ] Regras de negócio ambíguas resolvidas com o Domain Expert
