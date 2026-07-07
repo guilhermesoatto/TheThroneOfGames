@@ -30,6 +30,11 @@ RUN dotnet publish "TheThroneOfGames.API.csproj" -c Release -o /app/publish /p:U
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
+# curl é exigido pelo HEALTHCHECK abaixo — a imagem base não o inclui por padrão, então sem
+# isso o healthcheck falha sempre (reporta "unhealthy" mesmo com a API respondendo normalmente).
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 
