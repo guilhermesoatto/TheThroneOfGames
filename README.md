@@ -77,6 +77,15 @@ O relatório de execução completo, incluindo cobertura de código, está em [d
 
 > Requer Docker Desktop rodando — o projeto `Infrastructure.Tests` sobe um container SQL Server real via Testcontainers para cada execução.
 
+## Gravação do vídeo de demonstração
+
+[`tools/record-delivery.js`](tools/record-delivery.js) (Playwright) automatiza a navegação pelo Swagger da API (executando um `POST /api/usuario/pre-register` real) e pelo Grafana/Prometheus, gravando em `docs/videos/FCG_ENTREGA_FASE_2.mp4`. Pressupõe a stack já rodando (`docker-compose up --build`, ver acima).
+
+```sh
+cd tools && npm install && npm run playwright:install
+node record-delivery.js
+```
+
 ## Endpoints Principais
 
 Com a API rodando, acesse `http://localhost:5000/swagger` para a documentação interativa.
