@@ -1,0 +1,48 @@
+# Azurite — emulador de Azure Storage exigido pelo runtime do Azure Functions
+# (AzureWebJobsStorage) para o host de Functions containerizado. Mesmo papel que
+# em docker-compose.yml — não é infra de produção real, é o storage account que o
+# Functions host precisa para coordenação interna (locks, triggers).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azurite
+  namespace: gamestore
+  labels:
+    app: azurite
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: azurite
+  template:
+    metadata:
+      labels:
+        app: azurite
+    spec:
+      containers:
+        - name: azurite
+          image: mcr.microsoft.com/azure-storage/azurite:latest
+          ports:
+            - containerPort: 10000
+              name: blob
+            - containerPort: 10001
+              name: queue
+            - containerPort: 10002
+              name: table
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            tcpSocket:
+              port: 10000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 10000
+            initialDelaySeconds: 15
+            periodSeconds: 20

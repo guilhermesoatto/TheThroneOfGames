@@ -1,0 +1,24 @@
+# Nome "jaeger" propositalmente igual ao valor de OTEL_EXPORTER_OTLP_ENDPOINT em
+# k8s/configmaps/configmap.yaml (http://jaeger:4317) — DNS interno do cluster resolve
+# direto pelo nome do Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: gamestore
+  labels:
+    app: jaeger
+spec:
+  selector:
+    app: jaeger
+  ports:
+    - name: ui
+      port: 16686
+      targetPort: 16686
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+  type: ClusterIP

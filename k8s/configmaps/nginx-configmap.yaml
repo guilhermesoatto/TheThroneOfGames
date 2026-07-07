@@ -1,0 +1,95 @@
+# Espelha api-gateway/nginx.conf (fonte da verdade) como ConfigMap, montado em
+# /etc/nginx/nginx.conf pelo Deployment do API Gateway — mesmo arquivo usado pelo
+# bind mount em docker-compose.yml. Se api-gateway/nginx.conf mudar, atualize este
+# ConfigMap junto (não há geração automática neste repositório).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-nginx-config
+  namespace: gamestore
+data:
+  nginx.conf: |
+    worker_processes 1;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        # Rate limiting básico — protege os 3 microsserviços de abuso via o único ponto de entrada.
+        limit_req_zone $binary_remote_addr zone=api_gateway:10m rate=20r/s;
+
+        server {
+            listen 80;
+
+            # livenessProbe/readinessProbe do Kubernetes (k8s/deployments/api-gateway-deployment.yaml)
+            # — responde 200 sem depender de nenhum backend, só confirma que o nginx está de pé.
+            location /healthz {
+                access_log off;
+                default_type text/plain;
+                return 200 'ok';
+            }
+
+            # Bloqueia acesso direto sem passar pelo Gateway a rotas administrativas sensíveis
+            # sem cabeçalho de autorização (a validação real do JWT continua em cada microsserviço).
+            location /api/usuario/ {
+                limit_req zone=api_gateway burst=40 nodelay;
+                proxy_pass http://usuarios-api:80/api/usuario/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            }
+
+            location /api/admin/user-management/ {
+                limit_req zone=api_gateway burst=40 nodelay;
+                proxy_pass http://usuarios-api:80/api/admin/user-management/;
+                proxy_set_header Host $host;
+                proxy_set_header Authorization $http_authorization;
+            }
+
+            location /api/game/ {
+                limit_req zone=api_gateway burst=40 nodelay;
+                proxy_pass http://catalogo-api:80/api/game/;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+            }
+
+            location /api/admin/game/ {
+                limit_req zone=api_gateway burst=40 nodelay;
+                proxy_pass http://catalogo-api:80/api/admin/game/;
+                proxy_set_header Host $host;
+                proxy_set_header Authorization $http_authorization;
+            }
+
+            location /api/admin/promotion/ {
+                limit_req zone=api_gateway burst=40 nodelay;
+                proxy_pass http://catalogo-api:80/api/admin/promotion/;
+                proxy_set_header Host $host;
+                proxy_set_header Authorization $http_authorization;
+            }
+
+            location /api/pedidos/ {
+                limit_req zone=api_gateway burst=40 nodelay;
+                proxy_pass http://vendas-api:80/api/pedidos/;
+                proxy_set_header Host $host;
+                proxy_set_header Authorization $http_authorization;
+            }
+
+            location /health/usuarios {
+                proxy_pass http://usuarios-api:80/health;
+            }
+
+            location /health/catalogo {
+                proxy_pass http://catalogo-api:80/health;
+            }
+
+            location /health/vendas {
+                proxy_pass http://vendas-api:80/health;
+            }
+
+            location / {
+                return 404 '{"error": "Rota não exposta pelo API Gateway"}';
+                default_type application/json;
+            }
+        }
+    }

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vendas-api
+  namespace: gamestore
+  labels:
+    app: vendas-api
+spec:
+  selector:
+    app: vendas-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+    - name: metrics
+      port: 9093
+      targetPort: 9093
+  type: ClusterIP

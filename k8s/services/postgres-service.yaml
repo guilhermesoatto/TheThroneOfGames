@@ -1,0 +1,17 @@
+# Nome "postgresql-service" propositalmente igual ao host já usado como default em
+# ConnectionStrings:DefaultConnection nos appsettings.json das 3 APIs — evita precisar
+# sobrescrever a connection string inteira só por causa do nome do Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql-service
+  namespace: gamestore
+  labels:
+    app: postgres
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  type: ClusterIP

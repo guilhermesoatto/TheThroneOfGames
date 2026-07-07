@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: notifications-functions
+  namespace: gamestore
+  labels:
+    app: notifications-functions
+spec:
+  selector:
+    app: notifications-functions
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

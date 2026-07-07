@@ -1,0 +1,33 @@
+# Ponto de entrada externo único do cluster — toda rota pública passa por aqui e
+# depois pelo API Gateway (nginx), nunca direto em um microsserviço.
+#
+# Pressupõe um Ingress Controller (ex.: ingress-nginx) e o cert-manager instalados no
+# cluster para provisionar automaticamente o certificado TLS via Let's Encrypt a
+# partir da anotação cert-manager.io/cluster-issuer. Ajuste `gamestore.example.com`
+# para o domínio real usado na demonstração em vídeo.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gamestore-ingress
+  namespace: gamestore
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - gamestore.example.com
+      secretName: gamestore-tls
+  rules:
+    - host: gamestore.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: api-gateway
+                port:
+                  number: 80

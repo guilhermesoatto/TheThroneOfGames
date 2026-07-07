@@ -1,0 +1,89 @@
+# PostgreSQL — banco único compartilhado pelos 3 bounded contexts (UsuariosDbContext,
+# CatalogoDbContext, VendasDbContext), cada um com seu próprio schema/tabelas — mesma
+# topologia física já usada em docker-compose.yml (container "mssql"), apenas
+# reempacotada como Deployment+PVC. Nenhum microsserviço acessa o DbContext de outro.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: gamestore
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: gamestore
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  # Evita dois pods montando o mesmo PVC ReadWriteOnce simultaneamente durante o rollout.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          # max_connections=100 (default) esgota rápido quando o HPA escala as 3 APIs para
+          # várias réplicas simultâneas, cada uma mantendo seu próprio pool Npgsql — visto na
+          # prática durante o teste de carga (T05): "sorry, too many clients already" com o
+          # cluster escalado para 6+4+3 réplicas. 300 dá margem sem estourar o limite de
+          # memória do container (cada conexão ociosa custa poucos MB).
+          args: ["-c", "max_connections=300"]
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - configMapRef:
+                name: gamestore-config
+            - secretRef:
+                name: gamestore-secrets
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: gamestore-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gamestore-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          # Sem HTTP nativo no Postgres — tcpSocket é o probe nativo do Kubernetes
+          # para protocolos não-HTTP (não depende de pg_isready/curl dentro da imagem).
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc

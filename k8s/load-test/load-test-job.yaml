@@ -1,0 +1,58 @@
+# Job de carga usado para validar o HorizontalPodAutoscaler (T05) das 3 APIs contra um cluster
+# real (kind local ou gerenciado). NÃO faz parte do deploy de produção — é uma ferramenta de
+# validação, mantida separada em k8s/load-test/ para não ser aplicada por engano com
+# `kubectl apply -f k8s/` recursivo dos demais diretórios.
+#
+# Uso:
+#   kubectl apply -f k8s/load-test/load-test-job.yaml
+#   kubectl get hpa -n gamestore -w          # observar TARGETS e REPLICAS subindo
+#   kubectl get pods -n gamestore -w         # observar novos pods sendo criados
+#   kubectl delete job load-test -n gamestore  # remover depois do teste
+#
+# Gera tráfego concorrente sustentado contra usuarios-api, catalogo-api e vendas-api
+# (via Service ClusterIP, de dentro do cluster) por DURATION segundos, para ultrapassar o
+# target de 70% de CPU configurado em k8s/hpa/ e disparar o scale-up.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: load-test
+  namespace: gamestore
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: load-test
+          image: busybox:1.36
+          command: ["sh", "-c"]
+          args:
+            - |
+              DURATION=300
+              WORKERS=40
+              END=$(( $(date +%s) + DURATION ))
+              echo "Gerando carga por ${DURATION}s (${WORKERS} workers por API) contra usuarios-api, catalogo-api e vendas-api..."
+
+              spawn() {
+                target="$1"
+                path="$2"
+                i=0
+                while [ "$i" -lt "$WORKERS" ]; do
+                  ( while [ "$(date +%s)" -lt "$END" ]; do wget -q -O /dev/null "http://${target}${path}"; done ) &
+                  i=$((i + 1))
+                done
+              }
+
+              spawn usuarios-api /health
+              spawn catalogo-api /api/game/
+              spawn vendas-api /health
+
+              wait
+              echo "Carga finalizada."
+          resources:
+            requests:
+              cpu: 500m
+              memory: 128Mi
+            limits:
+              cpu: "2"
+              memory: 256Mi

@@ -1,0 +1,60 @@
+# GameStore.Notifications.Functions — Serverless (Azure Functions, isolated worker)
+# consumindo PedidoFinalizadoEvent via [RabbitMQTrigger]. Imagem construída a partir
+# de GameStore.Notifications.Functions/Dockerfile — sem variante Alpine disponível
+# para a imagem oficial azure-functions/dotnet-isolated (ver comentário no Dockerfile),
+# hardening non-root aplicado do mesmo jeito que nas 3 APIs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notifications-functions
+  namespace: gamestore
+  labels:
+    app: notifications-functions
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notifications-functions
+  template:
+    metadata:
+      labels:
+        app: notifications-functions
+    spec:
+      containers:
+        - name: notifications-functions
+          image: gamestore/notifications-functions:latest
+          imagePullPolicy: IfNotPresent
+          # A imagem roda como appuser (non-root) e o host de Functions escuta na porta 80 —
+          # setcap no binário (ver Dockerfile) cobre o Effective set; NET_BIND_SERVICE no
+          # bounding set do container também precisa vir daqui, já que o containerd/CRI do
+          # Kubernetes não concede essa capability por padrão (diferente do Docker Engine).
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+          ports:
+            - containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: gamestore-config
+            - secretRef:
+                name: gamestore-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # O host de Functions expõe endpoints administrativos protegidos por chave;
+          # tcpSocket (nativo do Kubernetes) evita depender de curl/wget ou de uma
+          # function key só para o probe.
+          readinessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 20

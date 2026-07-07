@@ -142,6 +142,10 @@ services:
       context: .
       dockerfile: GameStore.Usuarios.API/Dockerfile
     container_name: usuarios-api
+    # A imagem roda como appuser (non-root, ver Dockerfile) mas o Kestrel escuta na porta 80 —
+    # no Linux, non-root não pode fazer bind em portas <1024 sem esta capability.
+    cap_add:
+      - NET_BIND_SERVICE
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORT: 80
@@ -170,7 +174,8 @@ services:
     networks:
       - thethroneofgames-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      # wget (busybox) em vez de curl — a imagem Alpine otimizada (T02) não inclui curl.
+      test: [ "CMD", "wget", "-q", "-O-", "http://localhost/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -182,6 +187,10 @@ services:
       context: .
       dockerfile: GameStore.Catalogo.API/Dockerfile
     container_name: catalogo-api
+    # A imagem roda como appuser (non-root, ver Dockerfile) mas o Kestrel escuta na porta 80 —
+    # no Linux, non-root não pode fazer bind em portas <1024 sem esta capability.
+    cap_add:
+      - NET_BIND_SERVICE
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORT: 80
@@ -207,7 +216,8 @@ services:
     networks:
       - thethroneofgames-network
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      # wget (busybox) em vez de curl — a imagem Alpine otimizada (T02) não inclui curl.
+      test: [ "CMD", "wget", "-q", "-O-", "http://localhost/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -218,6 +228,10 @@ services:
       context: .
       dockerfile: GameStore.Vendas.API/Dockerfile
     container_name: vendas-api
+    # A imagem roda como appuser (non-root, ver Dockerfile) mas o Kestrel escuta na porta 80 —
+    # no Linux, non-root não pode fazer bind em portas <1024 sem esta capability.
+    cap_add:
+      - NET_BIND_SERVICE
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORT: 80
@@ -244,7 +258,8 @@ services:
       jaeger:
         condition: service_started
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      # wget (busybox) em vez de curl — a imagem Alpine otimizada (T02) não inclui curl.
+      test: [ "CMD", "wget", "-q", "-O-", "http://localhost/health" ]
       interval: 10s
       timeout: 5s
       retries: 5

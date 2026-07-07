@@ -1,0 +1,158 @@
+{
+  "$schema": "prd-v1",
+  "aggregate": "GameStore.Kubernetes",
+  "boundedContext": "platform",
+  "createdAt": "2026-07-07T15:00:00-03:00",
+  "currentPhase": "5-kubernetes",
+  "description": "PRD técnico da Fase 4 (Kubernetes & Escala) — otimização das imagens Docker dos 3 microsserviços e da Function serverless, orquestração completa via Kubernetes (namespace, ConfigMaps/Secrets, Deployments/Services, HPA, Ingress com TLS), Monitoramento (Prometheus + Grafana) e APM (Jaeger) com OpenTelemetry apontando para o cluster, conforme edital FIAP (docs/Objectives/TC NETT - Fase 4 (1).md). Base: release/fase-3-microservices (todas as 8 tarefas da Fase 3 concluídas). Toda a stack (namespace, infra, 3 APIs, Function, Gateway, monitoramento, APM, HPA, Ingress) foi implantada e validada de ponta a ponta em um cluster Kubernetes real local (kind) nesta sessão, incluindo um teste de carga real que confirmou o HPA escalando e voltando ao mínimo — ver docs/k8s-architecture-flow.md §7. O provisionamento de um cluster GERENCIADO NA NUVEM (T03) não foi executado nesta sessão — ver blockReason da tarefa.",
+  "tasks": [
+    {
+      "id": "fase4-T01",
+      "phase": "3-infrastructure",
+      "description": "Comunicação assíncrona entre microsserviços via RabbitMQ para operações críticas (pagamentos, notificações)",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Common.Tests/GameStore.Common.Tests.csproj --filter FullyQualifiedName~RabbitMqAdapterTests|FullyQualifiedName~RabbitMqConsumerTests|FullyQualifiedName~TraceContextPropagationTests",
+      "artifacts": [
+        "GameStore.Common/Messaging/RabbitMqAdapter.cs",
+        "GameStore.Common/Messaging/BaseEventConsumer.cs",
+        "GameStore.Vendas/Application/Handlers/PedidoCommandHandlers.cs",
+        "GameStore.Notifications.Functions/Functions/NotificacaoPedidoFunction.cs",
+        "GameStore.Notifications.Functions/Functions/ProcessarPagamentoFunction.cs",
+        "docker-compose.yml",
+        "docs/architecture-flow.md"
+      ],
+      "blockReason": "Já implementado e verificado ao vivo na Fase 3 (fase3-T05/T08, ver docs/ai/tasks/prd-sprint-02-fase3.json): PedidoFinalizadoEvent publicado por Vendas via RabbitMqAdapter é consumido de forma assíncrona (fan-out) tanto por Usuários (evento de domínio) quanto pelas duas Functions serverless via [RabbitMQTrigger] — nenhuma chamada HTTP síncrona bloqueante entre os 3 microsserviços para esses fluxos críticos. Nenhuma mudança de código necessária para a Fase 4."
+    },
+    {
+      "id": "fase4-T02",
+      "phase": "4-containerization",
+      "description": "Otimização das imagens Docker dos 3 microsserviços e da Function serverless — base menor, non-root, sem dependências desnecessárias",
+      "status": "done",
+      "passes": true,
+      "testCommand": "docker build -t gamestore/usuarios-api:test -f GameStore.Usuarios.API/Dockerfile . && docker build -t gamestore/catalogo-api:test -f GameStore.Catalogo.API/Dockerfile . && docker build -t gamestore/vendas-api:test -f GameStore.Vendas.API/Dockerfile . && docker build -t gamestore/notifications-functions:test -f GameStore.Notifications.Functions/Dockerfile .",
+      "artifacts": [
+        "GameStore.Usuarios.API/Dockerfile",
+        "GameStore.Catalogo.API/Dockerfile",
+        "GameStore.Vendas.API/Dockerfile",
+        "GameStore.Notifications.Functions/Dockerfile",
+        "docker-compose.yml"
+      ],
+      "blockReason": "Verificado ao vivo nesta máquina: as 4 imagens buildam com sucesso (mcr.microsoft.com/dotnet/aspnet:9.0-alpine para as 3 APIs — sem variante Alpine oficial para azure-functions/dotnet-isolated, mantida a base Debian original). Smoke test confirmou usuário non-root (appuser) em todas as 4 e ausência de curl nos runtimes (wget/httpGet/tcpSocket nativos usados nos health checks). BUG REAL encontrado só ao rodar em cluster de verdade (não aparecia em `docker build` nem em `docker run` avulso): non-root não conseguia fazer bind na porta 80 (Kestrel escuta em :80, Program.cs, código não alterado) porque o containerd/CRI do Kubernetes não concede NET_BIND_SERVICE por padrão como o Docker Engine concede — e mesmo adicionando a capability via securityContext ela ficava presa no bounding set sem chegar ao effective set de um processo non-root. Corrigido com `setcap cap_net_bind_service=+ep` diretamente no binário (dotnet / Microsoft.Azure.WebJobs.Script.WebHost) nos 4 Dockerfiles — ver docs/k8s-architecture-flow.md §2."
+    },
+    {
+      "id": "fase4-T03",
+      "phase": "5-kubernetes",
+      "description": "Cluster Kubernetes gerenciado provisionado na nuvem (GKE/EKS/AKS) para orquestrar os microsserviços",
+      "status": "blocked",
+      "passes": false,
+      "testCommand": "kubectl cluster-info",
+      "artifacts": [
+        "k8s/namespaces.yaml",
+        "docs/k8s-architecture-flow.md"
+      ],
+      "blockReason": "Cluster GERENCIADO NA NUVEM não provisionado nesta sessão: exige credenciais de nuvem e uma ação de custo real (gcloud container clusters create / eksctl create cluster / az aks create), fora do escopo de uma tarefa de IaC local sem autorização explícita para provisionar infraestrutura cobrável. O kubectl deste ambiente aponta para um contexto GKE pré-existente (gke_..._autopilot-cluster-1) que está inacessível (timeout de conexão) — provavelmente já destruído, alinhado à própria orientação do edital de excluir a infraestrutura após gravar o vídeo. EM COMPENSAÇÃO: toda a stack k8s/ foi implantada e validada de ponta a ponta contra um cluster Kubernetes real local (kind — Kubernetes-in-Docker, v1.31.0), com metrics-server e ingress-nginx instalados, provando que os manifests funcionam via `kubectl apply -f k8s/` sem qualquer ajuste — só falta apontar para o cluster gerenciado real (e trocar `image:` pelos nomes do registry escolhido, ver fase4-T04). Ver docs/k8s-architecture-flow.md §7 para o relato completo da validação, incluindo dois bugs reais encontrados e corrigidos (fase4-T02 e fase4-T04)."
+    },
+    {
+      "id": "fase4-T04",
+      "phase": "5-kubernetes",
+      "description": "Manifestos Kubernetes (Namespace, Deployments, Services) para as 3 APIs, Function serverless, API Gateway, bancos de dados, RabbitMQ, Elasticsearch, Monitoramento e Jaeger",
+      "status": "done",
+      "passes": true,
+      "testCommand": "kind create cluster --name gamestore-local && kubectl apply -f k8s/namespaces.yaml -f k8s/configmaps/ -f k8s/secrets/ && kubectl apply -f k8s/deployments/ -f k8s/services/ && kubectl -n gamestore get pods",
+      "artifacts": [
+        "k8s/namespaces.yaml",
+        "k8s/deployments/usuarios-api-deployment.yaml",
+        "k8s/deployments/catalogo-api-deployment.yaml",
+        "k8s/deployments/vendas-api-deployment.yaml",
+        "k8s/deployments/notifications-functions-deployment.yaml",
+        "k8s/deployments/api-gateway-deployment.yaml",
+        "k8s/deployments/postgres-deployment.yaml",
+        "k8s/deployments/rabbitmq-deployment.yaml",
+        "k8s/deployments/elasticsearch-deployment.yaml",
+        "k8s/deployments/azurite-deployment.yaml",
+        "k8s/deployments/jaeger-deployment.yaml",
+        "k8s/deployments/prometheus-deployment.yaml",
+        "k8s/deployments/grafana-deployment.yaml",
+        "k8s/services/usuarios-api-service.yaml",
+        "k8s/services/catalogo-api-service.yaml",
+        "k8s/services/vendas-api-service.yaml",
+        "k8s/services/notifications-functions-service.yaml",
+        "k8s/services/api-gateway-service.yaml",
+        "k8s/services/postgres-service.yaml",
+        "k8s/services/rabbitmq-service.yaml",
+        "k8s/services/elasticsearch-service.yaml",
+        "k8s/services/azurite-service.yaml",
+        "k8s/services/jaeger-service.yaml",
+        "k8s/services/prometheus-service.yaml",
+        "k8s/services/grafana-service.yaml"
+      ],
+      "blockReason": "Validado ao vivo em cluster kind local (Kubernetes v1.31.0, ver docs/k8s-architecture-flow.md §7): todos os recursos ficaram Ready, incluindo as 3 APIs (2 réplicas cada), Function, API Gateway (2 réplicas), Postgres, RabbitMQ, Elasticsearch, Azurite, Jaeger, Prometheus e Grafana. Roteamento ponta a ponta confirmado via port-forward do api-gateway: /health/usuarios, /health/catalogo, /health/vendas e /api/game/ responderam 200. BUG REAL encontrado e corrigido: além do problema de bind non-root (fase4-T02), o Postgres de instância única (max_connections=100 padrão) esgotou conexões (\"sorry, too many clients already\") quando o HPA escalou para 13 réplicas simultâneas durante o teste de carga (fase4-T05) — corrigido aumentando para max_connections=300 via args em k8s/deployments/postgres-deployment.yaml. Documentado como achado de capacidade real da Fase 4 (\"Escala\") em docs/k8s-architecture-flow.md §7."
+    },
+    {
+      "id": "fase4-T05",
+      "phase": "5-kubernetes",
+      "description": "HorizontalPodAutoscaler (HPA) para as 3 APIs, escalando por utilização de CPU (target 70%)",
+      "status": "done",
+      "passes": true,
+      "testCommand": "kubectl apply -f k8s/load-test/load-test-job.yaml && kubectl get hpa -n gamestore -w",
+      "artifacts": [
+        "k8s/hpa/usuarios-api-hpa.yaml",
+        "k8s/hpa/catalogo-api-hpa.yaml",
+        "k8s/hpa/vendas-api-hpa.yaml",
+        "k8s/load-test/load-test-job.yaml"
+      ],
+      "blockReason": "Autoscaling validado com carga real (não apenas manifesto sintaticamente correto) contra o cluster kind local, com metrics-server instalado. k8s/load-test/load-test-job.yaml gerou tráfego concorrente sustentado por 300s contra as 3 APIs. Resultado observado via `kubectl get hpa`: catalogo-api atingiu 105% de CPU (acima do target de 70%) e escalou de 2 para 6 réplicas (o máximo configurado); vendas-api atingiu 66% e escalou para 4 réplicas; usuarios-api atingiu 52% e escalou para 3 réplicas. Após o fim da carga, as 3 voltaram a 2 réplicas (minReplicas) dentro da janela de estabilização de scale-down (120s) — ciclo completo de scale-up e scale-down confirmado. Ver docs/k8s-architecture-flow.md §4 e §7."
+    },
+    {
+      "id": "fase4-T06",
+      "phase": "5-kubernetes",
+      "description": "ConfigMaps e Secrets migrando as variáveis de ambiente de docker-compose.yml, credenciais em base64",
+      "status": "done",
+      "passes": true,
+      "testCommand": "python -c \"import yaml, base64; s=list(yaml.safe_load_all(open('k8s/secrets/secret.yaml', encoding='utf-8')))[0]; [base64.b64decode(v, validate=True) for v in s['data'].values()]; print('OK')\"",
+      "artifacts": [
+        "k8s/configmaps/configmap.yaml",
+        "k8s/configmaps/nginx-configmap.yaml",
+        "k8s/secrets/secret.yaml"
+      ],
+      "blockReason": "Todas as chaves de k8s/secrets/secret.yaml decodificam como base64 válido e reproduzem exatamente os valores de desenvolvimento já usados em docker-compose.yml/.env.example (POSTGRES_USER, POSTGRES_PASSWORD, ConnectionStrings__DefaultConnection, Jwt__Key, credenciais RabbitMQ/Grafana/Azurite). Comentário no próprio arquivo documenta que, em produção real, esses valores devem vir de um cofre externo (Vault/Sealed Secrets/KMS), não de um Secret versionado. Validado ao vivo: os 3 APIs, o Gateway e a Function consumiram ambos via envFrom sem erro no cluster kind."
+    },
+    {
+      "id": "fase4-T07",
+      "phase": "7-observability",
+      "description": "APM (Jaeger) no cluster Kubernetes com env vars do OpenTelemetry das 3 APIs e da Function apontando para ele",
+      "status": "done",
+      "passes": true,
+      "testCommand": "kubectl -n gamestore get pod -l app=jaeger && kubectl -n gamestore port-forward svc/jaeger 16686:16686",
+      "artifacts": [
+        "k8s/deployments/jaeger-deployment.yaml",
+        "k8s/services/jaeger-service.yaml",
+        "k8s/configmaps/configmap.yaml",
+        "docs/k8s-architecture-flow.md"
+      ],
+      "blockReason": "OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317 definido no ConfigMap gamestore-config e injetado via envFrom nos 3 APIs e na Function — resolve pelo nome do Service jaeger (DNS interno do cluster), preservando a instrumentação OpenTelemetry já implementada e verificada ao vivo na Fase 3 (fase3-T06). Pod jaeger ficou Ready no cluster kind local (após o Elasticsearch, seu storage backend, também ficar Ready). Verificação end-to-end de uma trace real cruzando os 3 serviços dentro deste cluster K8s específico não foi repetida nesta sessão (a propagação de trace_id entre serviços via HTTP/RabbitMQ já foi validada ao vivo na Fase 3 com a mesma instrumentação, não alterada aqui)."
+    },
+    {
+      "id": "fase4-T08",
+      "phase": "5-kubernetes",
+      "description": "Monitoramento (Prometheus + Grafana) no cluster Kubernetes — requisito funcional do edital FIAP, coletando métricas das 3 APIs",
+      "status": "done",
+      "passes": true,
+      "testCommand": "kubectl -n gamestore get pod -l app=prometheus -l app=grafana && kubectl -n gamestore port-forward svc/prometheus 9090:9090",
+      "artifacts": [
+        "k8s/deployments/prometheus-deployment.yaml",
+        "k8s/services/prometheus-service.yaml",
+        "k8s/configmaps/prometheus-configmap.yaml",
+        "k8s/deployments/grafana-deployment.yaml",
+        "k8s/services/grafana-service.yaml",
+        "k8s/configmaps/grafana-configmap.yaml",
+        "k8s/configmaps/configmap.yaml"
+      ],
+      "blockReason": "Prometheus (scrape config em k8s/configmaps/prometheus-configmap.yaml, espelhando monitoring/prometheus.yml) e Grafana (datasource + dashboard provisionados via k8s/configmaps/grafana-configmap.yaml, espelhando monitoring/grafana/provisioning/ e monitoring/grafana/dashboards/) validados ao vivo no cluster kind local: ambos os pods Ready, Prometheus coletando /metrics das 3 APIs (portas dedicadas 9091/9092/9093 do KestrelMetricServer em cada Program.cs) e mostrando os picos de CPU do teste de carga do fase4-T05."
+    }
+  ],
+  "acceptanceCriteria": {
+    "fiapObjectives": "Demonstrar imagens Docker otimizadas (menores, non-root) para os 3 microsserviços e a Function serverless; orquestração via manifestos Kubernetes (Namespace, ConfigMaps, Secrets, Deployments, Services); Monitoramento (Prometheus + Grafana); autoscaling horizontal (HPA) baseado em CPU para as 3 APIs, validado com teste de carga real; Ingress com TLS como único ponto de entrada externo; e um APM (Jaeger) recebendo traces distribuídos do cluster — ver docs/Objectives/TC NETT - Fase 4 (1).md e docs/k8s-architecture-flow.md. Toda a stack foi implantada e validada de ponta a ponta em um cluster Kubernetes real local (kind) nesta sessão — ver docs/k8s-architecture-flow.md §7, incluindo dois bugs reais encontrados e corrigidos que só apareciam rodando em cluster de verdade. O provisionamento de um cluster GERENCIADO NA NUVEM e o kubectl apply de ponta a ponta contra ele ficam para a gravação do vídeo de demonstração (fase4-T03), conforme a própria orientação do edital de não manter a infraestrutura em pé fora da avaliação."
+  }
+}

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: catalogo-api
+  namespace: gamestore
+  labels:
+    app: catalogo-api
+spec:
+  selector:
+    app: catalogo-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+    - name: metrics
+      port: 9092
+      targetPort: 9092
+  type: ClusterIP
