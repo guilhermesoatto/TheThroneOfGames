@@ -1,5 +1,6 @@
 using FluentAssertions;
 using NSubstitute;
+using GameStore.Common.Events;
 using GameStore.Vendas.Application.Commands;
 using GameStore.Vendas.Application.Handlers;
 using GameStore.Vendas.Domain.Entities;
@@ -7,6 +8,7 @@ using GameStore.Vendas.Domain.Repositories;
 using GameStore.Vendas.Domain.EventSourcing;
 using GameStore.Vendas.Domain.Shared;
 using GameStore.Vendas.Domain.ValueObjects;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GameStore.Vendas.Tests;
 
@@ -18,11 +20,13 @@ public class PedidoCommandHandlerTests
 {
     private readonly IPedidoRepository _pedidoRepository;
     private readonly IEventStore _eventStore;
+    private readonly IEventBus _eventBus;
 
     public PedidoCommandHandlerTests()
     {
         _pedidoRepository = Substitute.For<IPedidoRepository>();
         _eventStore = Substitute.For<IEventStore>();
+        _eventBus = Substitute.For<IEventBus>();
     }
 
     [Fact]
@@ -47,7 +51,8 @@ public class PedidoCommandHandlerTests
         pedido.AdicionarItem(Guid.NewGuid(), "Elden Ring", new Money(59.99m, "BRL"));
         _pedidoRepository.GetByIdAsync(pedido.Id).Returns(pedido);
 
-        var handler = new FinalizarPedidoCommandHandler(_pedidoRepository, _eventStore);
+        var handler = new FinalizarPedidoCommandHandler(
+            _pedidoRepository, _eventStore, _eventBus, NullLogger<FinalizarPedidoCommandHandler>.Instance);
         var command = new FinalizarPedidoCommand(pedido.Id, "CreditCard");
 
         var result = await handler.HandleAsync(command);
@@ -59,17 +64,54 @@ public class PedidoCommandHandlerTests
     }
 
     [Fact]
+    public async Task FinalizarPedidoCommandHandler_Success_ShouldPublishPedidoFinalizadoEventToEventBus()
+    {
+        var pedido = new Pedido(Guid.NewGuid());
+        pedido.AdicionarItem(Guid.NewGuid(), "Elden Ring", new Money(59.99m, "BRL"));
+        _pedidoRepository.GetByIdAsync(pedido.Id).Returns(pedido);
+
+        var handler = new FinalizarPedidoCommandHandler(
+            _pedidoRepository, _eventStore, _eventBus, NullLogger<FinalizarPedidoCommandHandler>.Instance);
+        var command = new FinalizarPedidoCommand(pedido.Id, "CreditCard");
+
+        await handler.HandleAsync(command);
+
+        await _eventBus.Received(1).PublishAsync(
+            Arg.Is<PedidoFinalizadoEvent>(e => e.PedidoId == pedido.Id && e.UserId == pedido.UsuarioId));
+    }
+
+    [Fact]
+    public async Task FinalizarPedidoCommandHandler_EventBusFails_StillCompletesSuccessfully()
+    {
+        var pedido = new Pedido(Guid.NewGuid());
+        pedido.AdicionarItem(Guid.NewGuid(), "Elden Ring", new Money(59.99m, "BRL"));
+        _pedidoRepository.GetByIdAsync(pedido.Id).Returns(pedido);
+        _eventBus.PublishAsync(Arg.Any<PedidoFinalizadoEvent>())
+            .Returns<Task>(_ => throw new InvalidOperationException("RabbitMQ indisponível"));
+
+        var handler = new FinalizarPedidoCommandHandler(
+            _pedidoRepository, _eventStore, _eventBus, NullLogger<FinalizarPedidoCommandHandler>.Instance);
+        var command = new FinalizarPedidoCommand(pedido.Id, "CreditCard");
+
+        var result = await handler.HandleAsync(command);
+
+        result.Success.Should().BeTrue("uma falha ao publicar no barramento não deve reverter um pedido já finalizado e registrado no Event Store");
+    }
+
+    [Fact]
     public async Task FinalizarPedidoCommandHandler_PedidoNaoEncontrado_ShouldNotAppendEvent()
     {
         _pedidoRepository.GetByIdAsync(Arg.Any<Guid>()).Returns((Pedido?)null);
 
-        var handler = new FinalizarPedidoCommandHandler(_pedidoRepository, _eventStore);
+        var handler = new FinalizarPedidoCommandHandler(
+            _pedidoRepository, _eventStore, _eventBus, NullLogger<FinalizarPedidoCommandHandler>.Instance);
         var command = new FinalizarPedidoCommand(Guid.NewGuid(), "CreditCard");
 
         var result = await handler.HandleAsync(command);
 
         result.Success.Should().BeFalse();
         await _eventStore.DidNotReceive().AppendAsync(Arg.Any<DomainEvent>(), Arg.Any<CancellationToken>());
+        await _eventBus.DidNotReceive().PublishAsync(Arg.Any<PedidoFinalizadoEvent>());
     }
 
     [Fact]

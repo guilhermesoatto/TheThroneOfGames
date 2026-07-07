@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using GameStore.Common.Messaging;
 using GameStore.Usuarios.Infrastructure.Persistence;
 using GameStore.Catalogo.Infrastructure.Persistence;
 
@@ -19,9 +21,20 @@ public class UsuariosWebApplicationFactory : WebApplicationFactory<global::Progr
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Test");
-        
+
         builder.ConfigureServices(services =>
         {
+            // Remove o hosted service que inicia o consumer de PedidoFinalizadoEvent (Program.cs
+            // registra EventConsumerService condicionalmente a EventBus:UseRabbitMq=true, valor fixo
+            // no appsettings.json base). Sem isso, o TestServer tentaria conectar a um RabbitMQ real
+            // na inicialização, o que não existe neste ambiente de teste. IEventConsumer/
+            // PedidoFinalizadoEventConsumer só são resolvidos (e só então abrem conexão) de dentro do
+            // construtor de EventConsumerService, então removê-lo é suficiente — não precisa remover
+            // o registro de IEventConsumer em si.
+            var eventConsumerHostedService = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(EventConsumerService));
+            if (eventConsumerHostedService != null) services.Remove(eventConsumerHostedService);
+
             // Remove DbContext options
             var usuariosDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>));
             if (usuariosDescriptor != null) services.Remove(usuariosDescriptor);

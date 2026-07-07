@@ -36,10 +36,14 @@
 > Functions isolated worker, não AWS Lambda/SQS/X-Ray) — os cenários Gherkin e critérios de aceite
 > detalhados em `tasks/*.md` foram escritos como um template genérico e **não foram atualizados item a
 > item** para refletir essa stack; ver o corpo do PRD e cada `tasks/T0X-*.md` para o gap analysis real.
-> T08 tem uma limitação conhecida: a propagação de trace_id via RabbitMQ foi implementada e comprovada
-> por teste automatizado real (publish→consume contra um broker real), mas não há hoje um consumer
-> rodando ao vivo no docker-compose para produzir uma trace única ponta a ponta Vendas→Functions —
-> ver `tasks/T08-distributed-tracing.md` para detalhes.
+> T08 foi verificado ponta a ponta ao vivo contra o docker-compose completo (incluindo
+> `GameStore.Notifications.Functions` containerizado): um `POST /api/pedidos/{id}/finalizar`
+> produziu uma única trace no Jaeger com 8 spans em 3 serviços (vendas-api → usuarios-api →
+> notifications-functions). Essa verificação expôs e corrigiu 4 gaps reais que impediam o fluxo
+> completo de funcionar em qualquer ambiente novo (Vendas nunca publicava o evento de domínio no
+> barramento, o consumer de Usuarios nunca era registrado no DI, o Functions não era containerizado,
+> e faltava `MapInboundClaims=false` no JWT de Vendas) — ver `tasks/T08-distributed-tracing.md`
+> para o detalhamento completo.
 
 ## Architectural Constraints (Fase 3)
 

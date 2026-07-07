@@ -63,7 +63,24 @@ Feature: Distributed Tracing — Cross-Service Observability
 - [x] Taxa de amostragem configurável via `OTEL_TRACES_SAMPLER_ARG` — lido de configuração/env var, aplicado via `TraceIdRatioBasedSampler`; não testado sob carga
 - [x] Dados de trace retidos — Jaeger com storage no Elasticsearch (persistente entre restarts do container), não in-memory (padrão do `jaegertracing/all-in-one` sem `SPAN_STORAGE_TYPE`); retenção exata de 7 dias não configurada (depende de política de ILM do Elasticsearch, não configurada nesta branch)
 
-**Limitação conhecida:** o cenário "API Gateway → Games MS → Payments MS → Serverless Function" do Gherkin acima não existe hoje como chamada síncrona (nenhum microsserviço chama outro diretamente — ver `docs/architecture-flow.md`). A única fronteira cross-service real é o RabbitMQ (`GameStore.Vendas` publica `PedidoFinalizadoEvent`); a propagação de trace nessa fronteira foi implementada e comprovada com um teste de integração real (publish→consume via broker real), mas **não há hoje um consumer rodando ao vivo** para gerar uma tela do Jaeger com o trace completo Vendas→Functions: `GameStore.Notifications.Functions` não está containerizado/orquestrado neste docker-compose (Azure Functions Core Tools não fazem parte do stack), e o consumer equivalente em `GameStore.Usuarios` (`PedidoFinalizadoEventConsumer`) existe mas nunca foi registrado no DI/`EventConsumerService` daquele serviço — gap pré-existente, fora do escopo desta tarefa.
+**Gap fechado (2026-07-07):** o cenário "... → Payments MS → Serverless Function" foi verificado ao vivo ponta a ponta contra a stack real (docker-compose completo: mssql, rabbitmq, elasticsearch, jaeger, azurite, usuarios-api, vendas-api, notifications-functions). Um `POST /api/pedidos/{id}/finalizar` real produziu uma única trace (`d092c4dc8b379e29e6f6ac69d76ba766`) com 8 spans em 3 serviços, confirmada via `GET /api/traces/{traceId}` do Jaeger:
+
+```
+vendas-api          : POST api/pedidos/{pedidoId}/finalizar   (HTTP)
+vendas-api          : GameStore (x3)                          (EF Core — SELECT/UPDATE Pedidos, INSERT EventStore)
+vendas-api          : PedidoFinalizadoEvent publish            (Producer — RabbitMqAdapter)
+usuarios-api        : PedidoFinalizadoEvent consume             (Consumer — PedidoFinalizadoEventConsumer)
+notifications-functions : NotificacaoPedido consume             (Consumer — RabbitMQTrigger)
+notifications-functions : ProcessarPagamento consume            (Consumer — RabbitMQTrigger)
+```
+
+Isso exigiu corrigir 4 gaps pré-existentes descobertos durante a verificação (nenhum específico de tracing, mas todos bloqueavam o fluxo ao vivo):
+1. **`GameStore.Vendas` nunca publicava `PedidoFinalizadoEvent` de verdade** — `Pedido.Finalizar()` construía o evento e o descartava (comentário "// Evento será publicado pelo application service", mas o handler não tinha `IEventBus`). Corrigido: `Finalizar()` retorna o evento; `FinalizarPedidoCommandHandler` publica via `IEventBus` (best-effort, não reverte o pedido se o broker falhar).
+2. **`PedidoFinalizadoEventConsumer` em `GameStore.Usuarios` nunca era registrado no DI** — existia como classe mas `EventConsumerService`/`IEventConsumer` nunca eram adicionados em `Program.cs`. Corrigido (condicional a `EventBus:UseRabbitMq` para não quebrar `WebApplicationFactory` em testes).
+3. **`GameStore.Notifications.Functions` não estava containerizado** — sem `Dockerfile`, sem Azurite (exigido pelo `AzureWebJobsStorage`), sem entrada no `docker-compose.yml`. Corrigido; também foi preciso tornar a resolução do `IEventBus` do Vendas **eager** na inicialização (não lazy) e gatear `notifications-functions` em `vendas-api: condition: service_healthy`, porque o `[RabbitMQTrigger]` do Functions falha a indexação se a fila ainda não existir no broker.
+4. **`Vendas.API` faltava `MapInboundClaims = false`** — o mesmo bug já documentado em `Usuarios.API` (ASP.NET remapeia "sub" para uma URI longa, quebrando `User.FindFirst("sub")` em `PedidoController`), causando 401 em todas as rotas autenticadas de Vendas.
+5. (bônus, achado no caminho) **Nenhum dos 3 microsserviços aplicava EF Core migrations na inicialização** — um banco novo nunca teria as tabelas. Adicionado `dbContext.Database.MigrateAsync()` na inicialização dos 3 serviços.
+6. (bônus) **`curl` ausente na imagem runtime dos 3 Dockerfiles** — o `HEALTHCHECK`/healthcheck do docker-compose (que depende de `curl`) sempre falhava silenciosamente; sem isso, o gate `condition: service_healthy` usado nos itens 2-3 nunca teria funcionado. Adicionado `apt-get install curl` no estágio de runtime.
 
 ## Best Practices
 
@@ -105,6 +122,6 @@ span?.setAttribute('fcg.game_id', gameId);
 
 ## Definition of Done
 
-- [ ] Full purchase trace visible end-to-end in the tracing UI — verificado para o trecho síncrono (HTTP + DB) de cada microsserviço isoladamente; o trecho assíncrono via RabbitMQ foi comprovado por teste automatizado, não por uma trace única ao vivo (ver limitação acima)
+- [x] Full purchase trace visible end-to-end in the tracing UI — verificado ao vivo: trace `d092c4dc8b379e29e6f6ac69d76ba766`, 8 spans, 3 serviços (ver "Gap fechado" acima)
 - [x] Logs show `trace_id` on every line — verificado ao vivo nos logs do catalogo-api
 - [x] Tracing backend URL documented in README — `http://localhost:16686`

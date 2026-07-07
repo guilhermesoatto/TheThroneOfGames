@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using GameStore.Common.Events;
 using GameStore.Vendas.Infrastructure.Extensions;
+using GameStore.Vendas.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using Serilog;
 using Serilog.Enrichers.Span;
@@ -77,6 +80,10 @@ var key = Encoding.ASCII.GetBytes(jwtKey);
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        // Sem isso, o ASP.NET Core remapeia claims JWT curtas para URIs longas
+        // (ex: "sub" -> ClaimTypes.NameIdentifier), quebrando User.FindFirst("sub")
+        // usado em PedidoController (mesmo problema documentado em GameStore.Usuarios.API).
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -104,6 +111,23 @@ var app = builder.Build();
 // Start Prometheus Metrics Server
 var metricsServer = app.Services.GetRequiredService<IMetricServer>();
 _ = metricsServer; // Ensures server is started
+
+// Força a construção do IEventBus (RabbitMqAdapter) na inicialização em vez de na primeira
+// requisição — sem isso, o exchange e as filas fan-out ("notificacoes.pedido-finalizado",
+// "pagamentos.pedido-finalizado") só seriam declarados no primeiro "finalizar pedido", momento em
+// que o GameStore.Notifications.Functions (RabbitMQTrigger) já teria falhado ao indexar por a fila
+// ainda não existir.
+var eventBus = app.Services.GetRequiredService<IEventBus>();
+_ = eventBus;
+
+// Aplica as migrations do EF Core na inicialização — cada microsserviço gerencia seu próprio
+// schema (nenhum outro serviço acessa o banco de Vendas). Sem isso, um banco recém-criado
+// (docker-compose de um ambiente novo) nunca teria as tabelas, e toda escrita falharia.
+using (var migrationScope = app.Services.CreateScope())
+{
+    var vendasDbContext = migrationScope.ServiceProvider.GetRequiredService<VendasDbContext>();
+    await vendasDbContext.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {

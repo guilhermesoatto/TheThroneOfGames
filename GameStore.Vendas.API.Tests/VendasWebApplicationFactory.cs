@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using GameStore.Common.Events;
+using GameStore.Common.Messaging;
 using GameStore.Usuarios.Infrastructure.Persistence;
 using GameStore.Catalogo.Infrastructure.Persistence;
 using GameStore.Vendas.Infrastructure.Persistence;
@@ -23,6 +25,13 @@ public class VendasWebApplicationFactory : WebApplicationFactory<global::Program
         
         builder.ConfigureServices(services =>
         {
+            // Program.cs força a resolução do IEventBus (RabbitMqAdapter) na inicialização — ver
+            // comentário lá. Troca por SimpleEventBus (em memória) aqui para não exigir um RabbitMQ
+            // real disponível durante os testes.
+            var eventBusDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IEventBus));
+            if (eventBusDescriptor != null) services.Remove(eventBusDescriptor);
+            services.AddSingleton<IEventBus, SimpleEventBus>();
+
             // Remove DbContext options
             var usuariosDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<UsuariosDbContext>));
             if (usuariosDescriptor != null) services.Remove(usuariosDescriptor);

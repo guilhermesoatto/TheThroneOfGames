@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using GameStore.Common.Messaging;
+using GameStore.Usuarios.Application.EventConsumers;
 using GameStore.Usuarios.Infrastructure.Extensions;
+using GameStore.Usuarios.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using Serilog;
 using Serilog.Enrichers.Span;
@@ -107,11 +111,38 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Event Consumer — reage a PedidoFinalizadoEvent publicado por GameStore.Vendas (fase3-T08).
+// Condicional a EventBus:UseRabbitMq para que testes com WebApplicationFactory (que não sobem um
+// broker real) não tentem conectar — ver UsuariosWebApplicationFactory, que força esse valor a false.
+if (builder.Configuration.GetValue<bool>("EventBus:UseRabbitMq"))
+{
+    var rabbitMq = builder.Configuration.GetSection("EventBus:RabbitMq");
+    var rabbitHost = rabbitMq.GetValue<string>("HostName") ?? "localhost";
+    var rabbitPort = rabbitMq.GetValue<int>("Port", 5672);
+    var rabbitUser = rabbitMq.GetValue<string>("UserName") ?? "guest";
+    var rabbitPassword = rabbitMq.GetValue<string>("Password") ?? "guest";
+
+    builder.Services.AddSingleton<IEventConsumer>(provider =>
+        new PedidoFinalizadoEventConsumer(
+            rabbitHost, rabbitPort, rabbitUser, rabbitPassword,
+            provider.GetRequiredService<ILogger<PedidoFinalizadoEventConsumer>>()));
+    builder.Services.AddHostedService<EventConsumerService>();
+}
+
 var app = builder.Build();
 
 // Start Prometheus Metrics Server
 var metricsServer = app.Services.GetRequiredService<IMetricServer>();
 _ = metricsServer; // Ensures server is started
+
+// Aplica as migrations do EF Core na inicialização — cada microsserviço gerencia seu próprio
+// schema. Sem isso, um banco recém-criado (docker-compose de um ambiente novo) nunca teria as
+// tabelas, e toda escrita falharia.
+using (var migrationScope = app.Services.CreateScope())
+{
+    var usuariosDbContext = migrationScope.ServiceProvider.GetRequiredService<UsuariosDbContext>();
+    await usuariosDbContext.Database.MigrateAsync();
+}
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())

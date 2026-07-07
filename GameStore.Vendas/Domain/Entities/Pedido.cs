@@ -56,7 +56,7 @@ namespace GameStore.Vendas.Domain.Entities
             RecalcularValorTotal();
         }
 
-        public void Finalizar(string metodoPagamento)
+        public PedidoFinalizadoEvent Finalizar(string metodoPagamento)
         {
             if (Status != "Pendente")
                 throw new InvalidOperationException("Apenas pedidos pendentes podem ser finalizados");
@@ -68,14 +68,14 @@ namespace GameStore.Vendas.Domain.Entities
             MetodoPagamento = metodoPagamento;
             DataFinalizacao = DateTime.UtcNow;
 
-            // Publicar evento de domínio
-            var evento = new PedidoFinalizadoEvent(
+            // O evento de domínio é retornado para que o application service o publique no
+            // IEventBus — o aggregate não deve depender de infraestrutura de mensageria.
+            return new PedidoFinalizadoEvent(
                 PedidoId: Id,
                 UserId: UsuarioId,
                 TotalPrice: ValorTotal.Amount,
                 ItemCount: _itens.Count
             );
-            // Evento será publicado pelo application service
         }
 
         public void Cancelar(string motivo)

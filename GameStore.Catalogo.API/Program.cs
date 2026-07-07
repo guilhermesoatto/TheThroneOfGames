@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using GameStore.Catalogo.Infrastructure.Extensions;
+using GameStore.Catalogo.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Prometheus;
 using Serilog;
 using Serilog.Enrichers.Span;
@@ -104,6 +106,15 @@ var app = builder.Build();
 var metricsServer = app.Services.GetRequiredService<IMetricServer>();
 _ = metricsServer; // Ensures server is started
 
+// Aplica as migrations do EF Core na inicialização — cada microsserviço gerencia seu próprio
+// schema. Sem isso, um banco recém-criado (docker-compose de um ambiente novo) nunca teria as
+// tabelas, e toda escrita falharia.
+using (var migrationScope = app.Services.CreateScope())
+{
+    var catalogoDbContext = migrationScope.ServiceProvider.GetRequiredService<CatalogoDbContext>();
+    await catalogoDbContext.Database.MigrateAsync();
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -124,9 +135,6 @@ app.MapMetrics();
 
 // Health check endpoint for Kubernetes probes
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", timestamp = DateTime.UtcNow }));
-
-// Migration and Seed - Removed: Microservice should not manage DB schema
-// Each microservice uses its own database context configured via Infrastructure extensions
 
 app.Run();
 

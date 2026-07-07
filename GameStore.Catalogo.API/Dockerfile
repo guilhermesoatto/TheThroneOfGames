@@ -25,6 +25,11 @@ RUN dotnet publish "GameStore.Catalogo.API/GameStore.Catalogo.API.csproj" -c Rel
 FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /app
 
+# curl é exigido pelo HEALTHCHECK (docker-compose.yml sobrescreve o teste abaixo com
+# "curl -f http://localhost/health") — a imagem base não o inclui por padrão.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy published application
 COPY --from=publish /app/publish .
 

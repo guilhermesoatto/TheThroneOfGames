@@ -4,6 +4,8 @@ using GameStore.Vendas.Domain.Entities;
 using GameStore.Vendas.Domain.ValueObjects;
 using GameStore.Vendas.Domain.EventSourcing;
 using GameStore.CQRS.Abstractions;
+using GameStore.Common.Events;
+using Microsoft.Extensions.Logging;
 
 namespace GameStore.Vendas.Application.Handlers
 {
@@ -210,11 +212,19 @@ namespace GameStore.Vendas.Application.Handlers
     {
         private readonly IPedidoRepository _pedidoRepository;
         private readonly IEventStore _eventStore;
+        private readonly IEventBus _eventBus;
+        private readonly ILogger<FinalizarPedidoCommandHandler> _logger;
 
-        public FinalizarPedidoCommandHandler(IPedidoRepository pedidoRepository, IEventStore eventStore)
+        public FinalizarPedidoCommandHandler(
+            IPedidoRepository pedidoRepository,
+            IEventStore eventStore,
+            IEventBus eventBus,
+            ILogger<FinalizarPedidoCommandHandler> logger)
         {
             _pedidoRepository = pedidoRepository ?? throw new ArgumentNullException(nameof(pedidoRepository));
             _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
+            _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<CommandResult> HandleAsync(FinalizarPedidoCommand command)
@@ -232,7 +242,7 @@ namespace GameStore.Vendas.Application.Handlers
                     };
                 }
 
-                pedido.Finalizar(command.MetodoPagamento);
+                var pedidoFinalizadoEvent = pedido.Finalizar(command.MetodoPagamento);
                 await _pedidoRepository.UpdateAsync(pedido);
 
                 await _eventStore.AppendAsync(new PedidoDomainEvent
@@ -248,6 +258,20 @@ namespace GameStore.Vendas.Application.Handlers
                         ["ValorTotal"] = pedido.ValorTotal.Amount
                     }
                 });
+
+                // Publica no barramento de eventos (RabbitMQ) para que Usuarios e as Functions
+                // serverless (notificação/pagamento) reajam ao pedido finalizado. Best-effort: uma
+                // falha no broker não deve reverter uma compra já persistida e registrada no Event Store.
+                try
+                {
+                    await _eventBus.PublishAsync(pedidoFinalizadoEvent);
+                }
+                catch (Exception publishEx)
+                {
+                    _logger.LogWarning(publishEx,
+                        "Falha ao publicar PedidoFinalizadoEvent para o pedido {PedidoId} no barramento de eventos",
+                        pedido.Id);
+                }
 
                 return new CommandResult
                 {
