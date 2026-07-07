@@ -54,7 +54,7 @@
       "description": "Elasticsearch para busca avançada de jogos no Catálogo",
       "status": "done",
       "passes": true,
-      "testCommand": "dotnet test GameStore.Catalogo.Tests/GameStore.Catalogo.Tests.csproj --filter FullyQualifiedName~ElasticsearchJogoIndexerTests",
+      "testCommand": "dotnet test GameStore.Catalogo.Tests/GameStore.Catalogo.Tests.csproj --filter FullyQualifiedName~ElasticsearchJogoIndexerTests|FullyQualifiedName~SearchGamesQueryHandler",
       "artifacts": [
         "docker-compose.yml",
         "GameStore.Catalogo/GameStore.Catalogo.csproj",
@@ -62,6 +62,8 @@
         "GameStore.Catalogo/Infrastructure/Search/IJogoSearchIndexer.cs",
         "GameStore.Catalogo/Infrastructure/Search/ElasticsearchJogoIndexer.cs",
         "GameStore.Catalogo/Application/Handlers/CatalogoCommandHandlers.cs",
+        "GameStore.Catalogo/Application/Queries/CatalogoQueries.cs",
+        "GameStore.Catalogo.API/Controllers/GameController.cs",
         "GameStore.Catalogo/Infrastructure/Extensions/CatalogoInfrastructureExtensions.cs",
         "GameStore.Catalogo.API/Program.cs",
         "GameStore.Catalogo.Tests/ElasticsearchJogoIndexerTests.cs",

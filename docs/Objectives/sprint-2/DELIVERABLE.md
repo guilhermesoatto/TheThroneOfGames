@@ -24,7 +24,7 @@
 - [x] `T01` — Users Microservice extracted and deployed
 - [x] `T02` — Games Microservice with Game Catalog extracted and deployed
 - [x] `T03` — Payments Microservice extracted and deployed
-- [x] `T04` — Elasticsearch indexing Games (busca ainda não exposta via endpoint HTTP — ver nota abaixo)
+- [x] `T04` — Elasticsearch indexing Games + full-text search via `GET /api/game/search?q=`
 - [x] `T05` — Serverless Functions for async operations (notifications, payment processing)
 - [x] `T06` — API Gateway routing and securing all Microservices
 - [x] `T07` — Event Sourcing — Event Log capturing all domain state changes (sem replay/projeções)

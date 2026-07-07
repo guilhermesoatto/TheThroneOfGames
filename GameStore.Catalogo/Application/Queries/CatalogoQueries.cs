@@ -2,7 +2,9 @@ using GameStore.Catalogo.Application.DTOs;
 using GameStore.Catalogo.Application.Mappers;
 using GameStore.Catalogo.Domain.Entities;
 using GameStore.Catalogo.Domain.Interfaces;
+using GameStore.Catalogo.Infrastructure.Search;
 using GameStore.CQRS.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace GameStore.Catalogo.Application.Queries
 {
@@ -199,33 +201,61 @@ namespace GameStore.Catalogo.Application.Queries
     }
 
     /// <summary>
-    /// Handler para SearchGamesQuery.
+    /// Handler para SearchGamesQuery. Busca avançada via Elasticsearch (nome, gênero e descrição);
+    /// se o Elasticsearch estiver indisponível, cai para busca degradada no banco (nome/gênero) —
+    /// ver T02 (Games Microservice) §"handles Elasticsearch being down".
     /// </summary>
     public class SearchGamesQueryHandler : IQueryHandler<SearchGamesQuery, IEnumerable<GameDTO>>
     {
         private readonly IJogoRepository _jogoRepository;
+        private readonly IJogoSearchIndexer _searchIndexer;
+        private readonly ILogger<SearchGamesQueryHandler> _logger;
 
-        public SearchGamesQueryHandler(IJogoRepository jogoRepository)
+        public SearchGamesQueryHandler(
+            IJogoRepository jogoRepository,
+            IJogoSearchIndexer searchIndexer,
+            ILogger<SearchGamesQueryHandler> logger)
         {
             _jogoRepository = jogoRepository;
+            _searchIndexer = searchIndexer;
+            _logger = logger;
         }
 
         public async Task<IEnumerable<GameDTO>> HandleAsync(SearchGamesQuery query)
         {
             try
             {
-                // Buscar por nome e por gênero
-                var jogosPorNome = await _jogoRepository.GetByNomeAsync(query.SearchTerm);
-                var jogosPorGenero = await _jogoRepository.GetByGeneroAsync(query.SearchTerm);
-                
-                // Combinar e remover duplicados
-                var jogos = jogosPorNome.Union(jogosPorGenero).Distinct();
-                return GameMapper.ToDTOList(jogos);
+                var documentos = await _searchIndexer.SearchAsync(query.SearchTerm);
+                return documentos.Select(ToDTO);
             }
-            catch
+            catch (Exception ex)
             {
-                return Enumerable.Empty<GameDTO>();
+                _logger.LogWarning(ex,
+                    "Elasticsearch indisponível ao buscar '{SearchTerm}' — usando busca degradada no banco",
+                    query.SearchTerm);
+
+                try
+                {
+                    var jogosPorNome = await _jogoRepository.GetByNomeAsync(query.SearchTerm);
+                    var jogosPorGenero = await _jogoRepository.GetByGeneroAsync(query.SearchTerm);
+                    var jogos = jogosPorNome.Union(jogosPorGenero).Distinct();
+                    return GameMapper.ToDTOList(jogos);
+                }
+                catch
+                {
+                    return Enumerable.Empty<GameDTO>();
+                }
             }
         }
+
+        private static GameDTO ToDTO(JogoSearchDocument documento) => new()
+        {
+            Id = documento.Id,
+            Name = documento.Nome,
+            Genre = documento.Genero,
+            Description = documento.Descricao,
+            Price = documento.Preco,
+            IsAvailable = documento.Disponivel
+        };
     }
 }

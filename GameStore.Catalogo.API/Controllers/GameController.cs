@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using GameStore.Catalogo.Application.DTOs;
+using GameStore.Catalogo.Application.Queries;
 using GameStore.Catalogo.Application.Services;
+using GameStore.CQRS.Abstractions;
 
 namespace GameStore.Catalogo.API.Controllers
 {
@@ -9,10 +12,14 @@ namespace GameStore.Catalogo.API.Controllers
     public class GameController : ControllerBase
     {
         private readonly GameService _gameService;
+        private readonly IQueryHandler<SearchGamesQuery, IEnumerable<GameDTO>> _searchGamesHandler;
 
-        public GameController(GameService gameService)
+        public GameController(
+            GameService gameService,
+            IQueryHandler<SearchGamesQuery, IEnumerable<GameDTO>> searchGamesHandler)
         {
             _gameService = gameService;
+            _searchGamesHandler = searchGamesHandler;
         }
 
         /// <summary>
@@ -106,6 +113,23 @@ namespace GameStore.Catalogo.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Full-text search de jogos por nome, gênero ou descrição (Elasticsearch — fase3-T04).
+        /// Cai para busca degradada no banco se o Elasticsearch estiver indisponível.
+        /// </summary>
+        [HttpGet("search")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Search([FromQuery] string q)
+        {
+            if (string.IsNullOrWhiteSpace(q))
+            {
+                return BadRequest(new { message = "Parâmetro de busca 'q' é obrigatório" });
+            }
+
+            var games = await _searchGamesHandler.HandleAsync(new SearchGamesQuery(q));
+            return Ok(games);
         }
     }
 }

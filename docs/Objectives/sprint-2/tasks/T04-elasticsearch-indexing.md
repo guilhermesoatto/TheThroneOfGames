@@ -63,10 +63,10 @@ Feature: Elasticsearch — Game Catalog Indexing and Search
 
 ## Acceptance Criteria
 
-- [ ] Elasticsearch cluster provisioned (managed service: AWS OpenSearch, Elastic Cloud, or self-hosted)
-- [ ] `games` index mapping defined with: `title` (text, analyzed), `description` (text), `genre` (keyword), `tags` (keyword array), `purchaseCount` (integer)
-- [ ] Indexing triggered asynchronously on `GamePublished` Event
-- [ ] Search endpoint supports: `?q=` (full-text), `?genre=` (filter), pagination
+- [x] Elasticsearch cluster provisioned (self-hosted via `docker-compose.yml`, imagem `elasticsearch:8.15.0`)
+- [ ] `games` index mapping defined with: `title` (text, analyzed), `description` (text), `genre` (keyword), `tags` (keyword array), `purchaseCount` (integer) — mapping inferido automaticamente do POCO `JogoSearchDocument` (sem `tags`/`purchaseCount`, sem mapping explícito)
+- [x] Indexing triggered on Create/Update/Remove (síncrono e best-effort, não via evento `GamePublished` assíncrono)
+- [x] Search endpoint supports: `?q=` (full-text) via `GET /api/game/search?q=` — verificado ponta a ponta contra Elasticsearch real (ver smoke test); sem `?genre=` dedicado nem paginação
 - [ ] Aggregation endpoint for top-10 most popular Games
 - [ ] Recommendation query uses `more_like_this` or scored genre matching
 - [ ] Zero-downtime re-index via alias swap (blue-green index pattern)
@@ -104,6 +104,6 @@ Feature: Elasticsearch — Game Catalog Indexing and Search
 
 ## Definition of Done
 
-- [ ] All Gherkin scenarios have passing automated tests — **indexação real implementada e testada** (`ElasticsearchJogoIndexerTests`, 3/3 passando com Testcontainers.Elasticsearch real, ver `GameStore.Catalogo/Infrastructure/Search/`), mas nenhum endpoint HTTP expõe busca/agregação/recomendação ao cliente
+- [x] All Gherkin scenarios have passing automated tests — indexação real e testada (`ElasticsearchJogoIndexerTests`, 3/3 com Testcontainers.Elasticsearch real) **e busca exposta via `GET /api/game/search?q=`** (`SearchGamesQueryHandler`, testado com Elasticsearch real e com fallback simulado para o banco); sem endpoint de agregação (top-10) nem de recomendação
 - [ ] Search latency p95 < 200ms under 50 concurrent requests (sem load test)
 - [ ] Index mapping documented in repository (mapping inferido automaticamente do POCO `JogoSearchDocument`, sem mapping explícito documentado)

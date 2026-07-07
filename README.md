@@ -16,6 +16,7 @@ TheThroneOfGames é uma API Web moderna e segura em ASP.NET Core para gerenciar 
 - **Arquitetura de Bounded Contexts**: Separação clara entre domínios de Usuários, Catálogo e Vendas
 - **Comunicação Event-Driven**: Eventos de domínio entre contextos via IEventBus
 - **CQRS Pattern**: Commands e Queries para operações de domínio
+- **Busca avançada de jogos via Elasticsearch**: `GET /api/game/search?q=` — full-text search por nome, gênero e descrição, com fallback automático para busca no banco caso o Elasticsearch esteja indisponível
 
 ## Stack Tecnológico
 - ASP.NET Core 9.0 Web API
@@ -222,11 +223,12 @@ O projeto foi refatorado para seguir os princípios de Domain-Driven Design (DDD
 - **Testes**: 61 testes unitários cobrindo todas as funcionalidades
 
 ### GameStore.Catalogo (Contexto de Catálogo)
-**Responsabilidade**: Gerenciamento do catálogo de jogos, CRUD operations e disponibilidade.
+**Responsabilidade**: Gerenciamento do catálogo de jogos, CRUD operations, disponibilidade e busca avançada.
 - **Domínio**: Jogo.cs, ValueObjects (Preco), Events (GameCompradoEvent)
-- **Aplicação**: Commands (CriarJogo, AtualizarJogo), Queries, Handlers CQRS
-- **Infraestrutura**: JogoRepository, CatalogoDbContext, Mappers
-- **Testes**: 43 testes unitários com cobertura completa
+- **Aplicação**: Commands (CriarJogo, AtualizarJogo), Queries (inclui `SearchGamesQuery`), Handlers CQRS
+- **Infraestrutura**: JogoRepository, CatalogoDbContext, `ElasticsearchJogoIndexer` (indexação em Create/Update/Remove), Mappers
+- **Busca**: `GET /api/game/search?q=<termo>` — full-text via Elasticsearch (nome, gênero, descrição); cai automaticamente para busca no banco se o Elasticsearch estiver fora do ar
+- **Testes**: cobertura unitária + integração real contra RabbitMQ e Elasticsearch via Testcontainers
 
 ### GameStore.Vendas (Contexto de Vendas)
 **Responsabilidade**: Processamento de pedidos, compras e transações.

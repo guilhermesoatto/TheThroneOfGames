@@ -4,16 +4,20 @@ using GameStore.Catalogo.Application.Queries;
 using GameStore.Catalogo.Application.Handlers;
 using GameStore.Catalogo.Domain.Interfaces;
 using GameStore.Catalogo.Domain.Entities;
+using GameStore.Catalogo.Infrastructure.Search;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace GameStore.Catalogo.Tests;
 
 public class QueryHandlerTests
 {
     private readonly IJogoRepository _jogoRepository;
+    private readonly IJogoSearchIndexer _searchIndexer;
 
     public QueryHandlerTests()
     {
         _jogoRepository = Substitute.For<IJogoRepository>();
+        _searchIndexer = Substitute.For<IJogoSearchIndexer>();
     }
 
     private static Jogo CreateTestJogo(string nome = "Test Game", decimal preco = 49.99m,
@@ -150,6 +154,53 @@ public class QueryHandlerTests
         // Assert
         result.Should().BeEmpty();
         await _jogoRepository.Received(1).GetAllAsync();
+    }
+
+    #endregion
+
+    #region SearchGamesQueryHandler
+
+    [Fact]
+    public async Task SearchGamesQueryHandler_ElasticsearchAvailable_ReturnsIndexedResults()
+    {
+        // Arrange
+        var handler = new SearchGamesQueryHandler(_jogoRepository, _searchIndexer, NullLogger<SearchGamesQueryHandler>.Instance);
+        var documento = new JogoSearchDocument
+        {
+            Id = Guid.NewGuid(),
+            Nome = "Elden Ring",
+            Genero = "RPG",
+            Preco = 199.90m,
+            Descricao = "Um RPG de mundo aberto",
+            Disponivel = true
+        };
+        _searchIndexer.SearchAsync("elden").Returns(new List<JogoSearchDocument> { documento });
+
+        // Act
+        var result = await handler.HandleAsync(new SearchGamesQuery("elden"));
+
+        // Assert
+        result.Should().ContainSingle(g => g.Name == "Elden Ring" && g.Genre == "RPG" && g.Price == 199.90m);
+        await _jogoRepository.DidNotReceive().GetByNomeAsync(Arg.Any<string>());
+    }
+
+    [Fact]
+    public async Task SearchGamesQueryHandler_ElasticsearchUnavailable_FallsBackToDatabaseSearch()
+    {
+        // Arrange
+        var handler = new SearchGamesQueryHandler(_jogoRepository, _searchIndexer, NullLogger<SearchGamesQueryHandler>.Instance);
+        var jogo = CreateTestJogo("Dark Souls", 99.90m, "RPG");
+
+        _searchIndexer.SearchAsync("dark").Returns<Task<IReadOnlyList<JogoSearchDocument>>>(_ =>
+            throw new InvalidOperationException("Elasticsearch indisponível"));
+        _jogoRepository.GetByNomeAsync("dark").Returns(new List<Jogo> { jogo });
+        _jogoRepository.GetByGeneroAsync("dark").Returns(new List<Jogo>());
+
+        // Act
+        var result = await handler.HandleAsync(new SearchGamesQuery("dark"));
+
+        // Assert
+        result.Should().ContainSingle(g => g.Name == "Dark Souls");
     }
 
     #endregion
