@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using GameStore.Catalogo.Infrastructure.Extensions;
 using GameStore.Catalogo.Infrastructure.Persistence;
@@ -47,7 +48,30 @@ builder.Services.AddCatalogoContext(connectionString, elasticsearchUri);
 // Controllers and Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// AddSecurityDefinition/Requirement expõem o botão "Authorize" (JWT Bearer) no Swagger UI —
+// sem isso não há como testar endpoints [Authorize] (ex.: POST /api/admin/game) via Try-it-out.
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "Insira o token JWT: 'Bearer {token}'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // Prometheus Metrics
 builder.Services.AddSingleton<IMetricServer>(new KestrelMetricServer(port: 9092));
