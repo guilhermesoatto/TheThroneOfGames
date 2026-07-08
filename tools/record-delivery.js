@@ -4,22 +4,28 @@
  *
  * Automatiza a gravação de tela da demonstração de entrega (FIAP Tech Challenge) usando
  * Playwright: aquece todos os serviços (evita loading demorado aparecendo no vídeo), abre o
- * navegador em modo headed, navega pelos Swagger de cada serviço ativo na fase atual,
- * executa algumas chamadas reais de sucesso, e depois navega pela ferramenta de
- * observabilidade correspondente à fase (Grafana/Prometheus, Prometheus targets ou Jaeger).
+ * navegador em modo headed, e executa dois fluxos reais ponta a ponta via Swagger UI:
+ *
+ *   Fluxo A (admin):   registro -> ativação -> login (Admin) -> criar jogo
+ *   Fluxo B (usuário):  registro -> ativação -> login (User)  -> procurar jogo -> comprar jogo
+ *                        (compra não existe na Fase 2 — ver PHASE_CONFIG[2].flows.user)
+ *
+ * Cada passo é uma chamada real via Try-it-out do Swagger (não fetch direto) — o script lê a
+ * resposta JSON renderizada na tela para encadear valores entre passos (token de ativação,
+ * JWT, id do jogo criado, id do pedido), e usa o botão "Authorize" do Swagger para autenticar
+ * as chamadas seguintes com o JWT de cada usuário.
+ *
+ * Depois dos dois fluxos, navega pela ferramenta de observabilidade da fase (Grafana/
+ * Prometheus, Prometheus targets ou Jaeger).
  *
  * O script é agnóstico de fase: detecta a branch git atual (ou aceita --phase=N), lê o
- * README.md da raiz para extrair as URLs dos serviços ("Serviços disponíveis" / tabela de
- * URLs) e cai para os defaults conhecidos de cada fase se o parsing não encontrar uma URL.
- * Todas as URLs também podem ser sobrescritas via variável de ambiente (ver RESOLVERS
- * abaixo) — essencial para gravar contra o ambiente real na nuvem (Fase 4 / EKS) em vez de
- * localhost.
+ * README.md da raiz para extrair as URLs dos serviços e cai para os defaults conhecidos de
+ * cada fase se o parsing não encontrar uma URL. Todas as URLs podem ser sobrescritas via
+ * variável de ambiente — essencial para gravar contra o ambiente real na nuvem (Fase 4 / EKS)
+ * em vez de localhost.
  *
- * NÃO sobe nem derruba infraestrutura (docker compose / kubectl) — pressupõe que o
- * ambiente da fase já está de pé e ESTÁVEL (rodando há um tempo, não acabou de subir),
- * seguindo as instruções do README.md da branch. O aquecimento (ver warmUp()) reduz mas
- * não elimina o efeito de containers recém-iniciados — para o melhor resultado, espere os
- * healthchecks do `docker compose ps` ficarem "healthy" antes de rodar este script.
+ * NÃO sobe nem derruba infraestrutura (docker compose / kubectl) — pressupõe que o ambiente
+ * da fase já está de pé e ESTÁVEL, seguindo as instruções do README.md da branch.
  *
  * Uso:
  *   cd tools && npm install && npm run playwright:install
@@ -128,121 +134,6 @@ function findUrlByLabel(readmeUrls, terms) {
   return null;
 }
 
-// ── Configuração por fase ────────────────────────────────────────────────────
-
-/**
- * Cada fase define:
- *  - swaggerTargets: serviços a demonstrar (nome, termos para achar a URL no README,
- *    default de fallback, e demoCalls opcionais — uma ou mais chamadas reais de sucesso).
- *  - observability: qual fluxo de navegação de observabilidade rodar depois dos Swaggers.
- */
-const PHASE_CONFIG = {
-  2: {
-    label: 'Fase 2 — Monolito',
-    swaggerTargets: [
-      {
-        name: 'API (monolito)',
-        envVar: 'BASE_URL_API',
-        readmeTerms: ['api'],
-        default: 'http://localhost:5000',
-        demoCalls: [
-          {
-            method: 'POST',
-            path: '/api/usuario/pre-register',
-            body: {
-              name: 'Demo FIAP',
-              email: `demo.fiap+${Date.now()}@example.com`,
-              password: 'Demo@12345',
-              role: 'Player',
-            },
-          },
-        ],
-      },
-    ],
-    observability: {
-      type: 'grafana-prometheus',
-      prometheus: { envVar: 'BASE_URL_PROMETHEUS', readmeTerms: ['prometheus'], default: 'http://localhost:9090' },
-      grafana: { envVar: 'BASE_URL_GRAFANA', readmeTerms: ['grafana'], default: 'http://localhost:3000' },
-    },
-  },
-  3: {
-    label: 'Fase 3 — Microsserviços',
-    swaggerTargets: [
-      {
-        name: 'Usuários API',
-        envVar: 'BASE_URL_USUARIOS',
-        readmeTerms: ['usuário', 'usuarios'],
-        default: 'http://localhost:5001',
-        demoCalls: [
-          {
-            method: 'POST',
-            path: '/api/usuario/pre-register',
-            body: {
-              name: 'Demo FIAP',
-              email: `demo.fiap+${Date.now()}@example.com`,
-              password: 'Demo@12345',
-              role: 'Player',
-            },
-          },
-        ],
-      },
-      {
-        name: 'Catálogo API',
-        envVar: 'BASE_URL_CATALOGO',
-        readmeTerms: ['catálogo', 'catalogo'],
-        default: 'http://localhost:5002',
-        demoCalls: [
-          { method: 'GET', path: '/api/game' },
-          { method: 'GET', path: '/api/game/available' },
-        ],
-      },
-      { name: 'Vendas API', envVar: 'BASE_URL_VENDAS', readmeTerms: ['vendas'], default: 'http://localhost:5003' },
-    ],
-    observability: {
-      type: 'prometheus-targets',
-      prometheus: { envVar: 'BASE_URL_PROMETHEUS', readmeTerms: ['prometheus'], default: 'http://localhost:9090' },
-    },
-  },
-  4: {
-    label: 'Fase 4 — Kubernetes & Escala',
-    swaggerTargets: [
-      {
-        name: 'Usuários API',
-        envVar: 'BASE_URL_USUARIOS',
-        readmeTerms: ['usuário', 'usuarios'],
-        default: 'http://localhost:5001',
-        demoCalls: [
-          {
-            method: 'POST',
-            path: '/api/usuario/pre-register',
-            body: {
-              name: 'Demo FIAP',
-              email: `demo.fiap+${Date.now()}@example.com`,
-              password: 'Demo@12345',
-              role: 'Player',
-            },
-          },
-        ],
-      },
-      {
-        name: 'Catálogo API',
-        envVar: 'BASE_URL_CATALOGO',
-        readmeTerms: ['catálogo', 'catalogo'],
-        default: 'http://localhost:5002',
-        demoCalls: [
-          { method: 'GET', path: '/api/game' },
-          { method: 'GET', path: '/api/game/available' },
-        ],
-      },
-      { name: 'Vendas API', envVar: 'BASE_URL_VENDAS', readmeTerms: ['vendas'], default: 'http://localhost:5003' },
-    ],
-    observability: {
-      type: 'jaeger',
-      jaeger: { envVar: 'BASE_URL_JAEGER', readmeTerms: ['jaeger'], default: 'http://localhost:16686' },
-    },
-  },
-};
-
 function resolveUrl(target, readmeUrls) {
   if (target.envVar && process.env[target.envVar]) return process.env[target.envVar];
   const fromReadme = findUrlByLabel(readmeUrls, target.readmeTerms);
@@ -253,19 +144,153 @@ function swaggerUrlOf(baseUrl) {
   return /\/swagger\/?$/.test(baseUrl) ? baseUrl : `${baseUrl.replace(/\/$/, '')}/swagger`;
 }
 
-// ── Aquecimento (evita loading/JIT/cold-start aparecendo no vídeo gravado) ──────
+// ── Serviços por fase (nome, termos para achar a URL no README, default) ───────
+
+// As chaves lógicas 'usuarios'/'catalogo'/'vendas' são usadas pelos fluxos abaixo
+// independente da fase — na Fase 2 (monolito) as 3 apontam pro mesmo serviço, então
+// runStep() naturalmente não navega de novo entre passos (mesma URL resolvida).
+const SERVICES = {
+  2: (() => {
+    const api = { name: 'API (monolito)', envVar: 'BASE_URL_API', readmeTerms: ['api'], default: 'http://localhost:5000' };
+    return { usuarios: api, catalogo: api, vendas: api };
+  })(),
+  3: {
+    usuarios: { name: 'Usuários API', envVar: 'BASE_URL_USUARIOS', readmeTerms: ['usuário', 'usuarios'], default: 'http://localhost:5001' },
+    catalogo: { name: 'Catálogo API', envVar: 'BASE_URL_CATALOGO', readmeTerms: ['catálogo', 'catalogo'], default: 'http://localhost:5002' },
+    vendas: { name: 'Vendas API', envVar: 'BASE_URL_VENDAS', readmeTerms: ['vendas'], default: 'http://localhost:5003' },
+  },
+  4: {
+    usuarios: { name: 'Usuários API', envVar: 'BASE_URL_USUARIOS', readmeTerms: ['usuário', 'usuarios'], default: 'http://localhost:5001' },
+    catalogo: { name: 'Catálogo API', envVar: 'BASE_URL_CATALOGO', readmeTerms: ['catálogo', 'catalogo'], default: 'http://localhost:5002' },
+    vendas: { name: 'Vendas API', envVar: 'BASE_URL_VENDAS', readmeTerms: ['vendas'], default: 'http://localhost:5003' },
+  },
+};
+
+const OBSERVABILITY = {
+  2: {
+    type: 'grafana-prometheus',
+    prometheus: { envVar: 'BASE_URL_PROMETHEUS', readmeTerms: ['prometheus'], default: 'http://localhost:9090' },
+    grafana: { envVar: 'BASE_URL_GRAFANA', readmeTerms: ['grafana'], default: 'http://localhost:3000' },
+  },
+  3: {
+    type: 'prometheus-targets',
+    prometheus: { envVar: 'BASE_URL_PROMETHEUS', readmeTerms: ['prometheus'], default: 'http://localhost:9090' },
+  },
+  4: {
+    type: 'jaeger',
+    jaeger: { envVar: 'BASE_URL_JAEGER', readmeTerms: ['jaeger'], default: 'http://localhost:16686' },
+  },
+};
+
+// Uma credencial nova a cada execução (evita colidir com contas de execuções anteriores).
+const RUN_ID = Date.now();
+const rnd = (label) => `demo.${label}+${RUN_ID}@example.com`;
 
 /**
- * Faz uma requisição HTTP simples pra cada URL (fora do navegador, sem gravar) até
- * responder ou esgotar as tentativas. O primeiro request de uma API .NET recém-iniciada
- * (JIT, geração do JSON do Swagger, migrations) é sempre o mais lento — aquecer aqui evita
- * que essa lentidão apareça gravada quando o Playwright navegar de verdade.
+ * Fluxos por fase — lista declarativa de steps, executados em sequência pelo runStep().
+ * Ver a implementação dos tipos de step (register/activate/login/authorize/call) mais abaixo.
+ * `body`/`pathParams`/`query` podem ser objetos fixos OU funções `(state) => valor`, para usar
+ * valores capturados em steps anteriores (token, id do jogo criado, id do pedido...).
+ *
+ * fase4-T-*: Fase 4 usa exatamente os mesmos contratos de API que a Fase 3 (só Docker/K8s
+ * mudou) — os fluxos abaixo são compartilhados entre as duas.
  */
+function buildFlows(phase) {
+  const casing = phase === 2 ? { usuario: 'Usuario', admin: 'admin/Game' } : { usuario: 'usuario', admin: 'admin/game' };
+
+  const registerStep = (service, role, captureAs) => ({
+    type: 'register',
+    service,
+    path: `/api/${casing.usuario}/pre-register`,
+    body: { name: role === 'Admin' ? 'Admin Demo' : 'Usuário Demo', email: rnd(role.toLowerCase()), password: 'Demo@12345', role },
+    captureAs,
+  });
+  const activateStep = (service, credsFrom) => ({
+    type: 'activate',
+    service,
+    path: `/api/${casing.usuario}/activate`,
+    tokenFrom: credsFrom,
+  });
+  const loginStep = (service, credsFrom, captureAs) => ({
+    type: 'login',
+    service,
+    path: `/api/${casing.usuario}/login`,
+    credsFrom,
+    captureAs,
+  });
+
+  const adminFlow = [
+    registerStep('usuarios', 'Admin', 'admin'),
+    activateStep('usuarios', 'admin'),
+    loginStep('usuarios', 'admin', 'admin'),
+    { type: 'authorize', service: 'catalogo', tokenFrom: 'admin' },
+    {
+      type: 'call',
+      service: 'catalogo',
+      method: 'POST',
+      path: `/api/${casing.admin}`,
+      body: { name: 'Elden Ring', genre: 'RPG', price: 59.99, description: 'Demo FIAP Tech Challenge' },
+      captureAs: 'createdGame',
+    },
+  ];
+
+  const userFlowCommon = [
+    registerStep('usuarios', 'User', 'user'),
+    activateStep('usuarios', 'user'),
+    loginStep('usuarios', 'user', 'user'),
+    { type: 'authorize', service: 'catalogo', tokenFrom: 'user' },
+    {
+      type: 'call',
+      service: 'catalogo',
+      method: 'GET',
+      path: phase === 2 ? '/api/game' : '/api/game/available',
+    },
+  ];
+
+  const userFlowPurchase =
+    phase === 2
+      ? [] // Fase 2 não tem endpoint de compra implementado — ver docs/ (decisão registrada).
+      : [
+          { type: 'authorize', service: 'vendas', tokenFrom: 'user' },
+          {
+            type: 'call',
+            service: 'vendas',
+            method: 'POST',
+            path: '/api/pedidos',
+            captureAs: 'pedido',
+            extract: (json) => ({ id: json?.entityId }),
+          },
+          {
+            type: 'call',
+            service: 'vendas',
+            method: 'POST',
+            path: (state) => `/api/pedidos/${state.pedido.id}/itens`,
+            pathParams: (state) => ({ pedidoId: state.pedido.id }),
+            body: (state) => ({
+              jogoId: state.createdGame.id,
+              nomeJogo: state.createdGame.name,
+              preco: state.createdGame.price,
+            }),
+          },
+          {
+            type: 'call',
+            service: 'vendas',
+            method: 'POST',
+            path: (state) => `/api/pedidos/${state.pedido.id}/finalizar`,
+            pathParams: (state) => ({ pedidoId: state.pedido.id }),
+            body: { metodoPagamento: 'CreditCard' },
+          },
+        ];
+
+  return { admin: adminFlow, user: [...userFlowCommon, ...userFlowPurchase] };
+}
+
+// ── Aquecimento (evita loading/JIT/cold-start aparecendo no vídeo gravado) ──────
+
 async function warmUpUrl(url, { retries = 15, delayMs = 2000 } = {}) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-      // Qualquer resposta HTTP (mesmo 401/404) já prova que a aplicação respondeu e "esquentou".
       if (res.status) return true;
     } catch {
       // ainda subindo — tenta de novo
@@ -277,18 +302,14 @@ async function warmUpUrl(url, { retries = 15, delayMs = 2000 } = {}) {
 
 async function warmUp(urls) {
   log('WARMUP', `Aquecendo ${urls.length} serviço(s) antes de iniciar a gravação...`);
-  const results = await Promise.all(
-    urls.map(async (url) => ({ url, ok: await warmUpUrl(url) }))
-  );
-  for (const { url, ok } of results) {
-    log('WARMUP', `${ok ? 'OK' : 'TIMEOUT'} — ${url}`);
-  }
+  const results = await Promise.all(urls.map(async (url) => ({ url, ok: await warmUpUrl(url) })));
+  for (const { url, ok } of results) log('WARMUP', `${ok ? 'OK' : 'TIMEOUT'} — ${url}`);
   if (results.some((r) => !r.ok)) {
     log('WARN', 'Um ou mais serviços não responderam a tempo — confira `docker compose ps` antes de gravar.');
   }
 }
 
-// ── Slide de abertura/encerramento (HTML inline, sem depender de renderizar o .md) ──
+// ── Slides de abertura/encerramento ──────────────────────────────────────────
 
 function buildSlideDataUrl({ title, subtitle, bullets = [] }) {
   const bulletsHtml = bullets.map((b) => `<li>${b}</li>`).join('');
@@ -305,7 +326,6 @@ function buildSlideDataUrl({ title, subtitle, bullets = [] }) {
   return `data:text/html,${encodeURIComponent(html)}`;
 }
 
-/** Extrai o título (H1) e o primeiro parágrafo descritivo do README para o slide de abertura. */
 function extractReadmeSummary(readmePath) {
   if (!fs.existsSync(readmePath)) return { title: 'TheThroneOfGames', paragraph: '' };
   const content = fs.readFileSync(readmePath, 'utf-8');
@@ -317,73 +337,186 @@ function extractReadmeSummary(readmePath) {
   };
 }
 
-// ── Navegação: Swagger UI ────────────────────────────────────────────────────
+// ── Primitivas de Swagger UI ──────────────────────────────────────────────────
+// Seletores confirmados contra o Swashbuckle/Swagger UI padrão do ASP.NET Core (inspecionado
+// ao vivo). Se o tema/layout do Swagger mudar, ajuste as funções abaixo.
+
+async function findOpblock(page, method, urlPath) {
+  return page
+    .locator('.opblock')
+    .filter({ has: page.locator('.opblock-summary-method', { hasText: method.toUpperCase() }) })
+    .filter({ has: page.locator('.opblock-summary-path', { hasText: urlPath }) })
+    .first();
+}
+
+/** Abre o modal "Authorize", cola "Bearer <token>" e confirma. Precisa ser refeito a cada
+ * troca de página do Swagger (estado de auth não sobrevive à navegação) e a cada troca de
+ * usuário/token dentro da mesma página. */
+async function authorize(page, token) {
+  const authBtn = page.locator('.btn.authorize');
+  await authBtn.click();
+  await page.waitForTimeout(BEAT);
+
+  // Se já havia um token autorizado nesta página (ex.: trocando do admin pro usuário), o
+  // modal não mostra mais o campo de input — só "Logout"/"Close" com o valor mascarado
+  // ("******"). Precisa fazer Logout antes que o campo de input volte a aparecer.
+  const logoutBtn = page.locator('.auth-btn-wrapper button[aria-label="Remove authorization"]');
+  if (await logoutBtn.count().then((c) => c > 0).catch(() => false)) {
+    await logoutBtn.click();
+    await page.waitForTimeout(BEAT);
+  }
+
+  const input = page.locator('#auth-bearer-value');
+  // O texto de ajuda do modal ("Insira 'Bearer {token}'") é enganoso para um scheme
+  // Type=Http/Scheme=bearer: o Swagger UI já prefixa "Bearer " sozinho ao montar o header.
+  // Colar "Bearer <token>" aqui produz "Authorization: Bearer Bearer <token>" e todo
+  // endpoint [Authorize] responde 401 (confirmado testando os dois casos direto via fetch).
+  await input.fill(token);
+  await page.locator('.auth-btn-wrapper button.authorize').click();
+  await page.waitForTimeout(BEAT);
+  const closeBtn = page.locator('.btn.modal-btn.auth.btn-done');
+  if (await closeBtn.count()) await closeBtn.click();
+  await page.waitForTimeout(BEAT);
+}
 
 /**
- * Abre o Swagger de um serviço, expande a lista de endpoints e executa cada chamada em
- * `demoCalls` ("Try it out" -> preenche o body, se houver -> "Execute" -> rola até a
- * resposta ficar visível -> pausa PAUSE ms para o espectador ler). Os seletores usados são
- * os do Swashbuckle/Swagger UI padrão do ASP.NET Core — se o tema/layout do Swagger mudar,
- * ajuste os seletores `.opblock*` abaixo.
+ * Expande um endpoint, preenche parâmetros de rota/query (tr[data-param-name]) e/ou body
+ * (textarea), executa, espera a resposta, lê o JSON da resposta e recolhe o bloco de volta.
+ * Retorna o JSON parseado (ou null se a resposta não for JSON/o parse falhar).
  */
-async function demoSwagger(page, serviceName, baseUrl, demoCalls) {
-  const url = swaggerUrlOf(baseUrl);
-  log('SWAGGER', `Abrindo ${serviceName} — ${url}`);
-  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-  await page.waitForSelector('.swagger-ui', { timeout: 30000 });
-  await page.waitForTimeout(BEAT);
-
-  // Rola a lista de endpoints para o espectador ver a superfície da API antes de focar em um.
-  await page.mouse.wheel(0, 300);
-  await page.waitForTimeout(BEAT);
-
-  if (!demoCalls || demoCalls.length === 0) {
-    log('SWAGGER', `${serviceName}: sem chamada de demonstração configurada, seguindo em frente.`);
-    return;
+async function callEndpoint(page, { method, path: urlPath, params, body }) {
+  const opblock = await findOpblock(page, method, urlPath);
+  if ((await opblock.count()) === 0) {
+    log('WARN', `Endpoint ${method} ${urlPath} não encontrado no Swagger.`);
+    return null;
   }
 
-  for (const demoCall of demoCalls) {
-    const opblock = page
-      .locator('.opblock')
-      .filter({ has: page.locator('.opblock-summary-method', { hasText: demoCall.method.toUpperCase() }) })
-      .filter({ has: page.locator('.opblock-summary-path', { hasText: demoCall.path }) })
-      .first();
+  await opblock.scrollIntoViewIfNeeded();
+  await opblock.locator('.opblock-summary').click();
+  await page.waitForTimeout(BEAT);
 
-    if ((await opblock.count()) === 0) {
-      log('WARN', `${serviceName}: endpoint ${demoCall.method} ${demoCall.path} não encontrado no Swagger — pulando.`);
-      continue;
-    }
-
-    log('SWAGGER', `${serviceName}: expandindo ${demoCall.method} ${demoCall.path}`);
-    await opblock.scrollIntoViewIfNeeded();
-    await opblock.locator('.opblock-summary').click();
+  // Se o mesmo endpoint já foi chamado antes nesta gravação (ex.: /pre-register chamado nos
+  // dois fluxos), o opblock reaberto já está em modo "try it out" — o botão único vira
+  // Cancel+Reset, então só clica se o botão de alternância (não tocado ainda) existir.
+  const tryItOutBtn = opblock.locator('button.try-out__btn:not(.cancel):not(.reset)');
+  if (await tryItOutBtn.count()) {
+    await tryItOutBtn.click();
     await page.waitForTimeout(BEAT);
+  }
 
-    const tryItOutBtn = opblock.locator('button.try-out__btn');
-    if (await tryItOutBtn.count()) {
-      await tryItOutBtn.click();
+  if (params) {
+    for (const [name, value] of Object.entries(params)) {
+      const input = opblock.locator(`tr[data-param-name="${name}"] input, tr[data-param-name="${name}"] textarea`);
+      if (await input.count()) await input.first().fill(String(value));
+    }
+    await page.waitForTimeout(BEAT / 2);
+  }
+
+  if (body) {
+    const textarea = opblock.locator('textarea');
+    if (await textarea.count()) {
+      await textarea.first().fill(JSON.stringify(body, null, 2));
       await page.waitForTimeout(BEAT);
     }
-
-    if (demoCall.body) {
-      const textarea = opblock.locator('textarea');
-      if (await textarea.count()) {
-        await textarea.first().fill(JSON.stringify(demoCall.body, null, 2));
-        await page.waitForTimeout(BEAT);
-      }
-    }
-
-    log('SWAGGER', `${serviceName}: executando ${demoCall.method} ${demoCall.path}`);
-    await opblock.locator('button.execute').click();
-    await opblock.locator('.responses-wrapper').waitFor({ timeout: 15000 }).catch(() => {});
-    // Garante que a resposta (não só o botão Execute) fique visível no quadro gravado.
-    await opblock.locator('.responses-wrapper').scrollIntoViewIfNeeded().catch(() => {});
-    await page.waitForTimeout(PAUSE); // dá tempo do espectador ver o status code/response body
-
-    // Recolhe o bloco antes do próximo, pra não empilhar respostas gigantes na tela.
-    await opblock.locator('.opblock-summary').click();
-    await page.waitForTimeout(BEAT);
   }
+
+  log('SWAGGER', `Executando ${method} ${urlPath}`);
+  await opblock.locator('button.execute').click();
+  await opblock.locator('.responses-wrapper').waitFor({ timeout: 15000 }).catch(() => {});
+  await opblock.locator('.responses-wrapper').scrollIntoViewIfNeeded().catch(() => {});
+  await page.waitForTimeout(PAUSE);
+
+  const responseCode = opblock.locator('tr.response .response-col_status').first();
+  const status = (await responseCode.count()) ? (await responseCode.innerText()).trim() : '?';
+  log('SWAGGER', `${method} ${urlPath} -> ${status}`);
+
+  let json = null;
+  const responseBody = opblock.locator('tr.response .response-col_description pre.microlight code').first();
+  if (await responseBody.count()) {
+    try {
+      json = JSON.parse(await responseBody.innerText());
+    } catch {
+      // resposta não é JSON (texto puro, ex.: "Usuário ativado com sucesso.") — segue sem capturar.
+    }
+  }
+
+  await opblock.locator('.opblock-summary').click(); // recolhe antes do próximo passo
+  await page.waitForTimeout(BEAT);
+  return json;
+}
+
+// ── Motor de steps (register/activate/login/authorize/call) ────────────────────
+
+function resolveMaybeFn(value, state) {
+  return typeof value === 'function' ? value(state) : value;
+}
+
+async function runStep(page, currentUrlRef, services, readmeUrls, state, step) {
+  const target = services[step.service];
+  const swaggerUrl = swaggerUrlOf(resolveUrl(target, readmeUrls));
+  if (currentUrlRef.value !== swaggerUrl) {
+    log('SWAGGER', `Abrindo ${target.name} — ${swaggerUrl}`);
+    await page.goto(swaggerUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForSelector('.swagger-ui', { timeout: 30000 });
+    await page.waitForTimeout(BEAT);
+    currentUrlRef.value = swaggerUrl;
+  }
+
+  switch (step.type) {
+    case 'register': {
+      const body = resolveMaybeFn(step.body, state);
+      const json = await callEndpoint(page, { method: 'POST', path: step.path, body });
+      state[step.captureAs] = { ...body, activationToken: json?.activationToken };
+      if (!json?.activationToken) log('WARN', `register: activationToken não veio na resposta (${JSON.stringify(json)}).`);
+      break;
+    }
+    case 'activate': {
+      const creds = state[step.tokenFrom];
+      await callEndpoint(page, { method: 'POST', path: step.path, params: { activationToken: creds.activationToken } });
+      break;
+    }
+    case 'login': {
+      const creds = state[step.credsFrom];
+      const json = await callEndpoint(page, {
+        method: 'POST',
+        path: step.path,
+        body: { email: creds.email, password: creds.password },
+      });
+      state[step.captureAs] = { ...state[step.captureAs], token: json?.token, role: json?.role };
+      if (!json?.token) log('WARN', `login: token não veio na resposta (${JSON.stringify(json)}).`);
+      break;
+    }
+    case 'authorize': {
+      const token = state[step.tokenFrom]?.token;
+      if (!token) {
+        log('WARN', `authorize: sem token capturado em state.${step.tokenFrom} — pulando.`);
+        break;
+      }
+      log('SWAGGER', `Autorizando como "${step.tokenFrom}" (role ${state[step.tokenFrom].role || '?'})`);
+      await authorize(page, token);
+      break;
+    }
+    case 'call': {
+      const urlPath = resolveMaybeFn(step.path, state);
+      const params = step.pathParams ? resolveMaybeFn(step.pathParams, state) : step.query ? resolveMaybeFn(step.query, state) : undefined;
+      const body = step.body ? resolveMaybeFn(step.body, state) : undefined;
+      const json = await callEndpoint(page, { method: step.method, path: urlPath, params, body });
+      if (step.captureAs) {
+        state[step.captureAs] = step.extract ? step.extract(json) : json;
+      }
+      break;
+    }
+    default:
+      throw new Error(`Tipo de step desconhecido: ${step.type}`);
+  }
+}
+
+async function runFlow(page, currentUrlRef, services, readmeUrls, state, steps, flowName) {
+  log('FLOW', `Iniciando fluxo "${flowName}"`);
+  for (const step of steps) {
+    await runStep(page, currentUrlRef, services, readmeUrls, state, step);
+  }
+  log('FLOW', `Fluxo "${flowName}" concluído`);
 }
 
 // ── Navegação: Observabilidade ───────────────────────────────────────────────
@@ -397,7 +530,6 @@ async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
   await page.goto(grafanaUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(BEAT);
 
-  // Login padrão (admin/admin) — só tenta se a tela de login aparecer.
   const userField = page.locator('input[name="user"], input[aria-label="Username input field"]');
   if (await userField.count().then((c) => c > 0).catch(() => false)) {
     log('OBS', 'Grafana: autenticando (admin/admin)');
@@ -405,12 +537,11 @@ async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
     await page.locator('input[name="password"], input[aria-label="Password input field"]').first().fill('admin');
     await page.keyboard.press('Enter');
     await page.waitForTimeout(BEAT);
-    // Pula o prompt de troca de senha, se aparecer.
     const skipBtn = page.locator('button:has-text("Skip")');
     if (await skipBtn.count().then((c) => c > 0).catch(() => false)) await skipBtn.first().click();
   }
 
-  await page.waitForTimeout(PAUSE); // mostra o dashboard/lista carregada
+  await page.waitForTimeout(PAUSE);
 }
 
 async function demoPrometheusTargets(page, { prometheusUrl }) {
@@ -419,21 +550,11 @@ async function demoPrometheusTargets(page, { prometheusUrl }) {
   await page.waitForTimeout(PAUSE);
 }
 
-/**
- * Abre a UI do Jaeger, busca traces e abre o primeiro resultado para mostrar o grafo.
- * A estrutura do DOM do Jaeger varia por versão — os seletores abaixo são best-effort
- * (com fallback silencioso) e podem precisar de ajuste conforme a versão da imagem
- * jaegertracing/all-in-one usada (ver k8s/deployments/jaeger-deployment.yaml).
- */
 async function demoJaeger(page, { jaegerUrl }) {
   log('OBS', `Jaeger UI — ${jaegerUrl}/search`);
   await page.goto(`${jaegerUrl}/search`, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(BEAT);
 
-  // Jaeger 1.60 usa Ant Design — o combo de serviço é um .ant-select (não um <select> nativo),
-  // e o botão "Find Traces" ([data-test="submit-btn"]) fica desabilitado até um serviço ser
-  // escolhido. Prefere um dos 3 microsserviços; cai para a primeira opção da lista se nenhum
-  // desses aparecer (nome de serviço/versão do Jaeger pode mudar).
   try {
     const serviceSelect = page.locator('.ant-select').first();
     await serviceSelect.click();
@@ -457,13 +578,15 @@ async function demoJaeger(page, { jaegerUrl }) {
     await page.waitForTimeout(BEAT);
 
     const findBtn = page.locator('button[data-test="submit-btn"]');
-    await page.waitForFunction(
-      () => {
-        const btn = document.querySelector('[data-test="submit-btn"]');
-        return btn && !btn.disabled;
-      },
-      { timeout: 5000 }
-    ).catch(() => log('WARN', 'Jaeger: botão "Find Traces" não habilitou a tempo — tentando clicar mesmo assim.'));
+    await page
+      .waitForFunction(
+        () => {
+          const btn = document.querySelector('[data-test="submit-btn"]');
+          return btn && !btn.disabled;
+        },
+        { timeout: 5000 }
+      )
+      .catch(() => log('WARN', 'Jaeger: botão "Find Traces" não habilitou a tempo — tentando clicar mesmo assim.'));
     await findBtn.click();
     await page.waitForTimeout(PAUSE);
 
@@ -486,8 +609,10 @@ async function demoJaeger(page, { jaegerUrl }) {
 
 async function main() {
   const phase = resolvePhase();
-  const config = PHASE_CONFIG[phase];
-  log('INIT', `${config.label} — gravação iniciando`);
+  const services = SERVICES[phase];
+  const observability = OBSERVABILITY[phase];
+  const flows = buildFlows(phase);
+  log('INIT', `Fase ${phase} — gravação iniciando`);
 
   fs.mkdirSync(VIDEOS_DIR, { recursive: true });
   const tmpVideoDir = fs.mkdtempSync(path.join(VIDEOS_DIR, '.tmp-'));
@@ -495,17 +620,9 @@ async function main() {
   const readmeUrls = parseReadmeUrls(README_PATH);
   const summary = extractReadmeSummary(README_PATH);
 
-  // Resolve todas as URLs (Swagger + observabilidade) uma vez, antes de aquecer e gravar.
-  const swaggerUrls = config.swaggerTargets.map((t) => ({ ...t, url: resolveUrl(t, readmeUrls) }));
-  const obsUrls = Object.entries(config.observability)
-    .filter(([key]) => key !== 'type')
-    .map(([, target]) => resolveUrl(target, readmeUrls));
-
-  // Aquece TUDO antes de abrir o navegador de gravação — elimina o loading demorado do
-  // primeiro request de cada serviço aparecendo no vídeo (ver warmUp()).
   const warmUpTargets = [
-    ...swaggerUrls.map((t) => swaggerUrlOf(t.url)),
-    ...obsUrls,
+    ...Object.values(services).map((t) => swaggerUrlOf(resolveUrl(t, readmeUrls))),
+    ...Object.entries(observability).filter(([k]) => k !== 'type').map(([, t]) => resolveUrl(t, readmeUrls)),
   ];
   await warmUp(warmUpTargets);
 
@@ -515,9 +632,10 @@ async function main() {
     recordVideo: { dir: tmpVideoDir, size: VIEWPORT },
   });
   const page = await context.newPage();
+  const currentUrlRef = { value: null };
+  const state = {};
 
   try {
-    // Passo 1 — slide de abertura com o título/objetivo lidos do README.
     log('STEP-1', 'Slide de abertura');
     await page.goto(
       buildSlideDataUrl({
@@ -528,32 +646,29 @@ async function main() {
     );
     await page.waitForTimeout(PAUSE);
 
-    // Passo 2 — Swagger de cada serviço ativo na fase, com chamadas reais de sucesso.
-    log('STEP-2', 'Navegação pelos Swagger dos serviços');
-    for (const target of swaggerUrls) {
-      await demoSwagger(page, target.name, target.url, target.demoCalls);
-    }
+    log('STEP-2', 'Fluxo A — registro -> login (admin) -> criar jogo');
+    await runFlow(page, currentUrlRef, services, readmeUrls, state, flows.admin, 'admin');
 
-    // Passo 3 — observabilidade específica da fase.
-    log('STEP-3', `Observabilidade (${config.observability.type})`);
-    if (config.observability.type === 'grafana-prometheus') {
+    log('STEP-3', 'Fluxo B — registro -> login (usuário) -> procurar jogo -> comprar jogo');
+    if (phase === 2) {
+      log('INFO', 'Fase 2 não tem endpoint de compra implementado — fluxo encerra em "procurar jogo".');
+    }
+    await runFlow(page, currentUrlRef, services, readmeUrls, state, flows.user, 'usuário');
+
+    log('STEP-4', `Observabilidade (${observability.type})`);
+    if (observability.type === 'grafana-prometheus') {
       await demoGrafanaPrometheus(page, {
-        prometheusUrl: resolveUrl(config.observability.prometheus, readmeUrls),
-        grafanaUrl: resolveUrl(config.observability.grafana, readmeUrls),
+        prometheusUrl: resolveUrl(observability.prometheus, readmeUrls),
+        grafanaUrl: resolveUrl(observability.grafana, readmeUrls),
       });
-    } else if (config.observability.type === 'prometheus-targets') {
-      await demoPrometheusTargets(page, {
-        prometheusUrl: resolveUrl(config.observability.prometheus, readmeUrls),
-      });
-    } else if (config.observability.type === 'jaeger') {
-      await demoJaeger(page, {
-        jaegerUrl: resolveUrl(config.observability.jaeger, readmeUrls),
-      });
+    } else if (observability.type === 'prometheus-targets') {
+      await demoPrometheusTargets(page, { prometheusUrl: resolveUrl(observability.prometheus, readmeUrls) });
+    } else if (observability.type === 'jaeger') {
+      await demoJaeger(page, { jaegerUrl: resolveUrl(observability.jaeger, readmeUrls) });
     }
 
-    // Passo 4 — slide de encerramento.
-    log('STEP-4', 'Slide de encerramento');
-    await page.goto(buildSlideDataUrl({ title: 'Fim da demonstração', subtitle: config.label, bullets: [] }));
+    log('STEP-5', 'Slide de encerramento');
+    await page.goto(buildSlideDataUrl({ title: 'Fim da demonstração', subtitle: `Fase ${phase}`, bullets: [] }));
     await page.waitForTimeout(PAUSE);
   } finally {
     log('CLOSE', 'Finalizando gravação...');
@@ -561,10 +676,6 @@ async function main() {
     await browser.close();
   }
 
-  // Playwright grava nativamente em .webm com um nome de arquivo gerado automaticamente.
-  // Move para um .webm com o nome final e, se o ffmpeg estiver disponível no PATH,
-  // converte para o .mp4 pedido pela entrega (senão mantém o .webm, que qualquer player
-  // moderno/YouTube também aceita, e avisa no console).
   const [recordedFile] = fs.readdirSync(tmpVideoDir).filter((f) => f.endsWith('.webm'));
   if (!recordedFile) {
     log('WARN', `Nenhum arquivo de vídeo encontrado em ${tmpVideoDir} — verifique a saída do Playwright.`);
