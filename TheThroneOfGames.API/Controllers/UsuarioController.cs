@@ -86,24 +86,16 @@ namespace TheThroneOfGames.API.Controllers
             {
                 var activationToken = await _userService.PreRegisterUserAsync(userDto.Email, userDto.Name, userDto.Password, userDto.Role);
 
-                // Compose activation link
-                var activationLink = $"{Request.Scheme}://{Request.Host}/api/Usuario/activate?activationToken={activationToken}";
-
-                // Send activation e-mail (development: writes to Outbox)
-                var subject = "Ativação de conta - TheThroneOfGames";
-                var body = $"Olá {userDto.Name},\n\nPor favor ative sua conta clicando no link abaixo:\n{activationLink}\n\nSe você não solicitou esse e-mail, ignore.";
-
-                // TODO: Send email via EmailService
+                // TODO: Send email via EmailService — até lá, não há nenhum outro canal por onde o
+                // usuário recebe o token, então a resposta precisa incluí-lo (mesmo padrão já usado
+                // em GameStore.Usuarios.API.Controllers.UsuarioController na Fase 3/4). Sem isso,
+                // nenhuma conta registrada por este endpoint jamais poderia ser ativada.
+                return Ok(new { message = "E-mail de ativação enviado.", activationToken });
             }
             catch (ArgumentException ex)
             {
                 return BadRequest(ex.Message);
             }
-
-            // Enviar e-mail de ativação (placeholder)
-            // await _emailService.SendEmailAsync(userDto.Email, "Ativação de Conta", "Clique no link para ativar sua conta.");
-
-            return Ok("E-mail de ativação enviado.");
         }
 
         [HttpPost("activate")]
