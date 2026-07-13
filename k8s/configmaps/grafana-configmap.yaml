@@ -547,6 +547,78 @@ data:
           ],
           "title": "Total Requests (1min)",
           "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Réplicas reais por Deployment (kube-state-metrics) — só populado num cluster Kubernetes de verdade (kind/EKS/etc), não em docker-compose. Mostra o HPA escalando ao vivo.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisLabel": "réplicas",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "tooltip": false,
+                  "viz": false,
+                  "legend": false
+                },
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 2,
+                "pointSize": 6,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "always",
+                "spanNulls": true
+              },
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 20
+          },
+          "id": 9,
+          "options": {
+            "legend": {
+              "calcs": ["mean", "max", "last"],
+              "displayMode": "table",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "pluginVersion": "8.0.0",
+          "targets": [
+            {
+              "expr": "kube_deployment_status_replicas{namespace=\"gamestore\", deployment=~\"usuarios-api|catalogo-api|vendas-api\"}",
+              "legendFormat": "{{deployment}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Pods por Deployment (HPA ao vivo)",
+          "type": "timeseries"
         }
       ],
       "schemaVersion": 27,

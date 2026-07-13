@@ -41,3 +41,12 @@ data:
           - targets: ['vendas-api:9093']
         metrics_path: '/metrics'
         scrape_interval: 5s
+
+      # kube-state-metrics — só existe no cluster Kubernetes (não em docker-compose, que não
+      # tem API server pra observar). Alimenta o painel "Pods por Deployment" do Grafana com
+      # a contagem real de réplicas de cada HPA, ver k8s/deployments/kube-state-metrics-deployment.yaml.
+      - job_name: 'kube-state-metrics'
+        static_configs:
+          - targets: ['kube-state-metrics:8080']
+        metrics_path: '/metrics'
+        scrape_interval: 10s
