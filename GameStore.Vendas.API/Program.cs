@@ -134,7 +134,7 @@ var app = builder.Build();
 
 // Start Prometheus Metrics Server
 var metricsServer = app.Services.GetRequiredService<IMetricServer>();
-_ = metricsServer; // Ensures server is started
+metricsServer.Start();
 
 // Força a construção do IEventBus (RabbitMqAdapter) na inicialização em vez de na primeira
 // requisição — sem isso, o exchange e as filas fan-out ("notificacoes.pedido-finalizado",

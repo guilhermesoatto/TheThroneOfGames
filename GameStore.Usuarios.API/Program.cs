@@ -158,7 +158,7 @@ var app = builder.Build();
 
 // Start Prometheus Metrics Server
 var metricsServer = app.Services.GetRequiredService<IMetricServer>();
-_ = metricsServer; // Ensures server is started
+metricsServer.Start();
 
 // Aplica as migrations do EF Core na inicialização — cada microsserviço gerencia seu próprio
 // schema. Sem isso, um banco recém-criado (docker-compose de um ambiente novo) nunca teria as

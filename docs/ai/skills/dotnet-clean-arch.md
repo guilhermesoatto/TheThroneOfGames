@@ -283,3 +283,37 @@ app.Run();
 - **Proibido `new` em Controllers:** Controllers recebem Use Cases via construtor (DI).
 - **Configuration:** Toda configuração vem de `appsettings.json` / `appsettings.{env}.json` / variáveis de ambiente. Nunca hardcode.
 - **Ordem de registro:** Infrastructure → Application → Presentation → Middleware → Endpoints.
+
+## 8. GOTCHA CONHECIDO: Resolver um Singleton do DI NÃO inicia seu lifecycle
+
+Registrar uma classe de infraestrutura com lifecycle próprio (ex.: `KestrelMetricServer` do
+`prometheus-net`, que expõe `.Start()`/`.Stop()`) via `AddSingleton<TInterface>(new Impl(...))`
+e depois só resolvê-la (`app.Services.GetRequiredService<TInterface>()`) **não a inicia**.
+Resolver um singleton do container garante apenas que o objeto existe — nenhum método de
+lifecycle é chamado automaticamente por isso.
+
+**Incidente real neste framework (2026-07-13, TheThroneOfGames/Fase 4):** 3 microsserviços
+registravam `IMetricServer` (porta dedicada de métricas Prometheus, separada da porta HTTP
+principal) e resolviam a instância assim:
+```csharp
+var metricsServer = app.Services.GetRequiredService<IMetricServer>();
+_ = metricsServer; // Ensures server is started  <-- comentário FALSO
+```
+A porta dedicada nunca abria (nada ouvia nela dentro do container), o Prometheus marcava o
+alvo como `down`/`connection refused`, e o Grafana reportava erro de datasource. Ninguém
+percebeu antes porque `/metrics` também respondia — por outro caminho, `app.MapMetrics()` —
+na porta HTTP principal, mascarando o sintoma mais óbvio.
+
+**Regra:** se uma dependência de infraestrutura expõe um método de lifecycle explícito
+(`.Start()`, `.StartAsync()`, `.Open()`, etc.), chame-o explicitamente depois de resolver a
+instância:
+```csharp
+var metricsServer = app.Services.GetRequiredService<IMetricServer>();
+metricsServer.Start();
+```
+Melhor ainda: se a classe permitir, implemente `IHostedService`/`BackgroundService` e deixe o
+host do ASP.NET Core cuidar do start/stop automaticamente pelo lifetime da aplicação — assim
+não existe um passo manual para esquecer. Nunca assuma que "resolver do DI" e "iniciar" são a
+mesma coisa; ao fazer o scaffold de qualquer serviço com um servidor/listener de infraestrutura
+próprio, teste (`curl`/`wget` a porta esperada dentro do container) em vez de confiar no
+comentário do código anterior.
