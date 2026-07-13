@@ -18,11 +18,12 @@ Arquitetura Fase 4 (fluxo de rede no Kubernetes): [`docs/k8s-architecture-flow.m
 
 | Bounded Context | Projetos | Responsabilidade | Rota via API Gateway |
 |---|---|---|---|
-| Usuários | `GameStore.Usuarios` / `GameStore.Usuarios.API` | Login, cadastro, ativação, perfil | `/api/usuario/*`, `/api/admin/user-management/*` |
+| Usuários | `GameStore.Usuarios` / `GameStore.Usuarios.API` | Login, cadastro, ativação, perfil, **Inventário** (jogos comprados) | `/api/usuario/*`, `/api/admin/user-management/*` |
 | Catálogo | `GameStore.Catalogo` / `GameStore.Catalogo.API` | Listagem, busca (Elasticsearch), promoções | `/api/game/*`, `/api/admin/game/*`, `/api/admin/promotion/*` |
 | Vendas | `GameStore.Vendas` / `GameStore.Vendas.API` | Pedidos, itens, pagamento, Event Sourcing | `/api/pedidos/*` |
+| Partidas *(adicional, fora do edital)* | `GameStore.Partidas` / `GameStore.Partidas.API` | Matchmaking 1v1 — ver [`docs/partidas-architecture.md`](docs/partidas-architecture.md) | `/api/partida/*` |
 
-Compartilhado: `GameStore.Common` (eventos de domínio + mensageria RabbitMQ) e `GameStore.CQRS.Abstractions` (Commands/Queries). Cada bounded context mantém seu próprio `DbContext` — nenhum serviço acessa a tabela/schema de outro.
+Compartilhado: `GameStore.Common` (eventos de domínio + mensageria RabbitMQ) e `GameStore.CQRS.Abstractions` (Commands/Queries). Cada bounded context mantém seu próprio banco — nenhum serviço acessa o schema/base de outro (Usuários/Catálogo/Vendas compartilham a instância física do Postgres com schemas isolados; Partidas usa MongoDB próprio).
 
 ## Arquitetura
 
@@ -36,9 +37,10 @@ Compartilhado: `GameStore.Common` (eventos de domínio + mensageria RabbitMQ) e 
 ## Stack Tecnológico
 
 - ASP.NET Core 9.0 Web API, Entity Framework Core, PostgreSQL
+- MongoDB (Partidas — único bounded context com persistência não-relacional, ver [`docs/partidas-architecture.md`](docs/partidas-architecture.md))
 - RabbitMQ (mensageria), Elasticsearch 8.x (busca), nginx (API Gateway)
 - Azure Functions Worker (isolated model)
-- xUnit/NUnit + Testcontainers (RabbitMQ e Elasticsearch reais em testes de integração)
+- xUnit/NUnit + Testcontainers (RabbitMQ, Elasticsearch e MongoDB reais em testes de integração)
 - Docker Compose para orquestração local
 
 ## Executando localmente
@@ -53,13 +55,14 @@ Compartilhado: `GameStore.Common` (eventos de domínio + mensageria RabbitMQ) e 
 docker compose up -d --build
 ```
 
-Isso sobe: PostgreSQL, RabbitMQ, Elasticsearch, Jaeger, Azurite, os 3 microsserviços, o Serverless (`notifications-functions`), o API Gateway (nginx) e Prometheus/Grafana. Cada microsserviço aplica suas próprias EF Core migrations na inicialização.
+Isso sobe: PostgreSQL, MongoDB, RabbitMQ, Elasticsearch, Jaeger, Azurite, os 4 microsserviços, o Serverless (`notifications-functions`), o API Gateway (nginx) e Prometheus/Grafana. Cada microsserviço aplica suas próprias EF Core migrations (ou índices, no caso de Partidas/Mongo) na inicialização.
 
 **Serviços disponíveis:**
 - API Gateway: http://localhost:8080
 - Usuários API: http://localhost:5001/swagger
 - Catálogo API: http://localhost:5002/swagger
 - Vendas API: http://localhost:5003/swagger
+- Partidas API: http://localhost:5004/swagger
 - Elasticsearch: http://localhost:9200
 - Jaeger UI (traces): http://localhost:16686
 - RabbitMQ Management: http://localhost:15672 (guest/guest)
@@ -148,6 +151,7 @@ TheThroneOfGames.sln
 ├── GameStore.Usuarios(.API)(.Tests)        # Bounded Context: Usuários
 ├── GameStore.Catalogo(.API)(.Tests)        # Bounded Context: Catálogo
 ├── GameStore.Vendas(.API)(.Tests)          # Bounded Context: Vendas
+├── GameStore.Partidas(.API)(.Tests)        # Bounded Context: Partidas (matchmaking, adicional)
 ├── GameStore.Common(.Tests)                # Eventos, mensageria RabbitMQ
 ├── GameStore.CQRS.Abstractions             # Abstrações Commands/Queries
 ├── GameStore.Notifications.Functions       # Azure Functions (isolated worker)
@@ -175,6 +179,24 @@ Ver `docs/Objectives/sprint-3/prd-fase4.json` para o checklist tarefa a tarefa. 
 | Pipeline de deploy no Amazon EKS (build ECR + kubectl apply + HPA opcional) | ✅ pronto (`.github/workflows/deploy-eks.yml`, ver `docs/eks-deploy.md`) |
 | Cluster EKS **provisionado e pipeline executada contra ele** | ⚠️ pendente — depende das credenciais AWS/execução do pipeline, ver PRD `fase4-T03` |
 | Retry/DLQ em mensageria (opcional) | ❌ não implementado (flag opcional no edital) |
+
+## Partidas (Matchmaking) — adicional, fora do edital
+
+4º bounded context, pedido do Arquiteto para o roadmap pós-entrega (não faz parte da nota da
+Fase 4). Fundamento, modelo de domínio e decisões de arquitetura completos em
+[`docs/partidas-architecture.md`](docs/partidas-architecture.md). PRD técnico + status
+tarefa a tarefa: [`docs/ai/tasks/prd-partidas.json`](docs/ai/tasks/prd-partidas.json) (10/10
+tarefas concluídas, validar com `node tools/validate-prd.js docs/ai/tasks/prd-partidas.json`).
+Validação ao vivo (API + MongoDB + Jaeger, 15/15 critérios de aceite): `node tools/validate-partidas.js`.
+
+| Item | Status |
+|---|---|
+| Matchmaking 1v1 imediato, sem timeout de confirmação | ✅ |
+| Posse do jogo verificada via chamada síncrona a `usuarios-api` (1ª do sistema) | ✅ |
+| Persistência MongoDB com purge automático (TTL, 60 dias) | ✅ |
+| Dockerfile + docker-compose (`partidas-api` + `mongodb`) + rota no API Gateway | ✅ |
+| Manifestos Kubernetes (Deployment/Service/HPA + MongoDB) | ✅ (validado por parsing YAML — não reaplicado contra cluster real) |
+| Script de validação ao vivo (API + Mongo + Jaeger cruzados) | ✅ 15/15 critérios |
 
 ## Status Real da Fase 3
 

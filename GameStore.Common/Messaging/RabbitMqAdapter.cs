@@ -35,6 +35,14 @@ namespace GameStore.Common.Messaging
 
             // Eventos publicados pelo contexto Vendas
             { typeof(GameStore.Common.Events.PedidoFinalizadoEvent), "usuarios.pedido-finalizado" },
+
+            // Eventos publicados pelo contexto Partidas (matchmaking) — sem consumer dedicado
+            // ainda; publicados para observabilidade/telemetria (ver
+            // docs/ai/tasks/prd-partidas.json acceptanceCriteria) e para uma eventual evolução
+            // futura (ex.: notificações push quando uma partida é encontrada).
+            { typeof(GameStore.Common.Events.PartidaEncontradaEvent), "partidas.encontrada" },
+            { typeof(GameStore.Common.Events.PartidaConfirmadaEvent), "partidas.confirmada" },
+            { typeof(GameStore.Common.Events.PartidaCanceladaEvent), "partidas.cancelada" },
         };
 
         // Filas adicionais que recebem uma cópia (fan-out) do mesmo evento, para consumidores

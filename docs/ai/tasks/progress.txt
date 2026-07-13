@@ -1,0 +1,72 @@
+[2026-07-13] partidas-T01 done. Scaffold de GameStore.Partidas + GameStore.Partidas.Tests criado
+e adicionado à sln. Value Objects: Result<T>/DomainError (Domain/Shared), StatusPartida e
+StatusSolicitacao (enums), EquipeSlots (VO imutável, teto de 5 jogadores). 8/8 testes xUnit
+passando (dotnet test GameStore.Partidas.Tests --filter FullyQualifiedName~ValueObjects).
+Próximo: partidas-T02 (Entidades Partida/SolicitacaoBusca + Domain Events).
+
+[2026-07-13] partidas-T02 done. Eventos PartidaEncontradaEvent/PartidaConfirmadaEvent/
+PartidaCanceladaEvent criados em GameStore.Common.Events (padrão PedidoFinalizadoEvent) +
+registrados no EventQueueMapping do RabbitMqAdapter (filas partidas.encontrada/confirmada/
+cancelada, sem consumer dedicado ainda — publicados para observabilidade). Entidades Partida
+(aggregate root: Formar/Confirmar/Desistir) e SolicitacaoBusca (Parear/Cancelar) em
+GameStore.Partidas/Domain/Entities. 13/13 testes xUnit passando. Build da solução inteira
+(dotnet build TheThroneOfGames.sln) OK — a mudança no Common não quebrou Usuarios/Catalogo/
+Vendas/Notifications.Functions. Próximo: partidas-T03 (Ports).
+
+[2026-07-13] partidas-T03 done. IPartidaRepository, ISolicitacaoBuscaRepository
+(Domain/Repositories) e IUsuariosGateway (Application/Ports — chamada síncrona a Usuarios,
+primeira do sistema) criados, sem implementação concreta ainda. Build OK. Próximo: partidas-T04
+(Use Cases).
+
+[2026-07-13] partidas-T04 done. MotorDePareamento (Application/Services, compartilhado por
+Buscar e Desistir) + BuscarPartidaUseCase, ConfirmarPartidaUseCase, DesistirPartidaUseCase,
+ConsultarStatusUseCase (Application/UseCases). 34/34 testes xUnit passando (8 VO + 13 domínio +
+13 aplicação com NSubstitute). Próximo: partidas-T05 (MongoDB, UsuariosHttpGateway,
+GameStore.Partidas.API, testes de integração — a tarefa mais pesada do PRD).
+
+[2026-07-13] partidas-T05 done. MongoDB (não Postgres): PartidasMongoContext + PartidaDocument/
+SolicitacaoBuscaDocument (documentos de persistência separados das entidades — precisou de
+fábricas internas Partida.Reidratar/SolicitacaoBusca.Reidratar/EquipeSlots.Reidratar pra
+reconstruir entidades com setters privados sem quebrar encapsulamento), índices TTL (60 dias).
+UsuariosHttpGateway (1ª chamada síncrona entre bounded contexts). GameStore.Partidas.API
+completo (Program.cs, PartidaController, appsettings). 2 bugs reais encontrados e corrigidos
+durante os testes de integração: (1) WebApplicationFactory por teste colidia na porta fixa do
+KestrelMetricServer — corrigido usando IClassFixture (1 factory por classe, não por teste);
+(2) MongoDB.Driver 3.x exige GuidRepresentation explícita (GuidSerializer.RegisterSerializer) ou
+lança BsonSerializationException em qualquer filtro por Guid. 4/4 testes de integração passando
+contra MongoDB real (Testcontainers) + API HTTP completa. Solução inteira (dotnet build
+TheThroneOfGames.sln) OK. Próximo: partidas-T06 (Dockerfile, docker-compose, rota no gateway).
+
+[2026-07-13] partidas-T00 finalizado (estava pendente de teste) — 4 testes de InventarioRepository
+(SQLite in-memory) cobrindo PossuiJogo/idempotência. Descoberto e corrigido: consumers RabbitMQ
+(GameCompradoEventConsumer) não são unit-testáveis diretamente neste codebase (conectam a um
+broker real no construtor) — validação do consumer é feita ao vivo, não com mocks.
+
+[2026-07-13] partidas-T06 done. Dockerfile (Alpine, non-root, setcap) + serviços mongodb/
+partidas-api no docker-compose.yml + rota /api/partida/ no api-gateway/nginx.conf + scrape job
+no monitoring/prometheus.yml. Validado ao vivo: build, subida via docker compose, health check
+via gateway (200) e direto (200), Swagger respondendo.
+
+[2026-07-13] partidas-T07 done. Manifests k8s/ completos: partidas-api-deployment+service+hpa,
+mongodb-deployment+service (com PVC, mesmo padrão de postgres-deployment.yaml), entradas em
+gamestore-config/gamestore-secrets, espelhamento em nginx-configmap.yaml/prometheus-configmap.yaml.
+Validado via parsing YAML real (PyYAML) — não reaplicado contra cluster real (kind já tinha sido
+derrubado; estrutura é cópia fiel dos manifests de vendas-api já validados ao vivo antes nesta sessão).
+
+[2026-07-13] partidas-T08 done. tools/validate-partidas.js criado e rodado ao vivo contra o
+ambiente real (docker compose, imagens reconstruídas com Partidas+Inventário): 15/15 critérios
+de aceite passaram, cruzando API + MongoDB (docker exec mongosh) + Jaeger (trace real
+partidas-api -> usuarios-api). PRD (10 tarefas) 100% completo. Falta só partidas-T09
+(documentação do domínio + README/CLAUDE.md).
+
+[2026-07-13] partidas-T09 done. docs/partidas-architecture.md criado (fundamento de negócio,
+modelo de domínio, decisões técnicas, limitações conhecidas). README.md atualizado (tabela de
+bounded contexts, stack, serviços disponíveis, seção "Partidas — adicional, fora do edital").
+CLAUDE.md atualizado (linha nova na tabela de Bounded Contexts + nota sobre a exceção de
+comunicação síncrona Partidas->Usuarios + PartidasMongoContext na lei de isolamento de banco).
+
+PRD docs/ai/tasks/prd-partidas.json: 10/10 tarefas concluídas (T00-T09), validado com
+node tools/validate-prd.js. GameStore.Partidas — novo bounded context de matchmaking —
+implementado, testado (34 testes unitários + 4 de integração com Testcontainers/Mongo real +
+4 de Inventário em Usuarios), containerizado, com manifests k8s, e validado ao vivo
+(tools/validate-partidas.js, 15/15 critérios) contra o ambiente docker-compose real.

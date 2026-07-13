@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>GameStore.Partidas</AssemblyName>
+    <RootNamespace>GameStore.Partidas</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GameStore.Common\GameStore.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- MongoDB, não EF Core/Npgsql — único bounded context deste repo com persistência
+         não-relacional (ver docs/ai/tasks/prd-partidas.json designDecisions.persistencia).
+         Só Infrastructure/ referencia este pacote; Domain/ permanece C# puro (dotnet-clean-arch.md §1). -->
+    <PackageReference Include="MongoDB.Driver" Version="3.1.0" />
+    <!-- IServiceCollection.AddHttpClient — usado por UsuariosHttpGateway. GameStore.Partidas é
+         uma classlib (não Web SDK), então precisa do pacote explícito. -->
+    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+  </ItemGroup>
+</Project>

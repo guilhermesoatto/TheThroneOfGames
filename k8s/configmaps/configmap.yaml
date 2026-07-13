@@ -25,6 +25,12 @@ data:
 
   Elasticsearch__Uri: "http://elasticsearch:9200"
 
+  # Partidas (matchmaking) — Mongo é o único banco não-relacional deste cluster (o resto
+  # compartilha o Postgres, ver postgres-deployment.yaml). Services__UsuariosBaseUrl é a
+  # primeira chamada HTTP síncrona entre bounded contexts deste sistema (posse do jogo).
+  Mongo__DatabaseName: "gamestore_partidas"
+  Services__UsuariosBaseUrl: "http://usuarios-api"
+
   # Distributed Tracing — todos os serviços (3 APIs + Function) exportam para o
   # Jaeger do cluster via OTLP gRPC (T07).
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"

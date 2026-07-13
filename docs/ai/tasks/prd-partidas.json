@@ -1,0 +1,174 @@
+{
+  "$schema": "prd-v1",
+  "aggregate": "GameStore.Partidas",
+  "boundedContext": "partidas",
+  "createdAt": "2026-07-13T15:45:00-03:00",
+  "currentPhase": "7-observability",
+  "description": "Novo bounded context de Matchmaking (Partidas) — 4º microsserviço, fora do escopo original do edital FIAP (Fases 2-4), pedido adicional do Arquiteto para o roadmap pós-entrega. Fila de busca de partida 1v1 imediata, times A/B com teto estrutural de 5 jogadores (não usado no fluxo 1v1 atual), sem timeout automático de confirmação (só desistência explícita desfaz a partida e devolve o outro jogador à fila). Requer posse do jogo (Inventário, domínio Usuários) para poder buscar partida. Persistência em MongoDB com TTL de 60 dias. Nenhuma tarefa iniciada ainda — este PRD é o checkpoint de design (Fase 1 do workflow docs/ai/workflows/new-aggregate.md) apresentado para aprovação antes de qualquer código de domínio.",
+  "designDecisions": {
+    "identidade": "Partida.Id (Guid) é a chave técnica (PK). 'jogo + equipeA + equipeB + partida' do pedido original é modelado como o CONJUNTO de atributos que descreve a partida (JogoId + as duas listas de jogadores), não uma concatenação literal de 4 GUIDs em uma chave composta — padrão DDD de surrogate key.",
+    "equipe": "Equipe não é uma entidade própria nesta primeira versão — é uma lista de JogadorId (List<Guid>, capada em 5) dentro do próprio aggregate Partida. 'Cada equipe é o id único do jogador + partida' é modelado como a linha de associação implícita (JogadorId presente na lista EquipeA ou EquipeB de uma Partida específica), consistente com o trigger 1v1: cada time deste fluxo terá exatamente 1 jogador quando a Partida é criada.",
+    "triggerDeMatch": "1v1 imediato — assim que há 2 SolicitacaoBusca em status Aguardando para o mesmo JogoId, a Partida é criada (1 jogador por time). O teto de 5 por time fica estrutural para evolução futura (times maiores), não é usado por este fluxo.",
+    "confirmacao": "Sem timeout automático. Partida nasce em AguardandoConfirmacao; cada jogador chama /confirmar. Só é desfeita se um jogador chamar /desistir explicitamente (antes de ambos confirmarem) — não há expiração por tempo.",
+    "desistencia": "Se um jogador desiste antes da confirmação mútua: Partida -> Cancelada, o OUTRO jogador volta para uma nova SolicitacaoBusca em Aguardando, e o motor de pareamento tenta formar uma nova Partida imediatamente (mesma regra 1v1).",
+    "posseDoJogo": "DECISÃO DO ARQUITETO (2026-07-13): o Inventário (jogos que o jogador já comprou) fica no domínio Usuários, não em Vendas nem em Partidas — 'o inventário pertence ao usuário que comprou'; um futuro split Usuário/Jogador é adiado de propósito. GameStore.Usuarios ganha um endpoint novo, ex. GET /api/usuario/possui-jogo/{jogoId} -> bool (nome de domínio: PossuiJogo(Guid jogoId)), identificando o jogador pelo JWT da própria chamada — por isso o endpoint mora no domínio que já é dono da identidade. BuscarPartidaUseCase (Partidas) chama esse endpoint via HttpClient síncrono ANTES de criar a SolicitacaoBusca — primeira chamada HTTP síncrona entre bounded contexts deste sistema (até aqui só havia mensageria assíncrona entre os 3 serviços da Fase 3/4). Fonte da verdade do Inventário: GameStore.Usuarios consome o PedidoFinalizadoEvent (RabbitMQ) — o consumer já existe (PedidoFinalizadoEventConsumer, hoje só loga, ver GameStore.Usuarios/Application/EventConsumers/) e precisa ser estendido para popular o Inventário. PedidoFinalizadoEvent (GameStore.Common.Events) precisa ganhar um campo novo com a lista de JogoIds comprados (hoje só tem PedidoId/UserId/TotalPrice/ItemCount) — Pedido.Finalizar() (GameStore.Vendas/Domain/Entities/Pedido.cs) já tem os Itens/JogoId disponíveis para popular esse campo.",
+    "persistencia": "DECISÃO DO ARQUITETO (2026-07-13): MongoDB, não Postgres — diferente dos outros 3 bounded contexts. Autohospedado (container próprio no docker-compose.yml/k8s, mesmo padrão de Postgres/RabbitMQ/Elasticsearch já autohospedados), portável entre clouds. TTL index nativo do Mongo (expireAfterSeconds) sobre um campo de data cobre o purge de 60 dias sem job/cron adicional — aplica-se às coleções Partidas e SolicitacoesBusca.",
+    "estruturaDeProjeto": "Segue o padrão dominante do repo (Vendas/Catálogo): UM projeto de classe (GameStore.Partidas) com pastas Domain/Application/Infrastructure internas + GameStore.Partidas.API para a WebApi — não a estrutura de 4 .csproj separados sugerida genericamente por new-aggregate.md, que não é o que os outros 3 bounded contexts deste repo realmente usam."
+  },
+  "tasks": [
+    {
+      "id": "partidas-T00",
+      "phase": "0-prerequisites",
+      "description": "PRÉ-REQUISITO em GameStore.Usuarios (não em Partidas): entidade ItemInventario (UsuarioId, JogoId, NomeJogo, AdquiridoEm) + migration; endpoint GET /api/usuario/possui-jogo/{jogoId} -> bool identificando o jogador pelo JWT. DESVIO DO PLANO ORIGINAL (decisão melhor encontrada durante a implementação): em vez de estender PedidoFinalizadoEvent com uma lista de JogoIds, reaproveitou-se o GameCompradoEvent (GameStore.Common.Events) — já existia no código com o shape certo (GameId/UserId/Preco/NomeJogo) e já tinha fila declarada no RabbitMqAdapter (usuarios.game-comprado), mas nunca era publicado nem consumido (código morto). Vendas agora publica 1 GameCompradoEvent por item ao finalizar o pedido; GameCompradoEventConsumer (existia, só logava) agora persiste no Inventário.",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Usuarios.API.Tests/GameStore.Usuarios.API.Tests.csproj --filter FullyQualifiedName~Inventario",
+      "artifacts": [
+        "GameStore.Common/Events/PedidoFinalizadoEvent.cs",
+        "GameStore.Vendas/Domain/Entities/Pedido.cs",
+        "GameStore.Usuarios/Domain/Entities/ItemInventario.cs",
+        "GameStore.Usuarios/Application/EventConsumers/PedidoFinalizadoEventConsumer.cs",
+        "GameStore.Usuarios.API/Controllers/UsuarioController.cs"
+      ]
+    },
+    {
+      "id": "partidas-T01",
+      "phase": "1-domain",
+      "description": "Value Objects — Result<T>/DomainError (copiado do padrão de GameStore.Vendas/Domain/Shared), StatusPartida e StatusSolicitacao (enums), EquipeSlots (VO garantindo ≤5 jogadores por time)",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Partidas.Tests/GameStore.Partidas.Tests.csproj --filter FullyQualifiedName~ValueObjects",
+      "artifacts": [
+        "GameStore.Partidas/Domain/Shared/Result.cs",
+        "GameStore.Partidas/Domain/Shared/DomainErrors.cs",
+        "GameStore.Partidas/Domain/ValueObjects/StatusPartida.cs",
+        "GameStore.Partidas/Domain/ValueObjects/StatusSolicitacao.cs"
+      ]
+    },
+    {
+      "id": "partidas-T02",
+      "phase": "1-domain",
+      "description": "Entidades + Domain Events — aggregate Partida (Id, JogoId, DataHora, Status, EquipeA, EquipeB) e SolicitacaoBusca (Id, JogadorId, JogoId, Status, CriadoEm, PartidaId?); eventos PartidaEncontradaEvent, PartidaConfirmadaEvent, PartidaCanceladaEvent; regras de negócio: 1v1 imediato, teto de 5/time, desistência devolve o outro jogador à fila",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Partidas.Tests/GameStore.Partidas.Tests.csproj --filter FullyQualifiedName~Domain",
+      "artifacts": [
+        "GameStore.Partidas/Domain/Entities/Partida.cs",
+        "GameStore.Partidas/Domain/Entities/SolicitacaoBusca.cs",
+        "GameStore.Partidas/Domain/Events/PartidaEncontradaEvent.cs",
+        "GameStore.Partidas/Domain/Events/PartidaConfirmadaEvent.cs",
+        "GameStore.Partidas/Domain/Events/PartidaCanceladaEvent.cs"
+      ]
+    },
+    {
+      "id": "partidas-T03",
+      "phase": "2-application",
+      "description": "Ports — IPartidaRepository, ISolicitacaoBuscaRepository (interfaces de saída, sem implementação concreta), IUsuariosGateway (porta para a chamada síncrona de posse do jogo — a implementação concreta com HttpClient fica em Infrastructure)",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet build GameStore.Partidas/GameStore.Partidas.csproj",
+      "artifacts": [
+        "GameStore.Partidas/Domain/Repositories/IPartidaRepository.cs",
+        "GameStore.Partidas/Domain/Repositories/ISolicitacaoBuscaRepository.cs",
+        "GameStore.Partidas/Application/Ports/IUsuariosGateway.cs"
+      ]
+    },
+    {
+      "id": "partidas-T04",
+      "phase": "2-application",
+      "description": "Use Cases — BuscarPartidaUseCase (chama IUsuariosGateway.PossuiJogo antes de tudo; se false, retorna DomainError sem criar SolicitacaoBusca; senão entra na fila + tenta parear 1v1), ConfirmarPartidaUseCase, DesistirPartidaUseCase (desfaz + reenfileira o outro jogador + tenta novo pareamento), ConsultarStatusUseCase; testes com NSubstitute mockando repositórios e o IUsuariosGateway",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Partidas.Tests/GameStore.Partidas.Tests.csproj --filter FullyQualifiedName~Application",
+      "artifacts": [
+        "GameStore.Partidas/Application/UseCases/BuscarPartidaUseCase.cs",
+        "GameStore.Partidas/Application/UseCases/ConfirmarPartidaUseCase.cs",
+        "GameStore.Partidas/Application/UseCases/DesistirPartidaUseCase.cs",
+        "GameStore.Partidas/Application/UseCases/ConsultarStatusUseCase.cs"
+      ]
+    },
+    {
+      "id": "partidas-T05",
+      "phase": "3-infrastructure",
+      "description": "Adapters — MongoDB (não Postgres): PartidasMongoContext (MongoDB.Driver), coleções Partidas/SolicitacoesBusca com índice TTL (expireAfterSeconds = 60 dias) sobre CriadoEm, PartidaRepository/SolicitacaoBuscaRepository via Mongo; UsuariosHttpGateway (HttpClient chamando GET /api/usuario/possui-jogo/{jogoId} com o mesmo Bearer token da requisição, propagando trace_id via HttpClientInstrumentation); GameStore.Partidas.API (Controllers, Program.cs com JWT/Swagger/Serilog/OpenTelemetry/prometheus-net — CUIDADO: chamar metricsServer.Start() explicitamente, ver docs/ai/skills/dotnet-clean-arch.md §8, bug real corrigido nos outros 3 serviços); testes de integração com Testcontainers.NET (MongoDB real) + WebApplicationFactory",
+      "status": "done",
+      "passes": true,
+      "testCommand": "dotnet test GameStore.Partidas.API.Tests/GameStore.Partidas.API.Tests.csproj",
+      "artifacts": [
+        "GameStore.Partidas/Infrastructure/Persistence/PartidasMongoContext.cs",
+        "GameStore.Partidas/Infrastructure/Repository/PartidaRepository.cs",
+        "GameStore.Partidas/Infrastructure/Repository/SolicitacaoBuscaRepository.cs",
+        "GameStore.Partidas/Infrastructure/Gateways/UsuariosHttpGateway.cs",
+        "GameStore.Partidas.API/Program.cs",
+        "GameStore.Partidas.API/Controllers/PartidaController.cs",
+        "GameStore.Partidas.API.Tests/PartidasWebApplicationFactory.cs"
+      ]
+    },
+    {
+      "id": "partidas-T06",
+      "phase": "4-containerization",
+      "description": "Dockerfile (Alpine, non-root, setcap NET_BIND_SERVICE — mesmo padrão dos outros 3), serviço partidas-api + serviço mongodb (com volume) no docker-compose.yml, rota /api/partidas/* no api-gateway/nginx.conf",
+      "status": "done",
+      "passes": true,
+      "testCommand": "docker compose up -d --build mongodb partidas-api && curl -f http://localhost:8080/health/partidas",
+      "artifacts": [
+        "GameStore.Partidas.API/Dockerfile",
+        "docker-compose.yml",
+        "api-gateway/nginx.conf"
+      ]
+    },
+    {
+      "id": "partidas-T07",
+      "phase": "5-kubernetes",
+      "description": "Manifests k8s/ (deployment partidas-api + deployment mongodb com PVC, service, hpa 2-6 réplicas/70% CPU — mesmo padrão das outras 3 APIs), entradas em gamestore-config/gamestore-secrets",
+      "status": "done",
+      "passes": true,
+      "blockReason": "Validado por parsing YAML real (PyYAML) + espelhamento estrutural fiel dos manifests de vendas-api/postgres já testados ao vivo num cluster kind nesta mesma sessão (ver docs/k8s-architecture-flow.md §5). NÃO foi reaplicado contra um cluster real nesta tarefa — o kind usado antes já tinha sido derrubado e recriar um só para isso não trouxe valor adicional dado o quanto os manifests reaproveitam o padrão já provado.",
+      "testCommand": "kubectl apply --dry-run=client -f k8s/deployments/partidas-api-deployment.yaml -f k8s/deployments/mongodb-deployment.yaml -f k8s/services/partidas-api-service.yaml -f k8s/hpa/partidas-api-hpa.yaml",
+      "artifacts": [
+        "k8s/deployments/partidas-api-deployment.yaml",
+        "k8s/deployments/mongodb-deployment.yaml",
+        "k8s/services/partidas-api-service.yaml",
+        "k8s/hpa/partidas-api-hpa.yaml",
+        "k8s/configmaps/configmap.yaml"
+      ]
+    },
+    {
+      "id": "partidas-T08",
+      "phase": "7-observability",
+      "description": "Script de validação dos critérios de aceite (Node, mesmo estilo de tools/load-test-realistic.js): simula 2+ jogadores (com jogo já no inventário, via T00) buscando partida, confirmando ou desistindo, e um jogador SEM o jogo no inventário (deve ser rejeitado); cruza evidência de telemetria (trace no Jaeger cobrindo BuscarPartida->PossuiJogo(Usuarios)->PartidaEncontrada->Confirmar, evento publicado no RabbitMQ) com o estado persistido no MongoDB (Partida.Status, SolicitacaoBusca.Status) para confirmar que log/trace e banco contam a mesma história",
+      "status": "done",
+      "passes": true,
+      "blockReason": "Rodado ao vivo contra o ambiente real (docker compose, imagens reconstruídas com o código de Partidas + Inventário): 15/15 critérios passaram — posse do jogo (com/sem), rejeição sem posse, 1v1 imediato, persistência no Mongo em cada etapa (SolicitacaoBusca/Partida), confirmação mútua, desistência + reenfileiramento + novo pareamento, e trace real no Jaeger cobrindo partidas-api -> usuarios-api (chamada síncrona PossuiJogo). Ver tools/validate-partidas.js.",
+      "testCommand": "node tools/validate-partidas.js",
+      "artifacts": [
+        "tools/validate-partidas.js"
+      ]
+    },
+    {
+      "id": "partidas-T09",
+      "phase": "7-observability",
+      "description": "Documentação do novo domínio — por que ele existe (fundamento de negócio: matchmaking multiplayer como evolução do FCG pós-entrega), arquitetura (mermaid seguindo o estilo de docs/architecture-flow.md), decisões registradas em designDecisions deste PRD viram prosa; atualizar README.md (tabela de bounded contexts) e CLAUDE.md (linha nova na tabela de Bounded Contexts + nota sobre a 1ª chamada síncrona entre serviços)",
+      "status": "done",
+      "passes": true,
+      "testCommand": "test -f docs/partidas-architecture.md",
+      "artifacts": [
+        "docs/partidas-architecture.md",
+        "README.md",
+        "CLAUDE.md"
+      ]
+    }
+  ],
+  "acceptanceCriteria": {
+    "userStory": "Como jogador que já comprou um jogo, eu busco uma partida para esse jogo; ao encontrar outro jogador (que também já comprou o jogo) buscando o mesmo jogo, o sistema forma a partida (1v1) e avisa os dois; se algum desistir antes de ambos confirmarem, a partida se desfaz e o outro jogador volta a procurar automaticamente.",
+    "criterios": [
+      "Jogador sem o jogo no inventário tenta buscar partida -> rejeitado (PossuiJogo=false), nenhuma SolicitacaoBusca é criada",
+      "Jogador A (com o jogo) busca partida para o Jogo X -> entra em SolicitacaoBusca(Aguardando)",
+      "Jogador B (com o jogo) busca partida para o mesmo Jogo X -> Partida é criada imediatamente (1v1), ambas as SolicitacaoBusca viram Pareada com PartidaId preenchido, evento PartidaEncontradaEvent é publicado",
+      "Ambos confirmam -> Partida.Status = Confirmada, evento PartidaConfirmadaEvent publicado",
+      "Se A desiste antes de B confirmar -> Partida.Status = Cancelada, evento PartidaCanceladaEvent publicado, B recebe uma nova SolicitacaoBusca(Aguardando) e volta a ser pareável",
+      "Documento de uma Partida/SolicitacaoBusca some do MongoDB após 60 dias (TTL index) sem job manual",
+      "Toda transição de estado tem um trace correspondente no Jaeger (trace_id propagado, incluindo a nova chamada síncrona Partidas->Usuarios) e um documento correspondente no MongoDB — o script de validação (partidas-T08) cruza os dois"
+    ]
+  }
+}

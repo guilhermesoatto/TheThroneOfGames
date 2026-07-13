@@ -1,0 +1,63 @@
+# GameStore.Partidas.API — bounded context de Partidas (matchmaking, fora do escopo original
+# do edital FIAP). Imagem construída a partir de GameStore.Partidas.API/Dockerfile (Alpine,
+# non-root) — ajustar `image:` para o registry real antes do deploy.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: partidas-api
+  namespace: gamestore
+  labels:
+    app: partidas-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: partidas-api
+  template:
+    metadata:
+      labels:
+        app: partidas-api
+    spec:
+      containers:
+        - name: partidas-api
+          image: gamestore/partidas-api:latest
+          imagePullPolicy: IfNotPresent
+          # A imagem roda como appuser (non-root, ver Dockerfile) mas o Kestrel está fixado em
+          # Program.cs para escutar na porta 80 — no Linux, processos non-root não podem fazer
+          # bind em portas <1024 sem essa capability. NET_BIND_SERVICE concede exatamente (e
+          # apenas) esse privilégio, sem reintroduzir root nem exigir mudança de porta/código.
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+          ports:
+            - containerPort: 80
+            # Servidor Kestrel dedicado do prometheus-net (KestrelMetricServer, Program.cs) —
+            # /metrics também respondido em :80, mas mantemos a porta dedicada para paridade com
+            # docker-compose.yml e o scrape config em monitoring/prometheus.yml.
+            - containerPort: 9094
+              name: metrics
+          envFrom:
+            - configMapRef:
+                name: gamestore-config
+            - secretRef:
+                name: gamestore-secrets
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # httpGet nativo do Kubernetes — dispensa curl dentro da imagem.
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 20

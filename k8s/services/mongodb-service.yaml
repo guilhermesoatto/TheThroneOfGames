@@ -1,0 +1,16 @@
+# Nome "mongodb" propositalmente igual ao host já usado como default em
+# ConnectionStrings:PartidasMongoConnection no appsettings.json de Partidas.API.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: gamestore
+  labels:
+    app: mongodb
+spec:
+  selector:
+    app: mongodb
+  ports:
+    - port: 27017
+      targetPort: 27017
+  type: ClusterIP

@@ -35,3 +35,9 @@ scrape_configs:
       - targets: ['vendas-api:9093']
     metrics_path: '/metrics'
     scrape_interval: 5s
+
+  - job_name: 'partidas-api'
+    static_configs:
+      - targets: ['partidas-api:9094']
+    metrics_path: '/metrics'
+    scrape_interval: 5s

@@ -40,7 +40,27 @@ services:
       timeout: 5s
       retries: 5
 
-  # API Gateway (nginx) — único ponto de entrada externo; roteia para os 3 microsserviços
+  # MongoDB — persistência do bounded context Partidas (matchmaking). Diferente dos outros 3
+  # serviços (Postgres compartilhado): NoSQL próprio, com purge automático via TTL index
+  # (ver GameStore.Partidas/Infrastructure/Persistence/PartidasMongoContext.cs), autohospedado
+  # (mesmo padrão de Postgres/RabbitMQ/Elasticsearch) para não prender a arquitetura a um
+  # serviço gerenciado de uma cloud específica.
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - thethroneofgames-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway (nginx) — único ponto de entrada externo; roteia para os 4 microsserviços
   api-gateway:
     image: nginx:1.27-alpine
     container_name: api-gateway
@@ -52,6 +72,7 @@ services:
       - usuarios-api
       - catalogo-api
       - vendas-api
+      - partidas-api
     networks:
       - thethroneofgames-network
 
@@ -266,6 +287,53 @@ services:
     networks:
       - thethroneofgames-network
 
+  # Partidas Microservice — matchmaking (fora do escopo original do edital FIAP, adicionado ao
+  # roadmap pós-entrega). Único dos 4 bounded contexts com persistência não-relacional (Mongo).
+  partidas-api:
+    build:
+      context: .
+      dockerfile: GameStore.Partidas.API/Dockerfile
+    container_name: partidas-api
+    # A imagem roda como appuser (non-root, ver Dockerfile) mas o Kestrel escuta na porta 80 —
+    # no Linux, non-root não pode fazer bind em portas <1024 sem esta capability.
+    cap_add:
+      - NET_BIND_SERVICE
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORT: 80
+      ConnectionStrings__PartidasMongoConnection: "mongodb://mongodb:27017"
+      Mongo__DatabaseName: "gamestore_partidas"
+      Services__UsuariosBaseUrl: "http://usuarios-api"
+      Jwt__Key: "your-super-secret-key-that-is-at-least-32-characters-long!"
+      Jwt__Issuer: "TheThroneOfGames"
+      Jwt__Audience: "TheThroneOfGamesClient"
+      EventBus__UseRabbitMq: "true"
+      EventBus__RabbitMq__HostName: "rabbitmq"
+      EventBus__RabbitMq__Port: "5672"
+      EventBus__RabbitMq__UserName: "guest"
+      EventBus__RabbitMq__Password: "guest"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+    ports:
+      - "5004:80"
+      - "9094:9094"  # Prometheus metrics
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+      # BuscarPartidaUseCase chama usuarios-api sincronamente (posse do jogo) — precisa dele de pé.
+      usuarios-api:
+        condition: service_healthy
+    healthcheck:
+      # wget (busybox) em vez de curl — a imagem Alpine otimizada (T02) não inclui curl.
+      test: [ "CMD", "wget", "-q", "-O-", "http://localhost/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - thethroneofgames-network
 
   # Prometheus Metrics Collector
   prometheus:
@@ -284,6 +352,7 @@ services:
       - usuarios-api
       - catalogo-api
       - vendas-api
+      - partidas-api
     networks:
       - thethroneofgames-network
     healthcheck:
@@ -325,6 +394,8 @@ volumes:
   postgresql-data:
     driver: local
   rabbitmq-data:
+    driver: local
+  mongodb-data:
     driver: local
   prometheus-data:
     driver: local

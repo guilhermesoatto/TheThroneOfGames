@@ -18,17 +18,18 @@
 
 | Bounded Context | Projeto real | Responsabilidade | Rota via API Gateway |
 |---|---|---|---|
-| Usuários | `GameStore.Usuarios` / `GameStore.Usuarios.API` | Login, cadastro, ativação, perfil | `/api/usuario/*`, `/api/admin/user-management/*` |
+| Usuários | `GameStore.Usuarios` / `GameStore.Usuarios.API` | Login, cadastro, ativação, perfil, **Inventário** (jogos comprados) | `/api/usuario/*`, `/api/admin/user-management/*` |
 | Catálogo (Jogos) | `GameStore.Catalogo` / `GameStore.Catalogo.API` | Listagem, busca (Elasticsearch), promoções | `/api/game/*`, `/api/admin/game/*`, `/api/admin/promotion/*` |
 | Vendas (Pagamentos) | `GameStore.Vendas` / `GameStore.Vendas.API` | Pedidos, itens, pagamento, Event Sourcing | `/api/pedidos/*` |
+| Partidas (Matchmaking) — **4º contexto, adicional a partir de `release/fase-4-kubernetes`, fora do edital FIAP** | `GameStore.Partidas` / `GameStore.Partidas.API` | Fila de busca + pareamento 1v1 — ver `docs/partidas-architecture.md` | `/api/partida/*` |
 
-Compartilhado entre os três: `GameStore.Common` (mensageria/RabbitMQ) e `GameStore.CQRS.Abstractions` (Commands/Queries). Não existe um projeto `GameStore.Pagamentos` — o bounded context de pagamentos/transações é implementado dentro de `GameStore.Vendas`.
+Compartilhado entre os quatro: `GameStore.Common` (mensageria/RabbitMQ) e `GameStore.CQRS.Abstractions` (Commands/Queries). Não existe um projeto `GameStore.Pagamentos` — o bounded context de pagamentos/transações é implementado dentro de `GameStore.Vendas`. Partidas é o único bounded context com banco não-relacional (MongoDB, não Postgres) — ver `docs/partidas-architecture.md` §4.
 
 ## Leis Invioláveis desta Fase
 
 - **NUNCA** crie uma dependência de projeto (`ProjectReference`) de um `GameStore.*` para `TheThroneOfGames.*` (monolito legado, isolado em `release/fase-2-monolito`). Se encontrar uma, é resíduo a remover — ver histórico de commits desta branch.
-- Comunicação síncrona (HTTP/REST) entre `GameStore.Usuarios`, `GameStore.Catalogo` e `GameStore.Vendas` **é permitida nesta fase** (ver `docs/Objectives/sprint-2/DELIVERABLE.md` §Architectural Constraints — mensageria assíncrona obrigatória só é exigida a partir da Fase 4, `release/fase-4-kubernetes`). Hoje nenhum dos 3 serviços chama o outro (nem síncrona nem assincronamente) — ver `docs/architecture-flow.md` §2.
-- **NUNCA** deixe um Microsserviço acessar diretamente o `DbContext`/schema de outro bounded context — cada um mantém seu próprio banco (`UsuariosDbContext`, `CatalogoDbContext`, `VendasDbContext`).
+- Comunicação síncrona (HTTP/REST) entre `GameStore.Usuarios`, `GameStore.Catalogo` e `GameStore.Vendas` **é permitida nesta fase** (ver `docs/Objectives/sprint-2/DELIVERABLE.md` §Architectural Constraints — mensageria assíncrona obrigatória só é exigida a partir da Fase 4, `release/fase-4-kubernetes`). Hoje nenhum dos 3 serviços chama o outro (nem síncrona nem assincronamente) — ver `docs/architecture-flow.md` §2. **Exceção registrada:** `GameStore.Partidas` chama `GameStore.Usuarios` sincronamente (`GET /api/usuario/possui-jogo/{jogoId}`) para verificar posse do jogo antes de liberar a busca por partida — decisão do Arquiteto, ver `docs/partidas-architecture.md` §3.
+- **NUNCA** deixe um Microsserviço acessar diretamente o `DbContext`/schema de outro bounded context — cada um mantém seu próprio banco (`UsuariosDbContext`, `CatalogoDbContext`, `VendasDbContext`, `PartidasMongoContext`).
 - **TODA** rota pública externa deve passar pelo API Gateway (`api-gateway/nginx.conf` + serviço `api-gateway` no `docker-compose.yml`) — nenhum microsserviço deve ser exposto diretamente ao cliente final em produção.
 - **TODA** mudança de estado do aggregate `Pedido` (`GameStore.Vendas`) deve ser registrada no Event Store (`IEventStore.AppendAsync`) além de persistida no snapshot via `IPedidoRepository` — ver `GameStore.Vendas/Domain/EventSourcing/`.
 - **NUNCA** avance de fase no PRD (`docs/ai/tasks/prd-sprint-02-fase3.json`) sem rodar `node tools/validate-prd.js docs/ai/tasks/prd-sprint-02-fase3.json` e sem aprovação do Domain Expert.
