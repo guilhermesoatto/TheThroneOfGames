@@ -10,6 +10,7 @@ namespace GameStore.Usuarios.Infrastructure.Persistence
         }
 
         public DbSet<Usuario> Usuarios { get; set; }
+        public DbSet<ItemInventario> ItensInventario { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -31,6 +32,19 @@ namespace GameStore.Usuarios.Infrastructure.Persistence
 
                 // Index on ActiveToken for faster lookups (nullable)
                 entity.HasIndex(u => u.ActiveToken);
+            });
+
+            // Configure ItemInventario entity — jogos que o usuário já comprou (ver
+            // GameCompradoEventConsumer). Um jogador nunca tem o mesmo jogo duas vezes.
+            modelBuilder.Entity<ItemInventario>(entity =>
+            {
+                entity.HasKey(i => i.Id);
+                entity.Property(i => i.UsuarioId).IsRequired();
+                entity.Property(i => i.JogoId).IsRequired();
+                entity.Property(i => i.NomeJogo).IsRequired().HasMaxLength(200);
+                entity.Property(i => i.AdquiridoEm).IsRequired();
+
+                entity.HasIndex(i => new { i.UsuarioId, i.JogoId }).IsUnique();
             });
         }
     }

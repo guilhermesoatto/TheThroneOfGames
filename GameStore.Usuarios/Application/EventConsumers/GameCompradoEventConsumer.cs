@@ -1,23 +1,35 @@
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using GameStore.Common.Events;
+using GameStore.Usuarios.Domain.Entities;
+using GameStore.Usuarios.Domain.Interfaces;
 
 namespace GameStore.Usuarios.Application.EventConsumers
 {
     /// <summary>
     /// Consumer para eventos GameCompradoEvent no contexto Usuarios.
-    /// Processa notificações quando jogos são comprados para atualizar biblioteca do usuário.
+    /// Adiciona o jogo ao Inventário do usuário (ver ItemInventario / IInventarioRepository) —
+    /// fonte da verdade para "o jogador possui este jogo?", consultada pelo bounded context de
+    /// Partidas (GET /api/usuario/possui-jogo/{jogoId}) antes de liberar a busca por partida.
     /// </summary>
     public class GameCompradoEventConsumer : GameStore.Common.Messaging.BaseEventConsumer<GameCompradoEvent>
     {
+        // O consumer é singleton (vive pelo tempo de vida da aplicação), mas o
+        // IInventarioRepository depende de um DbContext scoped — por isso resolvemos um novo
+        // escopo a cada evento em vez de injetar o repositório diretamente no construtor.
+        private readonly IServiceScopeFactory _scopeFactory;
+
         public GameCompradoEventConsumer(
             string host,
             int port,
             string username,
             string password,
-            ILogger<GameCompradoEventConsumer> logger)
+            ILogger<GameCompradoEventConsumer> logger,
+            IServiceScopeFactory scopeFactory)
             : base(host, port, username, password, logger, "usuarios.game-comprado")
         {
+            _scopeFactory = scopeFactory;
         }
 
         public override async Task ProcessEventAsync(GameCompradoEvent domainEvent)
@@ -25,17 +37,11 @@ namespace GameStore.Usuarios.Application.EventConsumers
             _logger.LogInformation("Processing GameCompradoEvent for user {UserId}, game {GameId}: {NomeJogo}",
                 domainEvent.UserId, domainEvent.GameId, domainEvent.NomeJogo);
 
-            // Lógica específica do contexto Usuários quando um jogo é comprado
-            // Por exemplo: adicionar jogo à biblioteca do usuário, atualizar estatísticas, etc.
+            using var scope = _scopeFactory.CreateScope();
+            var inventarioRepository = scope.ServiceProvider.GetRequiredService<IInventarioRepository>();
 
-            // No momento, apenas logamos o evento
-            // Em um cenário real, poderíamos:
-            // - Adicionar jogo à biblioteca do usuário
-            // - Atualizar histórico de compras
-            // - Enviar notificações push/email
-            // - Atualizar pontos de fidelidade
-
-            await Task.CompletedTask;
+            var item = new ItemInventario(domainEvent.UserId, domainEvent.GameId, domainEvent.NomeJogo);
+            await inventarioRepository.AdicionarSeNaoExistirAsync(item);
         }
     }
 }

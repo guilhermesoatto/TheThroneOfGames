@@ -151,6 +151,17 @@ if (builder.Configuration.GetValue<bool>("EventBus:UseRabbitMq"))
         new PedidoFinalizadoEventConsumer(
             rabbitHost, rabbitPort, rabbitUser, rabbitPassword,
             provider.GetRequiredService<ILogger<PedidoFinalizadoEventConsumer>>()));
+
+    // Popula o Inventário do usuário (ver ItemInventario/IInventarioRepository) a partir do
+    // GameCompradoEvent publicado por GameStore.Vendas ao finalizar um pedido — consumer que
+    // já existia no código mas nunca tinha sido registrado aqui (fila "usuarios.game-comprado"
+    // não tinha nenhum consumer ativo até esta mudança).
+    builder.Services.AddSingleton<IEventConsumer>(provider =>
+        new GameCompradoEventConsumer(
+            rabbitHost, rabbitPort, rabbitUser, rabbitPassword,
+            provider.GetRequiredService<ILogger<GameCompradoEventConsumer>>(),
+            provider.GetRequiredService<IServiceScopeFactory>()));
+
     builder.Services.AddHostedService<EventConsumerService>();
 }
 

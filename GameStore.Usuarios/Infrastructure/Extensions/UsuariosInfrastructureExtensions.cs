@@ -18,6 +18,7 @@ namespace GameStore.Usuarios.Infrastructure.Extensions
 
             // Register repositories
             services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+            services.AddScoped<IInventarioRepository, InventarioRepository>();
 
             // Register application services
             // Explicitly register bounded context IUsuarioService with full namespace

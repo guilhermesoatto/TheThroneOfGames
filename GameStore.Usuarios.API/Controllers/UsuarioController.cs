@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using GameStore.Usuarios.Application.Interfaces;
+using GameStore.Usuarios.Domain.Interfaces;
 using System.Text.RegularExpressions;
 
 namespace GameStore.Usuarios.API.Controllers
@@ -11,13 +12,16 @@ namespace GameStore.Usuarios.API.Controllers
     {
         private readonly IUsuarioService _usuarioService;
         private readonly GameStore.Usuarios.Application.Services.AuthenticationService _authService;
+        private readonly IInventarioRepository _inventarioRepository;
 
         public UsuarioController(
-            IUsuarioService usuarioService, 
-            GameStore.Usuarios.Application.Services.AuthenticationService authService)
+            IUsuarioService usuarioService,
+            GameStore.Usuarios.Application.Services.AuthenticationService authService,
+            IInventarioRepository inventarioRepository)
         {
             _usuarioService = usuarioService;
             _authService = authService;
+            _inventarioRepository = inventarioRepository;
         }
 
         /// <summary>
@@ -114,6 +118,23 @@ namespace GameStore.Usuarios.API.Controllers
                 return Unauthorized();
 
             return Ok(new { userId = userIdClaim.Value, message = "User profile data" });
+        }
+
+        /// <summary>
+        /// Diz se o jogador logado (identificado pelo JWT) já comprou o jogo informado.
+        /// Consultado pelo bounded context de Partidas (GameStore.Partidas) antes de liberar a
+        /// busca por partida — só quem tem o jogo pode entrar na fila de matchmaking dele.
+        /// </summary>
+        [HttpGet("possui-jogo/{jogoId:guid}")]
+        [Authorize]
+        public async Task<IActionResult> PossuiJogo(Guid jogoId)
+        {
+            var userIdClaim = User.FindFirst("sub");
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var usuarioId))
+                return Unauthorized();
+
+            var possuiJogo = await _inventarioRepository.PossuiJogoAsync(usuarioId, jogoId);
+            return Ok(new { possuiJogo });
         }
     }
 

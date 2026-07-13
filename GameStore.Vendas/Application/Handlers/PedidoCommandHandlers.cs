@@ -273,6 +273,25 @@ namespace GameStore.Vendas.Application.Handlers
                         pedido.Id);
                 }
 
+                // Um GameCompradoEvent por item — Usuarios consome (GameCompradoEventConsumer)
+                // para popular o Inventário do jogador (ver ItemInventario), fonte da verdade de
+                // "o jogador possui este jogo?" usada pelo bounded context de Partidas antes de
+                // liberar a busca por partida. Best-effort, mesmo racional do publish acima.
+                foreach (var item in pedido.Itens)
+                {
+                    try
+                    {
+                        await _eventBus.PublishAsync(new GameCompradoEvent(
+                            item.JogoId, pedido.UsuarioId, item.Preco.Amount, item.NomeJogo));
+                    }
+                    catch (Exception publishEx)
+                    {
+                        _logger.LogWarning(publishEx,
+                            "Falha ao publicar GameCompradoEvent para o jogo {JogoId} do pedido {PedidoId} no barramento de eventos",
+                            item.JogoId, pedido.Id);
+                    }
+                }
+
                 return new CommandResult
                 {
                     Success = true,
