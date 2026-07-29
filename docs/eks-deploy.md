@@ -90,6 +90,11 @@ substitui a imagem de cada Deployment pela recém-publicada (`kubectl set image`
 do commit) — os manifests em `k8s/` continuam com a imagem placeholder `gamestore/<serviço>:latest`
 e funcionam tanto para EKS quanto para um cluster local (kind), sem hardcodar o registry.
 
+Cada imagem publicada é escaneada pelo [Trivy](https://trivy.dev/) (vulnerabilidades de SO e
+dependências .NET) logo após o push para o ECR — modo somente-relatório (`exit-code: 0`, não
+bloqueia o deploy: CVEs em imagens-base de terceiros não devem travar a entrega), resultado
+completo publicado na aba **Security → Code scanning** do repositório.
+
 ## 5. Acessar a aplicação
 
 ```sh
