@@ -135,6 +135,8 @@ kubectl delete job load-test -n gamestore  # remover depois do teste
 
 Pipeline dedicado em [`.github/workflows/deploy-eks.yml`](.github/workflows/deploy-eks.yml): builda as 4 imagens, publica no Amazon ECR e implanta `k8s/` inteiro num cluster EKS a cada push em `release/fase-4-kubernetes` (ou sob demanda, com opção de rodar o teste de carga do HPA contra o cluster real). Passo a passo completo — criação do cluster (manual, deliberada, para não gerar custo a cada push), permissões IAM necessárias e configuração dos Secrets do GitHub — em [`docs/eks-deploy.md`](docs/eks-deploy.md).
 
+**Plano B (Oracle Cloud / OKE):** a conta AWS usada nesta entrega ficou presa numa restrição de elegibilidade de tipo de instância de conta nova (pendente de resolução pelo AWS Support). Caso não destrave a tempo, [`docs/oke-deploy.md`](docs/oke-deploy.md) + [`.github/workflows/deploy-oke.yml`](.github/workflows/deploy-oke.yml) implantam a mesma stack (`k8s/` sem nenhuma alteração) num cluster OKE Always Free — só builda as imagens em ARM64 e publica no OCIR em vez do ECR.
+
 ### Gravação do vídeo de demonstração
 
 [`tools/record-delivery.js`](tools/record-delivery.js) (Playwright) automatiza a navegação pelos Swagger de cada serviço (executando uma chamada real) e pelo Jaeger UI (grafo de traces), gravando em `docs/videos/FCG_ENTREGA_FASE_4.mp4`. Pressupõe o ambiente já rodando (local via `docker compose up`/`kubectl`, ou os `BASE_URL_*` apontando para o Ingress do EKS — ver `docs/eks-deploy.md` §5).

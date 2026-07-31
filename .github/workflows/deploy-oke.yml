@@ -1,0 +1,214 @@
+name: Deploy to Oracle Cloud (OKE) — Fallback
+
+# Plano B pra Fase 4, espelhando deploy-eks.yml — ver docs/oke-deploy.md para o motivo
+# (restrição de tipo de instância numa conta AWS nova, pendente de resolução pelo AWS
+# Support) e o passo a passo completo (conta OCI, cluster OKE via Console, Secrets do
+# GitHub). Builda as 4 imagens em ARM64 (nós do cluster são VM.Standard.A1.Flex — Ampere,
+# não x86_64), publica no OCIR e implanta em um cluster OKE já existente (criação do
+# cluster é manual/deliberada, mesma filosofia do deploy-eks.yml).
+#
+# Diferente do deploy-eks.yml, NÃO dispara em push — é um fallback, disparado só sob
+# demanda enquanto o plano A (AWS) estiver bloqueado.
+#
+# Requer, configurados como Secrets do repositório — ver docs/oke-deploy.md §5:
+#   OCI_CLI_USER, OCI_CLI_TENANCY, OCI_CLI_FINGERPRINT, OCI_CLI_KEY_CONTENT, OCI_CLI_REGION
+#   OCIR_USERNAME, OCIR_AUTH_TOKEN, OKE_CLUSTER_ID
+# Variable:
+#   OCI_REGION_KEY — chave curta da região pro domínio do OCIR (ex.: gru, iad)
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_load_test:
+        description: 'Rodar k8s/load-test/load-test-job.yaml após o deploy para validar o HPA'
+        type: boolean
+        default: false
+
+env:
+  OCI_REGION_KEY: ${{ vars.OCI_REGION_KEY || 'gru' }}
+  K8S_NAMESPACE: gamestore
+
+jobs:
+  build-and-test:
+    name: Build & Test (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet restore TheThroneOfGames.sln
+      - run: dotnet build TheThroneOfGames.sln --configuration Release --no-restore
+      - name: Testes unitários (sem infra — ver deploy-oke para a suíte completa com Postgres/RabbitMQ reais)
+        run: dotnet test TheThroneOfGames.sln --configuration Release --no-build --verbosity normal --filter "Category!=Integration"
+
+  build-push-ocir:
+    name: Build & Push (OCIR, arm64) — ${{ matrix.service.name }}
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        service:
+          - name: usuarios-api
+            dockerfile: GameStore.Usuarios.API/Dockerfile
+          - name: catalogo-api
+            dockerfile: GameStore.Catalogo.API/Dockerfile
+          - name: vendas-api
+            dockerfile: GameStore.Vendas.API/Dockerfile
+          - name: notifications-functions
+            dockerfile: GameStore.Notifications.Functions/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      # QEMU é necessário pro Buildx cross-compilar arm64 num runner amd64 (GitHub-hosted
+      # runners são todos x86_64 — os nós do cluster OKE são Ampere/arm64).
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login no OCIR
+        run: echo "${{ secrets.OCIR_AUTH_TOKEN }}" | docker login "${{ env.OCI_REGION_KEY }}.ocir.io" -u "${{ secrets.OCIR_USERNAME }}" --password-stdin
+
+      # Diferente do ECR, o OCIR cria o repositório automaticamente no primeiro push —
+      # não precisa de um passo explícito de criação (mantido como comentário aqui só pra
+      # documentar essa diferença em relação ao deploy-eks.yml).
+
+      - name: Build (linux/arm64) e push para o OCIR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          platforms: linux/arm64
+          tags: |
+            ${{ env.OCI_REGION_KEY }}.ocir.io/${{ secrets.OCIR_USERNAME }}/gamestore/${{ matrix.service.name }}:${{ github.sha }}
+            ${{ env.OCI_REGION_KEY }}.ocir.io/${{ secrets.OCIR_USERNAME }}/gamestore/${{ matrix.service.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Mesmo racional do deploy-eks.yml: modo somente-relatório, não bloqueia o deploy.
+      - name: Trivy scan (relatório no log do job)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.OCI_REGION_KEY }}.ocir.io/${{ secrets.OCIR_USERNAME }}/gamestore/${{ matrix.service.name }}:${{ github.sha }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Trivy scan (SARIF para o GitHub Code Scanning)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.OCI_REGION_KEY }}.ocir.io/${{ secrets.OCIR_USERNAME }}/gamestore/${{ matrix.service.name }}:${{ github.sha }}
+          format: sarif
+          output: trivy-${{ matrix.service.name }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+
+      - name: Publicar resultado do Trivy na aba Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.service.name }}.sarif
+          category: trivy-oke-${{ matrix.service.name }}
+
+  deploy:
+    name: Deploy no OKE
+    runs-on: ubuntu-latest
+    needs: build-push-ocir
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar e configurar OCI CLI
+        run: |
+          pip install --quiet oci-cli
+          mkdir -p ~/.oci
+          printf '%s' "${{ secrets.OCI_CLI_KEY_CONTENT }}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_CLI_USER }}
+          fingerprint=${{ secrets.OCI_CLI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_CLI_TENANCY }}
+          region=${{ secrets.OCI_CLI_REGION }}
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+          chmod 600 ~/.oci/config
+
+      - name: Atualizar kubeconfig para o cluster OKE
+        run: oci ce cluster create-kubeconfig --cluster-id "${{ secrets.OKE_CLUSTER_ID }}" --file $HOME/.kube/config --region "${{ secrets.OCI_CLI_REGION }}" --token-version 2.0.0
+
+      - name: Aplicar namespace, ConfigMaps e Secrets
+        run: |
+          kubectl apply -f k8s/namespaces.yaml
+          kubectl apply -f k8s/configmaps/
+          kubectl apply -f k8s/secrets/
+
+      - name: Aplicar infraestrutura, APIs, Function e Gateway
+        run: |
+          kubectl apply -f k8s/deployments/ -f k8s/services/
+
+      - name: Apontar Deployments para as imagens publicadas nesta execução
+        env:
+          REGISTRY: ${{ env.OCI_REGION_KEY }}.ocir.io/${{ secrets.OCIR_USERNAME }}
+          TAG: ${{ github.sha }}
+        run: |
+          kubectl set image deployment/usuarios-api usuarios-api="$REGISTRY/gamestore/usuarios-api:$TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/catalogo-api catalogo-api="$REGISTRY/gamestore/catalogo-api:$TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/vendas-api vendas-api="$REGISTRY/gamestore/vendas-api:$TAG" -n "$K8S_NAMESPACE"
+          kubectl set image deployment/notifications-functions notifications-functions="$REGISTRY/gamestore/notifications-functions:$TAG" -n "$K8S_NAMESPACE"
+
+      - name: Aplicar HPA e Ingress
+        run: kubectl apply -f k8s/hpa/ -f k8s/ingress/
+
+      - name: Aguardar rollout
+        run: |
+          kubectl rollout status deployment/usuarios-api -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/catalogo-api -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/vendas-api -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/notifications-functions -n "$K8S_NAMESPACE" --timeout=300s
+          kubectl rollout status deployment/api-gateway -n "$K8S_NAMESPACE" --timeout=300s
+
+      - name: Smoke test (pods, services, ingress)
+        run: |
+          kubectl get pods -n "$K8S_NAMESPACE"
+          kubectl get svc -n "$K8S_NAMESPACE"
+          kubectl get ingress -n "$K8S_NAMESPACE"
+          kubectl get hpa -n "$K8S_NAMESPACE"
+
+  load-test:
+    name: Load Test (validação do HPA)
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: github.event_name == 'workflow_dispatch' && inputs.run_load_test == true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar e configurar OCI CLI
+        run: |
+          pip install --quiet oci-cli
+          mkdir -p ~/.oci
+          printf '%s' "${{ secrets.OCI_CLI_KEY_CONTENT }}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_CLI_USER }}
+          fingerprint=${{ secrets.OCI_CLI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_CLI_TENANCY }}
+          region=${{ secrets.OCI_CLI_REGION }}
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+          chmod 600 ~/.oci/config
+
+      - run: oci ce cluster create-kubeconfig --cluster-id "${{ secrets.OKE_CLUSTER_ID }}" --file $HOME/.kube/config --region "${{ secrets.OCI_CLI_REGION }}" --token-version 2.0.0
+
+      - name: Rodar o Job de carga e observar o HPA
+        run: |
+          kubectl apply -f k8s/load-test/load-test-job.yaml
+          echo "Aguardando o Job de carga terminar (até 6min)..."
+          kubectl wait --for=condition=complete job/load-test -n "$K8S_NAMESPACE" --timeout=360s || true
+          echo "--- HPA logo após a carga ---"
+          kubectl get hpa -n "$K8S_NAMESPACE"
+          kubectl delete job load-test -n "$K8S_NAMESPACE" --ignore-not-found
