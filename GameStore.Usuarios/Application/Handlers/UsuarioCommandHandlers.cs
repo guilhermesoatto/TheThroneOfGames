@@ -214,14 +214,15 @@ namespace GameStore.Usuarios.Application.Handlers
                     };
                 }
 
-                // Criar usuário
+                // Criar usuário — mesmo hashing (PBKDF2+SHA256) usado no self-registro público
+                // em UsuarioService.PreRegisterUserAsync, para que o admin consiga logar depois.
                 var user = new Usuario(
                     id: Guid.NewGuid(),
                     name: command.Name,
                     email: command.Email,
-                    passwordHash: "", // Será gerado pelo serviço de senha
+                    passwordHash: GameStore.Usuarios.Application.Services.UsuarioService.HashPassword(command.Password),
                     role: command.Role,
-                    isActive: false, // Usuário começa inativo
+                    isActive: false, // Usuário começa inativo — RN-005, mesmo padrão do self-registro
                     activeToken: Guid.NewGuid().ToString() // Token para ativação
                 );
 
