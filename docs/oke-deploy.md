@@ -39,13 +39,26 @@ um dos dois nós sem problema). Também bate com o total Always Free (2 OCPU + 1
 
 ## 2. Criar a conta OCI (manual, só você pode fazer)
 
-1. Cadastro em https://signup.oraclecloud.com — pede verificação de identidade e cartão (não
-   cobra nada em recursos Always Free, é só verificação anti-abuso, igual a fricção que já
-   tentamos evitar na AWS, mas aqui não bloqueia o tipo de instância depois).
+> **Atenção — escolha do home region é irreversível.** O Always Free (incluindo o Ampere
+> A1 que esta stack usa) fica restrito à região escolhida como **home region** no cadastro, e
+> essa escolha **não pode ser trocada depois**. O problema não é elegibilidade — é
+> **capacidade**: o Ampere A1 grátis ficou tão concorrido que várias regiões retornam "Out of
+> host capacity" por horas ou dias, mesmo sendo "elegíveis" (há relato documentado de alguém
+> tentando 1000+ vezes em 3 dias em `sa-saopaulo-1` sem conseguir). Regiões americanas também
+> sofrem bastante por alta concorrência. **Recomendação: escolha `eu-frankfurt-1` (Frankfurt)
+> como home region**, não São Paulo nem uma região dos EUA — Frankfurt/Singapura/Tóquio
+> aparecem consistentemente com disponibilidade muito melhor (minutos, não dias). É um vídeo
+> de demonstração gravado uma vez — a latência extra não importa; conseguir o cluster de pé
+> importa muito mais.
+
+1. Cadastro em https://signup.oraclecloud.com — escolha **Frankfurt** como home region (ver
+   aviso acima). Pede verificação de identidade e cartão (não cobra nada em recursos Always
+   Free, é só verificação anti-abuso, igual a fricção que já tentamos evitar na AWS, mas aqui
+   não bloqueia o tipo de instância depois).
 2. Anote, no console (Profile → Tenancy/User Settings):
    - **Tenancy OCID** (`ocid1.tenancy.oc1..…`)
    - **User OCID** (`ocid1.user.oc1..…`)
-   - **Region** (ex.: `sa-saopaulo-1`, se disponível pra sua conta — senão `us-ashburn-1`)
+   - **Region**: `eu-frankfurt-1`
 3. Gerar uma API Signing Key (Profile → My Profile → API Keys → Add API Key → "Generate API
    Key Pair") — baixe a chave privada, anote o **Fingerprint** mostrado.
 4. Instalar OCI CLI localmente: `winget install Oracle.OCICLI` (ou

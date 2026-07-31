@@ -14,7 +14,9 @@ name: Deploy to Oracle Cloud (OKE) — Fallback
 #   OCI_CLI_USER, OCI_CLI_TENANCY, OCI_CLI_FINGERPRINT, OCI_CLI_KEY_CONTENT, OCI_CLI_REGION
 #   OCIR_USERNAME, OCIR_AUTH_TOKEN, OKE_CLUSTER_ID
 # Variable:
-#   OCI_REGION_KEY — chave curta da região pro domínio do OCIR (ex.: gru, iad)
+#   OCI_REGION_KEY — chave curta da região pro domínio do OCIR (default: fra, Frankfurt —
+#                    ver docs/oke-deploy.md §2 sobre por que Frankfurt e não São Paulo/EUA:
+#                    capacidade do Ampere A1 grátis é o problema, não elegibilidade)
 
 on:
   workflow_dispatch:
@@ -25,7 +27,7 @@ on:
         default: false
 
 env:
-  OCI_REGION_KEY: ${{ vars.OCI_REGION_KEY || 'gru' }}
+  OCI_REGION_KEY: ${{ vars.OCI_REGION_KEY || 'fra' }}
   K8S_NAMESPACE: gamestore
 
 jobs:
