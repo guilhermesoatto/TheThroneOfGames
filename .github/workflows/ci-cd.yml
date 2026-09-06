@@ -348,6 +348,7 @@ jobs:
         with:
           languages: csharp
           build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Build
         run: dotnet build ${{ env.SOLUTION }} --configuration Release

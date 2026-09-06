@@ -1,0 +1,14 @@
+name: "CodeQL — TheThroneOfGames (monólito Fase 2)"
+
+# Analisa só o código de produção. Projetos de teste (fixtures com senhas/keys
+# dummy) e migrations autogeradas do EF ficam de fora para reduzir ruído.
+paths:
+  - TheThroneOfGames.API
+  - TheThroneOfGames.Application
+  - TheThroneOfGames.Domain
+  - TheThroneOfGames.Infrastructure
+
+paths-ignore:
+  - "**/Migrations/**"
+  - "**/bin/**"
+  - "**/obj/**"

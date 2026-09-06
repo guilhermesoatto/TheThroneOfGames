@@ -33,7 +33,7 @@ Comandos (todos **sem Docker / sem SQL Server**):
 
 ```bash
 dotnet --version                                  # 10.0.302
-dotnet build TheThroneOfGames.sln -c Release      # 0 erros, 22 avisos
+dotnet build TheThroneOfGames.sln -c Release      # 0 erros, 20 avisos
 dotnet format TheThroneOfGames.sln --verify-no-changes --severity warn   # exit 0 (limpo)
 dotnet test TheThroneOfGames.sln -c Release       # 57 (unit+e2e); +6 integração exigem SQL Server
 dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0 vulneráveis (8/8 projetos)
@@ -41,7 +41,7 @@ dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0
 
 | Job / etapa | Resultado |
 |---|---|
-| **build** | ✅ 0 erros, 22 avisos |
+| **build** | ✅ 0 erros, 20 avisos |
 | **lint** (`dotnet format --verify`) | ✅ limpo |
 | **test** — `Domain.Tests` | ✅ 15/15 |
 | **test** — `Application.Tests` | ✅ 32/32 |
@@ -53,11 +53,11 @@ dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0
 | **Total de testes** | ✅ **63/63** |
 | **Vulnerabilidades (M-07/N-08)** | ✅ 0 HIGH/CRITICAL, 0 Moderate |
 
-## 3. Avisos remanescentes (22) — dívida técnica, não bloqueiam
+## 3. Avisos remanescentes (20) — dívida técnica, não bloqueiam
 
 | Código | Qtd (aprox.) | Origem |
 |---|---|---|
-| CS8618 (non-nullable sem init) | ~16 | DTOs/entidades (`LoginRequest`, `UserEntity`, `Promotion*`, `GameDto`...) |
+| CS8618 (non-nullable sem init) | ~14 | DTOs/entidades (`UserEntity`, `Promotion*`, `GameDto`...) |
 | SYSLIB0060 | 4 | `UsuarioService` — ctor de `Rfc2898DeriveBytes` obsoleto no .NET 10 (usar `Rfc2898DeriveBytes.Pbkdf2`) |
 | CS0105 | 0 | (removidos pelo passe de `dotnet format`) |
 

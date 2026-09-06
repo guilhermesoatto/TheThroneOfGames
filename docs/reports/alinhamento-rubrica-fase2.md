@@ -14,7 +14,7 @@ onde ela é satisfeita no repositório e registra o que ficou **fora de escopo**
 |---|---|---|
 | CI acionada automaticamente em mudanças no repositório | `.github/workflows/ci-cd.yml` — `on: push` / `pull_request` em `master`, `develop`, `release/fase-2-monolito` | ✅ |
 | CI · **Compilação do código** | job `build` — `dotnet build -c Release` | ✅ |
-| CI · **Execução de testes automatizados** | jobs `test` (unit, 9) + `e2e` (5) + `integration` (2) | ✅ 14 testes |
+| CI · **Execução de testes automatizados** | jobs `test` (unit, 52) + `e2e` (5) + `integration` (2) + `integration-db` (6, SQL real) | ✅ 63 testes |
 | CI · **Construção de artefatos para implantação** | job `build` publica `api-publish` (`dotnet publish`); job `package` publica a **imagem Docker** em `ghcr.io` | ✅ |
 | CD acionada automaticamente após sucesso da CI | job `deploy` — `needs: package`; `package` depende de toda a CI verde | ✅ |
 | CD · **deploy automatizado em "produção"** (Azure / outra cloud / IIS) | job `deploy` promove a imagem publicada para a tag `:production` e emite instruções de execução; "produção" demonstrada = `docker compose pull && docker compose up -d` | ✅ (via GHCR + compose) |
@@ -43,7 +43,7 @@ onde ela é satisfeita no repositório e registra o que ficou **fora de escopo**
 | **Deploy em cloud real / Azure** (`T05`) | Sem subscription/segredos de nuvem | "Produção" = imagem versionada no GHCR promovida para `:production`; execução via compose |
 | **Cobertura de testes > 80%** (`prd-fase2.json`) | Base legada mínima; migrations do EF (mantidas na contagem) puxam o total pra baixo | ~23% total (App 53% · Domain 36% · API 33% · Infra 6,8%). Gate *ratchet* via Codecov impede regressão; subida contínua. Não é critério do PDF |
 | Migração dos testes unitários MSTest→xUnit (ADR-003) | Fora do escopo deste PR; risco desnecessário | E2E já em xUnit; convergência dos unitários fica para depois |
-| `TreatWarningsAsErrors` + 22 avisos (CS8618, SYSLIB0060) | Limpeza ampla, fora do escopo | Registrado; ligar depois de zerar avisos |
+| `TreatWarningsAsErrors` + 20 avisos (CS8618, SYSLIB0060) | Limpeza ampla, fora do escopo | Registrado; ligar depois de zerar avisos |
 | Swashbuckle na última versão | `9.0.4+` migra p/ Microsoft.OpenApi 2.x e quebra o `Program.cs` | Mantido em `9.0.1` (Microsoft.OpenApi 1.6.x); bump adiado |
 | Digest-pinning das imagens base do Docker (agent-laws M-08) | Fora do escopo | Tags `sdk:10.0` / `aspnet:10.0`; pinar depois |
 
