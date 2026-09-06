@@ -35,11 +35,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-
 # Copy published application
 COPY --from=publish /app/publish .
+
+# Usuário não-root: a imagem base .NET 10 já provê o usuário/grupo "app" (UID 1654).
+RUN chown -R app:app /app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
@@ -49,7 +49,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 80
 
 # Switch to non-root user
-USER appuser
+USER app
 
 # Run application
 ENTRYPOINT ["dotnet", "TheThroneOfGames.API.dll"]

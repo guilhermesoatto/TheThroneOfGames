@@ -34,9 +34,10 @@ COPY --from=publish /app/publish .
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
-USER appuser
+# Usuário não-root: a imagem base .NET 10 já provê o usuário/grupo "app" (UID 1654).
+# (Debian 13 removeu o wrapper `adduser` das imagens mínimas — daí não recriamos o usuário.)
+RUN chown -R app:app /app
+USER app
 
 EXPOSE 80
 EXPOSE 443
