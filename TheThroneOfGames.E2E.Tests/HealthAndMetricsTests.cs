@@ -1,5 +1,4 @@
 using System.Net;
-using FluentAssertions;
 using Xunit;
 
 namespace TheThroneOfGames.E2E.Tests;
@@ -25,16 +24,16 @@ public sealed class HealthAndMetricsTests : IClassFixture<CustomWebApplicationFa
     public async Task Application_boots_and_public_info_responds()
     {
         var response = await _client.GetAsync("/api/usuario/public-info");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
     public async Task Prometheus_metrics_endpoint_is_exposed()
     {
         var response = await _client.GetAsync("/metrics");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var body = await response.Content.ReadAsStringAsync();
-        body.Should().Contain("# HELP");
+        Assert.Contains("# HELP", body);
     }
 }

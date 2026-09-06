@@ -33,7 +33,7 @@ Comandos (todos **sem Docker / sem SQL Server**):
 dotnet --version                                  # 10.0.302
 dotnet build TheThroneOfGames.sln -c Release      # 0 erros, 22 avisos
 dotnet format TheThroneOfGames.sln --verify-no-changes --severity warn   # exit 0 (limpo)
-dotnet test TheThroneOfGames.sln -c Release       # 14/14
+dotnet test TheThroneOfGames.sln -c Release       # 57/57
 dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0 vulneráveis (8/8 projetos)
 ```
 
@@ -41,12 +41,12 @@ dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0
 |---|---|
 | **build** | ✅ 0 erros, 22 avisos |
 | **lint** (`dotnet format --verify`) | ✅ limpo |
-| **test** — `Domain.Tests` | ✅ 2/2 |
-| **test** — `Application.Tests` | ✅ 2/2 |
+| **test** — `Domain.Tests` | ✅ 15/15 |
+| **test** — `Application.Tests` | ✅ 32/32 |
 | **test** — `Infrastructure.Tests` (InMemory) | ✅ 5/5 |
 | **e2e** — `E2E.Tests` (`UserJourneyTests`) | ✅ 3/3 |
 | **integration** — `E2E.Tests` (`HealthAndMetricsTests`) | ✅ 2/2 |
-| **Total de testes** | ✅ **14/14** |
+| **Total de testes** | ✅ **57/57** |
 | **Vulnerabilidades (M-07/N-08)** | ✅ 0 HIGH/CRITICAL, 0 Moderate |
 
 ## 3. Avisos remanescentes (22) — dívida técnica, não bloqueiam
@@ -61,10 +61,21 @@ dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0
 
 ## 4. Cobertura de testes
 
-Aproximadamente **9–18%** (coverlet / cobertura). O critério "> 80%" do `prd-fase2.json`
-**não é atingido**. Registrado como gap conhecido em
-[`alinhamento-rubrica-fase2.md`](alinhamento-rubrica-fase2.md) — não faz parte do rubric do PDF,
-que avalia a esteira CI/CD, não cobertura.
+| Assembly | Cobertura de linha |
+|---|---|
+| `TheThroneOfGames.Application` | 53,5% |
+| `TheThroneOfGames.Domain` | 36,0% |
+| `TheThroneOfGames.API` | 33,1% (só via E2E) |
+| `TheThroneOfGames.Infrastructure` | 6,8% (2078 linhas, majoritariamente migrations do EF — mantidas na contagem por decisão do time) |
+| **Total** | **~23%** (918/4040 linhas) |
+
+Gate via **Codecov** (`codecov.yml`): modelo *ratchet* — `project` com `target: auto`/`threshold: 1%`
+(cobertura não pode cair) e `patch` com `target: 60%` (código novo). O critério "> 80%" do
+`prd-fase2.json` **não é atingido**; não faz parte do rubric do PDF, que avalia a esteira CI/CD.
+
+**Setup único do Codecov** (dono do repo, fora do CI): logar em codecov.io com GitHub, adicionar
+`guilhermesoatto/TheThroneOfGames`, colar `CODECOV_TOKEN` em Settings → Secrets → Actions.
+Enquanto não existir, o `codecov/codecov-action` é no-op (`fail_ci_if_error: false`) e a esteira segue verde.
 
 ## 5. Verificação da esteira no GitHub Actions (pendente de push)
 

@@ -1,0 +1,42 @@
+# Gate de cobertura — modelo "ratchet" (a cobertura não pode cair).
+# Enforced como status check de PR (codecov/project e codecov/patch). Para tornar
+# obrigatório: Settings → Branches → branch protection → require "codecov/project".
+#
+# Setup único (feito pelo dono do repo, fora do CI):
+#   1. codecov.io → login com GitHub → adicionar guilhermesoatto/TheThroneOfGames
+#   2. copiar o CODECOV_TOKEN para Settings → Secrets → Actions do repo
+# Enquanto o token não existir, o upload é no-op e o pipeline continua verde.
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto        # compara com o commit base
+        threshold: 1%        # tolera 1% de ruído; queda maior => check vermelho
+        informational: false
+    patch:
+      default:
+        target: 60%          # código novo/alterado deve ter >= 60% de cobertura
+        threshold: 0%
+        informational: false
+
+comment:
+  layout: "reach, diff, flags, files"
+  require_changes: false
+
+flags:
+  unit:
+    paths:
+      - TheThroneOfGames.Domain/
+      - TheThroneOfGames.Application/
+      - TheThroneOfGames.Infrastructure/
+  e2e:
+    paths:
+      - TheThroneOfGames.API/
+
+# Migrations do EF entram na contagem por decisão do time (bancos por domínio na
+# evolução do projeto) — reavaliar em ADR futura se virarem ruído.
+ignore:
+  - "**/obj/**"
+  - "**/bin/**"
+  - "**/*.Designer.cs"

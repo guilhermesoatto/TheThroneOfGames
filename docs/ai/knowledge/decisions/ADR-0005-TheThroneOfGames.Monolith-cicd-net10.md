@@ -27,6 +27,8 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
 | Deploy (CD) | Azure/Cloud (exige subscription + secrets) · IIS local · **imagem GHCR + `docker compose`** | Imagem versionada no GHCR promovida para `:production`; sem credenciais de nuvem |
 | Testes de integração no CI | Manter Testcontainers (exige Docker) · excluir do CI · **converter para EF InMemory** | EF InMemory — roda no CI sem slave services e elimina a CVE HIGH |
 | Lint | `warnings-as-errors` (29 avisos a limpar) · **`dotnet format --verify`** | `dotnet format` + `.editorconfig` pragmático + passe único de formatação |
+| Asserções nos testes | FluentAssertions (8.x é **licença paga**) · Shouldly (dep extra) · **xUnit `Assert` nativo** | `Assert` nativo — POC não depende de lib paga nem de dep extra |
+| Gate de cobertura | SonarCloud (setup pesado) · floor fixo no job · **Codecov (ratchet)** | Codecov: 1 step + `codecov.yml`, grátis p/ repo público, gate como status check de PR |
 
 ### Constraints
 
@@ -44,12 +46,16 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
    e depende de **toda** a CI verde.
 3. **`integration` é self-contained:** valida composição de DI, modelo EF e endpoints de saúde/métricas
    via `WebApplicationFactory` — **sem** SQL/Prometheus/Grafana, que ficam fora do CI por decisão de escopo.
-4. **Nova suíte E2E** `TheThroneOfGames.E2E.Tests` (xUnit + FluentAssertions + `WebApplicationFactory`
+4. **Nova suíte E2E** `TheThroneOfGames.E2E.Tests` (xUnit + `Assert` nativo + `WebApplicationFactory`
    + EF InMemory) exercitando a jornada `pre-register → activate → login → criar jogo (admin) → listar`.
 5. **`Infrastructure.Tests` migrado de Testcontainers para EF Core InMemory.**
 6. `Program.cs`: `Database.Migrate()` passa a ser guardado por `Database.IsRelational()` (permite host
    de teste in-process sem quebrar o `docker compose`).
 7. **Lint** = `dotnet format --verify-no-changes` contra um `.editorconfig` novo (escopo pragmático).
+8. **Testes de unidade ampliados** em Domain e Application (14 → 57 testes) cobrindo invariantes de
+   `Usuario`, validação de senha, ativação, compra de jogo e hashing PBKDF2.
+9. **Gate de cobertura via Codecov** (`codecov.yml`, modelo *ratchet*: cobertura não pode cair;
+   patch novo ≥ 60%). Sem FluentAssertions — asserções em xUnit `Assert` nativo (a 8.x virou licença paga).
 
 ## Consequências
 
@@ -63,7 +69,9 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
 
 ### Negativas / Trade-offs
 
-- **Cobertura de testes ainda baixa (~9–18%)** — o critério `> 80%` do `prd-fase2.json` não é atingido.
+- **Cobertura ainda abaixo de 80%** (~23% total; Application 53%, Domain 36%, API 33%, Infrastructure 6,8%).
+  O denominador de Infrastructure é dominado por migrations do EF (mantidas na contagem por decisão do time).
+  O gate *ratchet* impede regressão; subir o alvo é trabalho contínuo.
 - Frameworks de teste mistos: unit em MSTest+Moq, E2E em xUnit (convergência para xUnit adiada).
 - `Swashbuckle` preso em `9.0.1` (a linha `9.0.4+` migra para `Microsoft.OpenApi 2.x` e quebra o
   `Program.cs`). Bump adiado.
@@ -79,6 +87,8 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
 | Toolchain | `global.json` |
 | Lint | `.editorconfig` |
 | Projeto E2E | `TheThroneOfGames.E2E.Tests/` (`CustomWebApplicationFactory`, `UserJourneyTests`, `HealthAndMetricsTests`) |
+| Testes de unidade | `Domain.Tests/Entities/UsuarioTests.cs`; `Application.Tests/Services/{UsuarioServiceTests,GameServiceBehaviorTests,PasswordHashingTests}.cs` |
+| Cobertura | `codecov.yml` (gate ratchet) + steps `codecov/codecov-action` nos jobs `test`/`integration`/`e2e` |
 | Pipeline | `.github/workflows/ci-cd.yml` (reescrito) |
 | Removido | `.github/workflows/ci-suitcase-gate0.yml` (pipeline TypeScript dormente) |
 | Relatórios | `docs/reports/validacao-pos-migracao-net10.md`, `docs/reports/alinhamento-rubrica-fase2.md` |

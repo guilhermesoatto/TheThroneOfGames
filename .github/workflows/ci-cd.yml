@@ -106,6 +106,14 @@ jobs:
           path: ./TestResults/**/*
           retention-days: 7
 
+      - name: Upload coverage to Codecov (flag=unit)
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./TestResults/**/coverage.cobertura.xml
+          flags: unit
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
   # ─────────────────────────────────────────────────────────────
   # 3.4 · INTEGRATION — validação self-contained de integração
   #
@@ -139,6 +147,7 @@ jobs:
           --configuration Release
           --filter "FullyQualifiedName~HealthAndMetricsTests"
           --logger "trx;LogFileName=integration.trx"
+          --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
 
       - name: Upload results
@@ -148,6 +157,14 @@ jobs:
           name: integration-results
           path: ./TestResults/**/*
           retention-days: 7
+
+      - name: Upload coverage to Codecov (flag=e2e)
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./TestResults/**/coverage.cobertura.xml
+          flags: e2e
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   # ─────────────────────────────────────────────────────────────
   # 3.5 · E2E — jornadas HTTP ponta-a-ponta (WebApplicationFactory + EF InMemory)
@@ -173,7 +190,16 @@ jobs:
           --configuration Release
           --filter "FullyQualifiedName~UserJourneyTests"
           --logger "trx;LogFileName=e2e.trx"
+          --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
+
+      - name: Upload coverage to Codecov (flag=e2e)
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./TestResults/**/coverage.cobertura.xml
+          flags: e2e
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
       - name: Upload E2E results
         if: always()

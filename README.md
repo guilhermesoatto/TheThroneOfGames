@@ -19,7 +19,7 @@ Ver critérios de aceite completos em [docs/Objectives/sprint-1/DELIVERABLE.md](
 - ASP.NET Core 10.0 Web API (`.NET 10 LTS`, SDK fixado em `global.json`)
 - Entity Framework Core 10 + SQL Server (runtime) / EF Core InMemory (testes)
 - JWT Bearer Authentication
-- MSTest + Moq (testes unitários) e xUnit + FluentAssertions + `WebApplicationFactory` (testes E2E)
+- MSTest + Moq (testes unitários) e xUnit + `WebApplicationFactory` (testes E2E) — asserções nativas, sem libs pagas
 - Docker / Docker Compose
 - Prometheus + Grafana (métricas e dashboards)
 - GitHub Actions (CI/CD em jobs separados: build · lint · test · integration · e2e · package · deploy)
@@ -67,14 +67,17 @@ Configure a connection string e o segredo JWT em `TheThroneOfGames.API/appsettin
 dotnet test TheThroneOfGames.sln
 ```
 
-Isso executa os **14 testes automatizados** da Fase 2, **sem necessidade de Docker ou SQL Server**:
+Isso executa os **57 testes automatizados** da Fase 2, **sem necessidade de Docker ou SQL Server**:
 
 | Projeto | Testes | O que valida |
 |---|---|---|
-| `TheThroneOfGames.Domain.Tests` | 2 | Entidades de domínio |
-| `TheThroneOfGames.Application.Tests` | 2 | Serviços de aplicação (`GameService`) |
+| `TheThroneOfGames.Domain.Tests` | 15 | Invariantes e comportamento de `Usuario` (ativação, papéis, perfil) |
+| `TheThroneOfGames.Application.Tests` | 32 | `UsuarioService` (validação de senha, ativação, perfil), `GameService` (compra, catálogo), hashing PBKDF2 |
 | `TheThroneOfGames.Infrastructure.Tests` | 5 | Persistência (`GameEntityRepository`/`UsuarioRepository`) via **EF Core InMemory** |
 | `TheThroneOfGames.E2E.Tests` | 5 | Jornadas HTTP ponta-a-ponta via `WebApplicationFactory` (registrar → ativar → logar → criar jogo) + saúde/métricas |
+
+Cobertura de linha é medida no CI (`--collect:"XPlat Code Coverage"`) e enviada ao **Codecov**,
+que aplica um gate *ratchet* (a cobertura não pode cair) — ver [`codecov.yml`](codecov.yml).
 
 > Os testes de integração antes usavam Testcontainers + SQL Server real; foram convertidos para
 > EF Core InMemory para rodarem no CI sem slave services (ver
@@ -118,7 +121,7 @@ build ─┬─ lint ──────────────┐
 |---|---|
 | `build` | `dotnet build -c Release` + `dotnet publish` da API → artefato `api-publish` |
 | `lint` | `dotnet format --verify-no-changes` (formatação/estilo via `.editorconfig`) |
-| `test` | testes unitários (Domain + Application + Infrastructure/InMemory) + cobertura |
+| `test` | testes unitários (Domain + Application + Infrastructure/InMemory) + cobertura → Codecov (gate *ratchet*) |
 | `integration` | validação self-contained: a app compõe, o modelo EF valida, `/api/usuario/public-info` e `/metrics` respondem — **sem** SQL/Prometheus/Grafana (fora de escopo nesta fase, ver [alinhamento-rubrica-fase2.md](docs/reports/alinhamento-rubrica-fase2.md)) |
 | `e2e` | jornadas HTTP ponta-a-ponta (`WebApplicationFactory` + InMemory) |
 | `security-scan` | Trivy no filesystem/dependências |
