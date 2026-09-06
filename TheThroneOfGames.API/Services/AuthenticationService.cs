@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
@@ -29,12 +26,12 @@ public class AuthenticationService
         if (!TheThroneOfGames.Application.UsuarioService.VerifyPassword(user.PasswordHash, password)) return null;
         if (!user.IsActive) return null;
 
-    var jwtSettings = _configuration.GetSection("Jwt");
-    var keyStr = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT 'Key' is not configured.");
-    var issuer = jwtSettings["Issuer"] ?? string.Empty;
-    var audience = jwtSettings["Audience"] ?? string.Empty;
-    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyStr));
-    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var jwtSettings = _configuration.GetSection("Jwt");
+        var keyStr = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT 'Key' is not configured.");
+        var issuer = jwtSettings["Issuer"] ?? string.Empty;
+        var audience = jwtSettings["Audience"] ?? string.Empty;
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyStr));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
         {

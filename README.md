@@ -16,13 +16,13 @@ Ver critérios de aceite completos em [docs/Objectives/sprint-1/DELIVERABLE.md](
 
 ## Stack Tecnológico
 
-- ASP.NET Core 9.0 Web API
-- Entity Framework Core + SQL Server
+- ASP.NET Core 10.0 Web API (`.NET 10 LTS`, SDK fixado em `global.json`)
+- Entity Framework Core 10 + SQL Server (runtime) / EF Core InMemory (testes)
 - JWT Bearer Authentication
-- MSTest + Moq (testes unitários) e Testcontainers.MsSql (testes de integração com banco real)
+- MSTest + Moq (testes unitários) e xUnit + FluentAssertions + `WebApplicationFactory` (testes E2E)
 - Docker / Docker Compose
 - Prometheus + Grafana (métricas e dashboards)
-- GitHub Actions (CI/CD)
+- GitHub Actions (CI/CD em jobs separados: build · lint · test · integration · e2e · package · deploy)
 
 ## Como subir o Monolito + Banco + Monitoramento
 
@@ -51,6 +51,8 @@ docker-compose down
 
 ### Rodando localmente sem Docker (desenvolvimento)
 
+Pré-requisito: .NET SDK 10 (a versão exata é fixada em [`global.json`](global.json)).
+
 ```bash
 dotnet restore
 dotnet ef database update --project TheThroneOfGames.Infrastructure --startup-project TheThroneOfGames.API --context MainDbContext
@@ -65,17 +67,18 @@ Configure a connection string e o segredo JWT em `TheThroneOfGames.API/appsettin
 dotnet test TheThroneOfGames.sln
 ```
 
-Isso executa os 9 testes automatizados da Fase 2:
+Isso executa os **14 testes automatizados** da Fase 2, **sem necessidade de Docker ou SQL Server**:
 
 | Projeto | Testes | O que valida |
 |---|---|---|
 | `TheThroneOfGames.Domain.Tests` | 2 | Entidades de domínio |
 | `TheThroneOfGames.Application.Tests` | 2 | Serviços de aplicação (`GameService`) |
-| `TheThroneOfGames.Infrastructure.Tests` | 5 | Persistência real via **Testcontainers.MsSql** (sobe um container SQL Server, aplica as migrations e valida `GameEntityRepository`/`UsuarioRepository` contra o banco de verdade) |
+| `TheThroneOfGames.Infrastructure.Tests` | 5 | Persistência (`GameEntityRepository`/`UsuarioRepository`) via **EF Core InMemory** |
+| `TheThroneOfGames.E2E.Tests` | 5 | Jornadas HTTP ponta-a-ponta via `WebApplicationFactory` (registrar → ativar → logar → criar jogo) + saúde/métricas |
 
-O relatório de execução completo, incluindo cobertura de código, está em [docs/phase-2-evidence/RELATORIO_TESTES_FASE2.md](docs/phase-2-evidence/RELATORIO_TESTES_FASE2.md).
-
-> Requer Docker Desktop rodando — o projeto `Infrastructure.Tests` sobe um container SQL Server real via Testcontainers para cada execução.
+> Os testes de integração antes usavam Testcontainers + SQL Server real; foram convertidos para
+> EF Core InMemory para rodarem no CI sem slave services (ver
+> [docs/reports/alinhamento-rubrica-fase2.md](docs/reports/alinhamento-rubrica-fase2.md)).
 
 ## Gravação do vídeo de demonstração
 
@@ -99,12 +102,30 @@ Com a API rodando, acesse `http://localhost:5000/swagger` para a documentação 
 
 ## CI/CD
 
-Pipeline definido em [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml):
+Pipeline definido em [.github/workflows/ci-cd.yml](.github/workflows/ci-cd.yml). Cada ação da CI é
+um **job independente**; a CD dispara automaticamente após a CI verde (push em `master` ou
+`release/fase-2-monolito`):
 
-1. **Build & Test** — restaura, builda e roda `dotnet test TheThroneOfGames.sln` em cada PR/commit.
-2. **Build & Push Docker Image** — builda a imagem a partir do `Dockerfile` raiz, roda scan de vulnerabilidades (Trivy) e publica em `ghcr.io`.
-3. **Security Scan** — Trivy scan do filesystem/dependências.
-4. **Deploy to Cloud Provider** — job condicional (habilitado apenas quando a variável de repositório `CLOUD_DEPLOY_ENABLED` estiver configurada), pronto para receber o comando específico do provedor de nuvem escolhido. Ver [docs/Objectives/sprint-1/tasks/T05-cloud-deploy.md](docs/Objectives/sprint-1/tasks/T05-cloud-deploy.md) para as opções sugeridas (AWS ECS Fargate, Azure Container Apps, GCP Cloud Run).
+```
+build ─┬─ lint ──────────────┐
+       ├─ test (unit) ───────┤
+       ├─ integration ───────┼─→ package (Docker → ghcr.io) ─→ deploy (promove :production)
+       ├─ e2e ───────────────┤
+       └─ security-scan ─────┘
+```
+
+| Job | Ação |
+|---|---|
+| `build` | `dotnet build -c Release` + `dotnet publish` da API → artefato `api-publish` |
+| `lint` | `dotnet format --verify-no-changes` (formatação/estilo via `.editorconfig`) |
+| `test` | testes unitários (Domain + Application + Infrastructure/InMemory) + cobertura |
+| `integration` | validação self-contained: a app compõe, o modelo EF valida, `/api/usuario/public-info` e `/metrics` respondem — **sem** SQL/Prometheus/Grafana (fora de escopo nesta fase, ver [alinhamento-rubrica-fase2.md](docs/reports/alinhamento-rubrica-fase2.md)) |
+| `e2e` | jornadas HTTP ponta-a-ponta (`WebApplicationFactory` + InMemory) |
+| `security-scan` | Trivy no filesystem/dependências |
+| `package` | build + push da imagem Docker em `ghcr.io` + Trivy na imagem (só em push, depende de toda a CI verde) |
+| `deploy` | promove a imagem publicada para `:production`; o deploy demonstrado no vídeo é `docker compose pull && docker compose up -d` puxando essa imagem |
+
+Um PR com testes quebrados falha a CI e **nenhum artefato é criado** — o merge para produção fica bloqueado.
 
 ## Arquitetura
 

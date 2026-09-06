@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Entities;
+using TheThroneOfGames.Domain.Interfaces;
 
 namespace TheThroneOfGames.Application
 {

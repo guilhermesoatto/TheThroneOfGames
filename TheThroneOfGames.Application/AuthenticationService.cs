@@ -1,4 +1,4 @@
-﻿namespace TheThroneOfGames.Application;
+namespace TheThroneOfGames.Application;
 
 // Minimal placeholder kept in Application project to avoid introducing heavy framework
 // dependencies into the domain/application layer. Full authentication implementation

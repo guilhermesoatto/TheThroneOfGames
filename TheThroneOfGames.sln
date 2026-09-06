@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.Applicatio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.Infrastructure.Tests", "TheThroneOfGames.Infrastructure.Tests\TheThroneOfGames.Infrastructure.Tests.csproj", "{DB97BDFA-5EE7-4733-9588-2989B9CA9BC6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TheThroneOfGames.E2E.Tests", "TheThroneOfGames.E2E.Tests\TheThroneOfGames.E2E.Tests.csproj", "{B7D09473-96BA-42B2-B270-70B4611E5D46}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -116,6 +118,18 @@ Global
 		{DB97BDFA-5EE7-4733-9588-2989B9CA9BC6}.Release|x64.Build.0 = Release|Any CPU
 		{DB97BDFA-5EE7-4733-9588-2989B9CA9BC6}.Release|x86.ActiveCfg = Release|Any CPU
 		{DB97BDFA-5EE7-4733-9588-2989B9CA9BC6}.Release|x86.Build.0 = Release|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Debug|x64.Build.0 = Debug|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Debug|x86.Build.0 = Debug|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Release|x64.ActiveCfg = Release|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Release|x64.Build.0 = Release|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Release|x86.ActiveCfg = Release|Any CPU
+		{B7D09473-96BA-42B2-B270-70B4611E5D46}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

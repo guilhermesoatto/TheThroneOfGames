@@ -1,6 +1,6 @@
+using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Infrastructure.Persistence;
-using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Repository;
 

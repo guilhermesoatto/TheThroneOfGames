@@ -1,4 +1,4 @@
-﻿using TheThroneOfGames.Domain.Entities;
+using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Domain.Interfaces;
 

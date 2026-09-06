@@ -1,4 +1,4 @@
-﻿namespace TheThroneOfGames.Domain.Interfaces;
+namespace TheThroneOfGames.Domain.Interfaces;
 
 /// <summary>
 /// Represents a generic repository interface for performing CRUD operations on entities of type <typeparamref name="TEntity"/>.

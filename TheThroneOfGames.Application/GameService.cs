@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TheThroneOfGames.Application.Interface;
-using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Domain.Entities;
+using TheThroneOfGames.Domain.Events;
+using TheThroneOfGames.Domain.Interfaces;
 
 namespace TheThroneOfGames.Application
 {
@@ -14,7 +9,7 @@ namespace TheThroneOfGames.Application
     {
         private readonly IBaseRepository<GameEntity> _gameRepository;
         private readonly IBaseRepository<TheThroneOfGames.Domain.Entities.PurchaseEntity> _purchaseRepository;
-    private readonly IEventBus _eventBus;
+        private readonly IEventBus _eventBus;
 
         public GameService(IBaseRepository<GameEntity> gameRepository, IBaseRepository<TheThroneOfGames.Domain.Entities.PurchaseEntity> purchaseRepository, IEventBus eventBus)
         {
@@ -63,15 +58,15 @@ namespace TheThroneOfGames.Application
             };
 
             await _purchaseRepository.AddAsync(purchase);
-        
-        // Publish domain event
-        var gameCompradoEvent = new GameCompradoEvent(
-            GameId: gameId,
-            UserId: userId,
-            Preco: game.Price,
-            NomeJogo: game.Name
-        );
-        await _eventBus.PublishAsync(gameCompradoEvent);
+
+            // Publish domain event
+            var gameCompradoEvent = new GameCompradoEvent(
+                GameId: gameId,
+                UserId: userId,
+                Preco: game.Price,
+                NomeJogo: game.Name
+            );
+            await _eventBus.PublishAsync(gameCompradoEvent);
         }
 
         public async Task<List<GameEntity>> GetAllGames()
@@ -93,7 +88,7 @@ namespace TheThroneOfGames.Application
             var purchases = await _purchaseRepository.GetAllAsync();
             var userPurchases = purchases.Where(p => p.UserId == userId);
             var gameIds = userPurchases.Select(p => p.GameId);
-            
+
             var games = await _gameRepository.GetAllAsync();
             return games.Where(g => gameIds.Contains(g.Id)).ToList();
         }

@@ -1,9 +1,3 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace TheThroneOfGames.Domain.Entities
 {
     public class Usuario
@@ -12,12 +6,12 @@ namespace TheThroneOfGames.Domain.Entities
         protected Usuario() { }
 
         public Guid Id { get; private set; }
-    public string Name { get; private set; } = null!;
-    public string Email { get; private set; } = null!;
-    public string PasswordHash { get; private set; } = null!;
-    public string Role { get; private set; } = null!;
+        public string Name { get; private set; } = null!;
+        public string Email { get; private set; } = null!;
+        public string PasswordHash { get; private set; } = null!;
+        public string Role { get; private set; } = null!;
         public bool IsActive { get; private set; }
-    public string ActiveToken { get; set; } = null!;
+        public string ActiveToken { get; set; } = null!;
         public Usuario(string name, string email, string passwordHash, string role, string activeToken)
         {
             Id = Guid.NewGuid();

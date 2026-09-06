@@ -23,7 +23,7 @@ namespace TheThroneOfGames.Infrastructure.Events
             lock (_lockObject)
             {
                 var eventType = typeof(TEvent);
-                
+
                 if (!_handlers.ContainsKey(eventType))
                     _handlers[eventType] = new List<Delegate>();
 
@@ -44,7 +44,7 @@ namespace TheThroneOfGames.Infrastructure.Events
             lock (_lockObject)
             {
                 var eventType = typeof(TEvent);
-                
+
                 if (!_handlers.ContainsKey(eventType))
                     return;
 

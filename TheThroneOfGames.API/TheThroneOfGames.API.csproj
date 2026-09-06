@@ -1,30 +1,32 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.6" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.7">
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <!-- Swashbuckle mantido em 9.0.1 (Microsoft.OpenApi 1.6.x): a linha 9.0.4+ migra para
+         Microsoft.OpenApi 2.x, que renomeia o namespace Microsoft.OpenApi.Models e quebraria
+         a configuração do Swagger em Program.cs. Bump adiado (dívida técnica registrada). -->
     <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="9.0.1" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerGen" Version="9.0.1" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="9.0.1" />
       <!-- OpenTelemetry and Prometheus Instrumentation -->
-      <PackageReference Include="OpenTelemetry" Version="1.15.0" />
-      <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.15.0-beta.1" />
-      <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.0" />
-      <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.15.0" />
-      <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.0" />
-      <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.15.0-beta.1" />
-      <PackageReference Include="prometheus-net.AspNetCore" Version="8.1.0" />
+      <PackageReference Include="OpenTelemetry" Version="1.18.0" />
+      <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.18.0-beta.1" />
+      <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+      <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+      <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.18.0" />
+      <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.18.0-rc.1" />
+      <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
   </ItemGroup>
 
   <ItemGroup>

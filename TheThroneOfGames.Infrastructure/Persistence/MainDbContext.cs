@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Persistence;
@@ -13,7 +13,7 @@ public class MainDbContext : DbContext
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         // Suprimir warning de PendingModelChanges para testes de integração
-        optionsBuilder.ConfigureWarnings(warnings => 
+        optionsBuilder.ConfigureWarnings(warnings =>
             warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
     }
 

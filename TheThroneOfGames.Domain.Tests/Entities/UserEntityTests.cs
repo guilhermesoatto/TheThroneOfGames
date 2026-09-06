@@ -1,6 +1,3 @@
-using System;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 namespace TheThroneOfGames.Domain.Tests.Entities
 {
     [TestClass]
@@ -21,7 +18,7 @@ namespace TheThroneOfGames.Domain.Tests.Entities
         {
             // Arrange
             var type = Type.GetType("TheThroneOfGames.Domain.Entities.UserEntity, TheThroneOfGames.Domain");
-            
+
             // Act
             var instance = type is null ? null : Activator.CreateInstance(type);
 

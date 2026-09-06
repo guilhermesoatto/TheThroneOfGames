@@ -8,14 +8,18 @@
 ## Estado do Sistema
 
 ```
-Última atualização: 2026-05-26
-Runtime: .NET 9 / C# 12
-Banco de Dados: PostgreSQL 16 Alpine (Npgsql.EntityFrameworkCore.PostgreSQL 9.0.0)
-Infraestrutura: Docker Compose (local) + Kubernetes GKE Autopilot (produção)
-Testes: xUnit 2.9.0 + FluentAssertions 7.0.0 + NSubstitute 5.3.0
-Auth: JWT Bearer (Microsoft.AspNetCore.Authentication.JwtBearer 9.0.0)
-Métricas: Prometheus (prometheus-net.AspNetCore)
+Última atualização: 2026-09-06
+Runtime: .NET 10 (LTS) / C# 14  — SDK fixado em global.json (10.0.302)
+Banco de Dados: SQL Server (monólito Fase 2, EF Core 10) / EF Core InMemory nos testes
+Infraestrutura: Docker Compose (local) + GitHub Actions (CI/CD em jobs separados)
+Testes: MSTest + Moq (unitários) + xUnit + FluentAssertions + WebApplicationFactory (E2E)
+Auth: JWT Bearer (Microsoft.AspNetCore.Authentication.JwtBearer 10.0.11)
+Métricas: Prometheus (prometheus-net.AspNetCore + OpenTelemetry 1.18)
 ```
+
+> Nota Fase 2 (`release/fase-2-monolito`): esta branch entrega o **monólito** `TheThroneOfGames.*`.
+> Os microsserviços `GameStore.*`, PostgreSQL/K8s e a stack xUnit/NSubstitute pertencem às fases
+> seguintes e estão fora do escopo desta branch.
 
 ---
 
@@ -69,6 +73,11 @@ Métricas: Prometheus (prometheus-net.AspNetCore)
 | ADR-002 | Adoção de Bounded Contexts (DDD) — saída de arquitetura monolítica | 2026-01-10 |
 | ADR-003 | Testes migrados de NUnit+Moq para xUnit+FluentAssertions+NSubstitute | 2026-05-26 |
 | ADR-004 | Aplicação do suitcase ia-arquiteto-hexagon-pattern (dotnet stack) | 2026-05-26 |
+| ADR-005 *(proposto)* | Monólito Fase 2: migração `net9.0` → `net10.0`, remoção de Testcontainers no CI (EF InMemory), pipeline CI/CD em jobs separados + suíte E2E via `WebApplicationFactory` | 2026-09-06 |
+
+> ADR-005 — texto completo em [`decisions/ADR-0005-TheThroneOfGames.Monolith-cicd-net10.md`](decisions/ADR-0005-TheThroneOfGames.Monolith-cicd-net10.md).
+> Status **Proposed**: aguarda aprovação do Domain Expert (agent-laws §3). Escopo restrito ao monólito
+> `TheThroneOfGames.*`; não contradiz ADR-001..004, que valem para os microsserviços `GameStore.*`.
 
 ---
 

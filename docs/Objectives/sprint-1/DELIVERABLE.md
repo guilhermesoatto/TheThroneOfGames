@@ -31,6 +31,22 @@
 - The pipeline is the only gate to production; no manual SSH deploys allowed
 - Docker image must be pushed **before** the deploy step runs
 
+## Scope alignment (2026-09-06)
+
+O enunciado oficial da atividade (`fase 2.pdf`) pede **CI (compilar → testar → gerar artefato)
++ CD (deploy automatizado) demonstrados em vídeo**. Ajustes de escopo desta entrega:
+
+- Runtime migrado para **.NET 10 (LTS)** — nenhuma referência a `net9.0` / `9.0.x`.
+- CI reorganizada em **jobs separados**: `build`, `lint`, `test`, `integration`, `e2e`, `package`, `deploy`.
+- **`T05` (cloud)** e **`T06` (observabilidade)** ficam **fora do CI**: por ser monólito, não há
+  slave services (SQL Server, Prometheus, Grafana) disponíveis na esteira. O "deploy em produção"
+  é a **imagem versionada publicada no GHCR** (`package`) promovida para `:production` (`deploy`);
+  a demonstração no vídeo é `docker compose pull && docker compose up -d` puxando essa imagem, com
+  Prometheus/Grafana subindo junto localmente.
+- Testes de integração migrados de Testcontainers+SQL para **EF Core InMemory** (rodam sem Docker).
+- Critério "cobertura > 80%" **não atingido** — gap conhecido, ver
+  [../../reports/alinhamento-rubrica-fase2.md](../../reports/alinhamento-rubrica-fase2.md).
+
 ## Acceptance Criteria (Sprint Gate)
 
 ```gherkin

@@ -1,10 +1,4 @@
 using System.Diagnostics;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using OpenTelemetry;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
 using Prometheus;
 
 namespace TheThroneOfGames.API.Telemetry
@@ -50,7 +44,7 @@ namespace TheThroneOfGames.API.Telemetry
     public static class ApplicationMetrics
     {
         // HTTP Metrics (already provided by ASP.NET Core instrumentation)
-        
+
         /// <summary>
         /// Counter: total events published to message bus
         /// </summary>

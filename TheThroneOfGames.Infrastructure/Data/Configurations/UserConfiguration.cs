@@ -1,10 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Infrastructure.Data.Configurations
@@ -13,9 +8,9 @@ namespace TheThroneOfGames.Infrastructure.Data.Configurations
     {
         public void Configure(EntityTypeBuilder<UserEntity> builder)
         {
-            builder.ToTable("Users"); 
+            builder.ToTable("Users");
 
-            builder.HasKey(u => u.Id); 
+            builder.HasKey(u => u.Id);
 
             builder.Property(u => u.Name)
                 .IsRequired()
@@ -39,8 +34,8 @@ namespace TheThroneOfGames.Infrastructure.Data.Configurations
                 .IsRequired()
                 .HasDefaultValue(false); // Usuários começam inativos
 
-            builder.Property(u => u.ActiveToken) 
-                .HasMaxLength(255); 
+            builder.Property(u => u.ActiveToken)
+                .HasMaxLength(255);
 
             builder.Property(u => u.Nickname)
                .HasMaxLength(50); // Pode ser opcional no início ou obrigatório após ativação

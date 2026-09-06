@@ -1,5 +1,9 @@
 name: CI/CD Pipeline - The Throne of Games (Fase 2 - Monolito)
 
+# Esteira acadêmica da Fase 2 (POSTECH). Cada ação da CI é um job independente:
+#   build  -> lint -> test -> integration -> e2e -> package (artefato) -> deploy (CD)
+# CD dispara automaticamente após o sucesso da CI (push em master / release/fase-2-monolito).
+
 on:
   push:
     branches: [ master, develop, release/fase-2-monolito ]
@@ -8,153 +12,324 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  SOLUTION: TheThroneOfGames.sln
+  API_PROJECT: TheThroneOfGames.API/TheThroneOfGames.API.csproj
+  E2E_PROJECT: TheThroneOfGames.E2E.Tests/TheThroneOfGames.E2E.Tests.csproj
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/thethroneofgames-api
+
+permissions:
+  contents: read
 
 jobs:
-  # Job 1: Build & Test (CI)
-  build-and-test:
-    name: Build & Test
+  # ─────────────────────────────────────────────────────────────
+  # 3.1 · BUILD — compila a solução e publica o artefato de implantação
+  # ─────────────────────────────────────────────────────────────
+  build:
+    name: 3.1 · Build
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
 
-    - name: Restore dependencies
-      run: dotnet restore TheThroneOfGames.sln
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
 
-    - name: Build solution
-      run: dotnet build TheThroneOfGames.sln --configuration Release --no-restore
+      - name: Build (Release)
+        run: dotnet build ${{ env.SOLUTION }} --configuration Release --no-restore
 
-    - name: Run tests (Domain, Application, Infrastructure)
-      run: dotnet test TheThroneOfGames.sln --configuration Release --no-build --verbosity normal --logger "trx;LogFileName=test-results.trx"
+      - name: Publish API (artefato de implantação)
+        run: dotnet publish ${{ env.API_PROJECT }} --configuration Release --no-restore -o ./publish
 
-    - name: Upload test results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results
-        path: '**/TestResults/*.trx'
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: ./publish
+          retention-days: 7
 
-  # Job 2: Docker Build & Push (CD - Build Artifact)
-  docker-build:
-    name: Build & Push Docker Image
+  # ─────────────────────────────────────────────────────────────
+  # 3.3 · LINT — dotnet format (formatação/estilo via .editorconfig)
+  # ─────────────────────────────────────────────────────────────
+  lint:
+    name: 3.3 · Lint
     runs-on: ubuntu-latest
-    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      - name: dotnet format --verify-no-changes
+        run: dotnet format ${{ env.SOLUTION }} --verify-no-changes --severity warn --no-restore
+
+  # ─────────────────────────────────────────────────────────────
+  # 3.2 · TEST — testes unitários (Domain + Application + Infrastructure/InMemory)
+  # ─────────────────────────────────────────────────────────────
+  test:
+    name: 3.2 · Test (unit)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      - name: Test (exclui E2E)
+        run: >
+          dotnet test ${{ env.SOLUTION }}
+          --configuration Release
+          --filter "FullyQualifiedName!~E2E.Tests"
+          --logger "trx;LogFileName=unit-tests.trx"
+          --collect:"XPlat Code Coverage"
+          --results-directory ./TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: ./TestResults/**/*
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # 3.4 · INTEGRATION — validação self-contained de integração
+  #
+  # ESCOPO (decisão do sprint): por ser um monólito, NÃO há slave services
+  # disponíveis no CI — SQL Server, Prometheus, Grafana e SMTP ficam FORA
+  # desta esteira e são demonstrados manualmente via `docker compose`
+  # (ver docs/reports/alinhamento-rubrica-fase2.md).
+  # O que este job valida, sem nenhuma dependência externa:
+  #   - a aplicação compõe (grafo de DI resolve, Program.cs sobe)
+  #   - o modelo EF Core valida
+  #   - os endpoints de saúde (/api/usuario/public-info) e de métricas (/metrics) respondem
+  # ─────────────────────────────────────────────────────────────
+  integration:
+    name: 3.4 · Integration (self-contained)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ${{ env.E2E_PROJECT }}
+
+      - name: Composition / health / metrics
+        run: >
+          dotnet test ${{ env.E2E_PROJECT }}
+          --configuration Release
+          --filter "FullyQualifiedName~HealthAndMetricsTests"
+          --logger "trx;LogFileName=integration.trx"
+          --results-directory ./TestResults
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-results
+          path: ./TestResults/**/*
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # 3.5 · E2E — jornadas HTTP ponta-a-ponta (WebApplicationFactory + EF InMemory)
+  # ─────────────────────────────────────────────────────────────
+  e2e:
+    name: 3.5 · E2E
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ${{ env.E2E_PROJECT }}
+
+      - name: Run E2E user journeys
+        run: >
+          dotnet test ${{ env.E2E_PROJECT }}
+          --configuration Release
+          --filter "FullyQualifiedName~UserJourneyTests"
+          --logger "trx;LogFileName=e2e.trx"
+          --results-directory ./TestResults
+
+      - name: Upload E2E results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: ./TestResults/**/*
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # SECURITY SCAN — Trivy no filesystem / dependências
+  # ─────────────────────────────────────────────────────────────
+  security-scan:
+    name: Security Scan (fs)
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload SARIF to GitHub Security (master only)
+        if: always() && github.ref == 'refs/heads/master'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Upload SARIF artifact (todas as branches)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-scan
+          path: 'trivy-results.sarif'
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # PACKAGE — constrói e publica a imagem Docker (Build Artifact) no GHCR
+  # Só em push; depende de TODA a CI verde.
+  # ─────────────────────────────────────────────────────────────
+  package:
+    name: Package (Docker → GHCR)
+    runs-on: ubuntu-latest
+    needs: [ build, lint, test, integration, e2e ]
     if: github.event_name == 'push'
     permissions:
       contents: read
       packages: write
-
+    outputs:
+      image: ${{ steps.img.outputs.image }}
+      sha_tag: ${{ steps.img.outputs.sha_tag }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+      - name: Compute lowercase image + tags
+        id: img
+        run: |
+          IMAGE="${REGISTRY}/${GITHUB_REPOSITORY,,}/thethroneofgames-api"
+          BRANCH="${GITHUB_REF_NAME//\//-}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=${IMAGE}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          TAGS="${IMAGE}:${GITHUB_SHA},${IMAGE}:${BRANCH}"
+          if [ "${GITHUB_REF_NAME}" = "master" ]; then TAGS="${TAGS},${IMAGE}:latest"; fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
-    - name: Build image (no push yet)
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: Dockerfile
-        push: false
-        load: true
-        tags: thethroneofgames-api:${{ github.sha }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.img.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-    - name: Trivy - CVE scan (blocks on HIGH/CRITICAL)
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: thethroneofgames-api:${{ github.sha }}
-        format: 'table'
-        severity: 'HIGH,CRITICAL'
-        exit-code: '0' # non-blocking while the academic delivery stabilizes; set to '1' to enforce the gate
+      - name: Trivy image scan (HIGH/CRITICAL — não bloqueante durante a entrega acadêmica)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.img.outputs.sha_tag }}
+          format: 'table'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '0'
 
-    - name: Push image to Container Registry
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: Dockerfile
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-
-  # Job 3: Security Scan (filesystem/source)
-  security-scan:
-    name: Security Scan
+  # ─────────────────────────────────────────────────────────────
+  # DEPLOY (CD) — promove a imagem publicada como "produção".
+  # A demonstração de deploy no vídeo é `docker compose pull && up` puxando esta imagem.
+  # ─────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy (CD)
     runs-on: ubuntu-latest
-    needs: build-and-test
+    needs: package
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/release/fase-2-monolito')
     permissions:
-      security-events: write
-
+      contents: read
+      packages: write
+    environment: production
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Upload Trivy results to GitHub Security (master only)
-      uses: github/codeql-action/upload-sarif@v3
-      if: always() && github.ref == 'refs/heads/master'
-      with:
-        sarif_file: 'trivy-results.sarif'
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Upload Trivy results as artifact (all branches)
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: trivy-security-scan
-        path: 'trivy-results.sarif'
+      - name: Promote image → :production
+        id: promote
+        run: |
+          SHA_TAG="${{ needs.package.outputs.sha_tag }}"
+          PROD_TAG="${{ needs.package.outputs.image }}:production"
+          docker buildx imagetools create --tag "${PROD_TAG}" "${SHA_TAG}"
+          echo "prod_tag=${PROD_TAG}" >> "$GITHUB_OUTPUT"
 
-  # Job 4: Deploy to Cloud (CD - only runs once cloud secrets are configured)
-  deploy-cloud:
-    name: Deploy to Cloud Provider
-    runs-on: ubuntu-latest
-    needs: docker-build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && vars.CLOUD_DEPLOY_ENABLED == 'true'
+      - name: Deploy summary
+        run: |
+          {
+            echo "### Deploy (CD) — imagem promovida"
+            echo ""
+            echo "| Item | Valor |"
+            echo "|---|---|"
+            echo "| Imagem (SHA) | \`${{ needs.package.outputs.sha_tag }}\` |"
+            echo "| Tag de produção | \`${{ steps.promote.outputs.prod_tag }}\` |"
+            echo "| Commit | \`${GITHUB_SHA}\` |"
+            echo ""
+            echo "**Executar em produção:**"
+            echo '```bash'
+            echo "docker compose pull && docker compose up -d"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-    steps:
-    - name: Deploy to Cloud Provider
-      run: |
-        # Placeholder para o comando específico do Cloud Provider escolhido
-        # (ex.: az webapp deploy / aws ecs update-service / gcloud run deploy).
-        # Ver docs/Objectives/sprint-1/tasks/T05-cloud-deploy.md para os detalhes de cada opção.
-        echo "Configure as credenciais do Cloud Provider e o comando de deploy antes de habilitar este job."
-
-    - name: Health Check
-      run: |
-        curl --fail --retry 5 --retry-delay 10 "${{ secrets.FCG_HEALTH_URL }}/api/usuario/public-info"
+      - name: Health check (opcional — quando vars.DEPLOY_HEALTH_URL estiver configurada)
+        if: vars.DEPLOY_HEALTH_URL != ''
+        run: |
+          curl --fail --retry 5 --retry-delay 10 "${{ vars.DEPLOY_HEALTH_URL }}/api/usuario/public-info"

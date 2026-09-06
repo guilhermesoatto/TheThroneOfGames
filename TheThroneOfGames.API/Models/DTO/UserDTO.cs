@@ -1,4 +1,4 @@
-﻿
+
 namespace TheThroneOfGames.API.Models.DTO
 {
     public class UserDTO

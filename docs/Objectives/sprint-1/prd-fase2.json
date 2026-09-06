@@ -92,7 +92,8 @@
         "TheThroneOfGames.Infrastructure",
         "TheThroneOfGames.Application.Tests",
         "TheThroneOfGames.Domain.Tests",
-        "TheThroneOfGames.Infrastructure.Tests"
+        "TheThroneOfGames.Infrastructure.Tests",
+        "TheThroneOfGames.E2E.Tests"
       ],
       "excluidos": [
         "GameStore.*",
@@ -100,11 +101,19 @@
       ]
     },
     "criterios_aceite": [
-      "Build sem erros",
-      "Cobertura de testes > 80%",
+      "Build sem erros (net10.0)",
+      "Testes automatizados verdes no CI sem slave services (14 testes: unit + E2E)",
       "Endpoints CRUD funcionais via Swagger",
-      "Arquitetura DDD documentada"
+      "Arquitetura DDD documentada",
+      "Esteira CI/CD em jobs separados (build/lint/test/integration/e2e/package/deploy)"
     ],
+    "runtime": "net10.0",
+    "observacoes": {
+      "T05_cloud": "Fora do CI nesta fase. Deploy = imagem versionada no GHCR; demonstração de 'produção' via `docker compose pull && up`.",
+      "T06_observabilidade": "Prometheus/Grafana fora do CI (sem slave services). Validados manualmente via docker-compose.",
+      "cobertura": "Critério original '> 80%' NÃO atingido — cobertura ainda baixa. Gap conhecido, ver docs/reports/alinhamento-rubrica-fase2.md.",
+      "dotnet10": "Migração net9.0 -> net10.0 concluída; ver ADR-005 (proposto) em docs/ai/knowledge/CONTEXT.md."
+    },
     "branch": "release/fase-2-monolito",
     "status": "isolado"
   }

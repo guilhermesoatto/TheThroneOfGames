@@ -1,45 +1,23 @@
-using System;
-using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.EntityFrameworkCore;
-using Testcontainers.MsSql;
 using TheThroneOfGames.Domain.Entities;
 using TheThroneOfGames.Infrastructure.Persistence;
 using TheThroneOfGames.Infrastructure.Repository;
 
 namespace TheThroneOfGames.Infrastructure.Tests.Persistence
 {
+    /// <summary>
+    /// Testes de persistência do monólito. Antes usavam Testcontainers + SQL Server real;
+    /// foram convertidos para o provider EF Core InMemory para rodar no CI sem Docker nem
+    /// slave services (ver docs/reports/alinhamento-rubrica-fase2.md, item 3.4).
+    /// </summary>
     [TestClass]
     public class GameRepositoryTests
     {
-        private static MsSqlContainer _container = null!;
-
-        [ClassInitialize]
-        public static async Task ClassInitialize(TestContext _)
-        {
-            _container = new MsSqlBuilder()
-                .WithImage("mcr.microsoft.com/mssql/server:2019-latest")
-                .Build();
-
-            await _container.StartAsync();
-        }
-
-        [ClassCleanup]
-        public static async Task ClassCleanup()
-        {
-            await _container.DisposeAsync();
-        }
-
-        private async Task<MainDbContext> CreateMigratedContextAsync()
-        {
-            var options = new DbContextOptionsBuilder<MainDbContext>()
-                .UseSqlServer(_container.GetConnectionString())
-                .Options;
-
-            var context = new MainDbContext(options);
-            await context.Database.MigrateAsync();
-            return context;
-        }
+        private static MainDbContext NewContext() =>
+            new MainDbContext(
+                new DbContextOptionsBuilder<MainDbContext>()
+                    .UseInMemoryDatabase($"tests-{Guid.NewGuid()}")
+                    .Options);
 
         [TestMethod]
         public void AppDbContext_TypeExists()
@@ -49,18 +27,19 @@ namespace TheThroneOfGames.Infrastructure.Tests.Persistence
         }
 
         [TestMethod]
-        public async Task CanCreate_Real_DbContext_Against_MsSqlContainer()
+        public async Task CanCreate_DbContext_AndConnect()
         {
-            await using var context = await CreateMigratedContextAsync();
+            await using var context = NewContext();
+            context.Database.EnsureCreated();
             Assert.IsNotNull(context);
             Assert.IsTrue(await context.Database.CanConnectAsync());
         }
 
         [TestMethod]
-        public async Task GameEntityRepository_AddAsync_Then_GetByIdAsync_PersistsToRealDatabase()
+        public async Task GameEntityRepository_AddAsync_Then_GetByIdAsync_PersistsToDatabase()
         {
-            await using var context = await CreateMigratedContextAsync();
-            var repository = new GameEntityRepository(context);
+            var dbName = $"tests-{Guid.NewGuid()}";
+            var options = new DbContextOptionsBuilder<MainDbContext>().UseInMemoryDatabase(dbName).Options;
 
             var game = new GameEntity
             {
@@ -72,13 +51,13 @@ namespace TheThroneOfGames.Infrastructure.Tests.Persistence
                 IsAvailable = true
             };
 
-            await repository.AddAsync(game);
+            await using (var writeContext = new MainDbContext(options))
+            {
+                await new GameEntityRepository(writeContext).AddAsync(game);
+            }
 
-            await using var readContext = new MainDbContext(
-                new DbContextOptionsBuilder<MainDbContext>().UseSqlServer(_container.GetConnectionString()).Options);
-            var readRepository = new GameEntityRepository(readContext);
-
-            var persisted = await readRepository.GetByIdAsync(game.Id);
+            await using var readContext = new MainDbContext(options);
+            var persisted = await new GameEntityRepository(readContext).GetByIdAsync(game.Id);
 
             Assert.IsNotNull(persisted);
             Assert.AreEqual(game.Name, persisted!.Name);
@@ -87,10 +66,10 @@ namespace TheThroneOfGames.Infrastructure.Tests.Persistence
         }
 
         [TestMethod]
-        public async Task GameEntityRepository_UpdateAsync_PersistsChangesToRealDatabase()
+        public async Task GameEntityRepository_UpdateAsync_PersistsChangesToDatabase()
         {
-            await using var context = await CreateMigratedContextAsync();
-            var repository = new GameEntityRepository(context);
+            var dbName = $"tests-{Guid.NewGuid()}";
+            var options = new DbContextOptionsBuilder<MainDbContext>().UseInMemoryDatabase(dbName).Options;
 
             var game = new GameEntity
             {
@@ -100,16 +79,19 @@ namespace TheThroneOfGames.Infrastructure.Tests.Persistence
                 Price = 99.90m,
                 IsAvailable = true
             };
-            await repository.AddAsync(game);
 
-            game.Price = 49.90m;
-            game.IsAvailable = false;
-            await repository.UpdateAsync(game);
+            await using (var writeContext = new MainDbContext(options))
+            {
+                var repository = new GameEntityRepository(writeContext);
+                await repository.AddAsync(game);
 
-            await using var readContext = new MainDbContext(
-                new DbContextOptionsBuilder<MainDbContext>().UseSqlServer(_container.GetConnectionString()).Options);
-            var readRepository = new GameEntityRepository(readContext);
-            var persisted = await readRepository.GetByIdAsync(game.Id);
+                game.Price = 49.90m;
+                game.IsAvailable = false;
+                await repository.UpdateAsync(game);
+            }
+
+            await using var readContext = new MainDbContext(options);
+            var persisted = await new GameEntityRepository(readContext).GetByIdAsync(game.Id);
 
             Assert.IsNotNull(persisted);
             Assert.AreEqual(49.90m, persisted!.Price);
@@ -117,10 +99,10 @@ namespace TheThroneOfGames.Infrastructure.Tests.Persistence
         }
 
         [TestMethod]
-        public async Task UsuarioRepository_AddAsync_Then_GetByEmailAsync_PersistsAggregateToRealDatabase()
+        public async Task UsuarioRepository_AddAsync_Then_GetByEmailAsync_PersistsAggregateToDatabase()
         {
-            await using var context = await CreateMigratedContextAsync();
-            var repository = new UsuarioRepository(context);
+            var dbName = $"tests-{Guid.NewGuid()}";
+            var options = new DbContextOptionsBuilder<MainDbContext>().UseInMemoryDatabase(dbName).Options;
 
             var usuario = new Usuario(
                 name: "Geralt de Rivia",
@@ -129,13 +111,13 @@ namespace TheThroneOfGames.Infrastructure.Tests.Persistence
                 role: "Player",
                 activeToken: Guid.NewGuid().ToString());
 
-            await repository.AddAsync(usuario);
+            await using (var writeContext = new MainDbContext(options))
+            {
+                await new UsuarioRepository(writeContext).AddAsync(usuario);
+            }
 
-            await using var readContext = new MainDbContext(
-                new DbContextOptionsBuilder<MainDbContext>().UseSqlServer(_container.GetConnectionString()).Options);
-            var readRepository = new UsuarioRepository(readContext);
-
-            var persisted = await readRepository.GetByEmailAsync("geralt@throneofgames.test");
+            await using var readContext = new MainDbContext(options);
+            var persisted = await new UsuarioRepository(readContext).GetByEmailAsync("geralt@throneofgames.test");
 
             Assert.IsNotNull(persisted);
             Assert.AreEqual(usuario.Id, persisted!.Id);

@@ -1,13 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using TheThroneOfGames.Domain.Entities;
 
 namespace TheThroneOfGames.Domain.Purchase
 {
-    public class PurchaseDomain :PurchaseEntity
+    public class PurchaseDomain : PurchaseEntity
     {
         public PurchaseDomain(Guid userId, Guid gameId, decimal totalPrice)
         {

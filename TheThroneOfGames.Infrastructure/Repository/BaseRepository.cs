@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TheThroneOfGames.Domain.Entities;
-using TheThroneOfGames.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using TheThroneOfGames.Domain.Interfaces;
+using TheThroneOfGames.Infrastructure.Persistence;
 
 namespace TheThroneOfGames.Infrastructure.Repository
 {

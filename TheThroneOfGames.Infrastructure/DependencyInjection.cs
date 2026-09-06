@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
-using TheThroneOfGames.Infrastructure.Data;
-using TheThroneOfGames.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using TheThroneOfGames.Domain.Interfaces;
-using TheThroneOfGames.Domain.Entities;
+using TheThroneOfGames.Infrastructure.Data;
 using TheThroneOfGames.Infrastructure.Repository;
 
 namespace TheThroneOfGames.Infrastructure

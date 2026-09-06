@@ -1,7 +1,7 @@
-﻿using TheThroneOfGames.Application.Interface;
+using TheThroneOfGames.Application.Interface;
 using TheThroneOfGames.Domain.Entities;
-using TheThroneOfGames.Domain.Interfaces;
 using TheThroneOfGames.Domain.Events;
+using TheThroneOfGames.Domain.Interfaces;
 
 namespace TheThroneOfGames.Application;
 
@@ -57,7 +57,7 @@ public class UsuarioService : IUsuarioService
             throw new Exception("Token inválido ou expirado.");
 
         user.Activate();
-        
+
         // Publish domain event
         var usuarioAtivadoEvent = new UsuarioAtivadoEvent(
             UsuarioId: user.Id,
@@ -86,7 +86,7 @@ public class UsuarioService : IUsuarioService
 
         // Update fields via entity method
         user.UpdateProfile(newName, newEmail);
-        
+
         // Publish domain event
         var perfilAtualizadoEvent = new UsuarioPerfillAtualizadoEvent(
             UsuarioId: user.Id,
@@ -107,9 +107,9 @@ public class UsuarioService : IUsuarioService
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Nome é obrigatório.", nameof(name));
 
-            var (isStrong, pwdError) = ValidatePassword(password);
-            if (!isStrong)
-                throw new ArgumentException(pwdError);
+        var (isStrong, pwdError) = ValidatePassword(password);
+        if (!isStrong)
+            throw new ArgumentException(pwdError);
 
         // Gerar hash de senha
         var passwordHash = HashPassword(password);
@@ -117,8 +117,8 @@ public class UsuarioService : IUsuarioService
         // Gerar token de ativação
         var activationToken = Guid.NewGuid().ToString();
 
-    var userRole = string.IsNullOrWhiteSpace(role) ? "User" : role;
-    var user = new Usuario(name, email, passwordHash, userRole, activationToken);
+        var userRole = string.IsNullOrWhiteSpace(role) ? "User" : role;
+        var user = new Usuario(name, email, passwordHash, userRole, activationToken);
 
         await _userRepository.AddAsync(user);
 

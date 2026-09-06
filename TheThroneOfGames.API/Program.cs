@@ -1,12 +1,12 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Prometheus;
+using TheThroneOfGames.Application;
 using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Events;
 using TheThroneOfGames.Infrastructure.Persistence;
-using Microsoft.EntityFrameworkCore;
-using TheThroneOfGames.Application;
-using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -101,11 +101,16 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 // Aplica as migrations pendentes automaticamente no startup (necessário para
-// `docker-compose up` funcionar em um ambiente limpo, sem passo manual de `dotnet ef database update`)
+// `docker-compose up` funcionar em um ambiente limpo, sem passo manual de `dotnet ef database update`).
+// Só faz sentido em provider relacional — nos testes (WebApplicationFactory + EF InMemory)
+// o provider não é relacional e `Migrate()` lançaria exceção.
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<MainDbContext>();
-    dbContext.Database.Migrate();
+    if (dbContext.Database.IsRelational())
+    {
+        dbContext.Database.Migrate();
+    }
 }
 
 // Configure o pipeline HTTP para usar Swagger
