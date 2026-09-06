@@ -73,10 +73,10 @@ Métricas: Prometheus (prometheus-net.AspNetCore + OpenTelemetry 1.18)
 | ADR-002 | Adoção de Bounded Contexts (DDD) — saída de arquitetura monolítica | 2026-01-10 |
 | ADR-003 | Testes migrados de NUnit+Moq para xUnit+FluentAssertions+NSubstitute | 2026-05-26 |
 | ADR-004 | Aplicação do suitcase ia-arquiteto-hexagon-pattern (dotnet stack) | 2026-05-26 |
-| ADR-005 *(proposto)* | Monólito Fase 2: migração `net9.0` → `net10.0`, remoção de Testcontainers no CI (EF InMemory), pipeline CI/CD em jobs separados + suíte E2E via `WebApplicationFactory` | 2026-09-06 |
+| ADR-005 | Monólito Fase 2: migração `net9.0` → `net10.0`, pipeline CI/CD em jobs separados, suíte E2E + integração real (SQL via service container) + job de segurança (CodeQL/hadolint/SCA) | 2026-09-06 |
 
 > ADR-005 — texto completo em [`decisions/ADR-0005-TheThroneOfGames.Monolith-cicd-net10.md`](decisions/ADR-0005-TheThroneOfGames.Monolith-cicd-net10.md).
-> Status **Proposed**: aguarda aprovação do Domain Expert (agent-laws §3). Escopo restrito ao monólito
+> Status **Accepted** (aprovada pelo Domain Expert em 2026-09-06). Escopo restrito ao monólito
 > `TheThroneOfGames.*`; não contradiz ADR-001..004, que valem para os microsserviços `GameStore.*`.
 
 ---

@@ -30,15 +30,16 @@ onde ela é satisfeita no repositório e registra o que ficou **fora de escopo**
 | 3.1 | CI · job Build | ✅ job `build` (+ artefato `api-publish`) |
 | 3.2 | CI · job Test | ✅ job `test` (57 testes: unit + cobertura → Codecov, gate *ratchet*) |
 | 3.3 | CI · job Lint | ✅ job `lint` (`dotnet format --verify-no-changes` + `.editorconfig`) |
-| 3.4 | CI · job Validar integrações (sem slave services no monólito) | ✅ job `integration` self-contained (composição + `/public-info` + `/metrics`); **sem** SQL/Prometheus/Grafana — ver §3 |
+| 3.4 | CI · job Validar integrações | ✅ dois jobs: `integration` self-contained (InMemory, sem Docker) **+** `integration-db` contra **SQL Server real** via *service container* (migrations, dialeto, precisão decimal) |
 | 3.5 | Incluir testes E2E + chamá-los no CI | ✅ projeto `TheThroneOfGames.E2E.Tests` + job `e2e` |
+| extra | Segurança na esteira | ✅ job `security-scan` (SCA bloqueante `dotnet list --vulnerable` + hadolint + Trivy fs) + job `codeql` (SAST) + `.github/dependabot.yml` |
 
 ## 3. Fora de escopo (decisão consciente)
 
 | Item | Motivo | Como fica coberto |
 |---|---|---|
-| Validação de **SQL Server** no CI | Monólito não tem slave services na esteira; Testcontainers exigia Docker + trazia CVE HIGH (SSH.NET) | `Infrastructure.Tests` migrado para **EF Core InMemory**; SQL real só no `docker compose` local |
-| **Prometheus / Grafana** no CI (`T06`) | Idem — sem slave services | job `integration` só valida que `/metrics` responde; stack completa sobe no `docker compose` e aparece no vídeo |
+| ~~Validação de **SQL Server** no CI~~ | *(revertido)* — passou a ser feito | job `integration-db` sobe SQL Server 2022 via *service container* e roda migrations + repositórios reais. `Infrastructure.Tests` (InMemory) fica como smoke rápido |
+| **Prometheus / Grafana** no CI (`T06`) | Sem valor num pipeline efêmero (métricas só fazem sentido com carga contínua) | job `integration` valida que `/metrics` responde; stack completa sobe no `docker compose` e aparece no vídeo |
 | **Deploy em cloud real / Azure** (`T05`) | Sem subscription/segredos de nuvem | "Produção" = imagem versionada no GHCR promovida para `:production`; execução via compose |
 | **Cobertura de testes > 80%** (`prd-fase2.json`) | Base legada mínima; migrations do EF (mantidas na contagem) puxam o total pra baixo | ~23% total (App 53% · Domain 36% · API 33% · Infra 6,8%). Gate *ratchet* via Codecov impede regressão; subida contínua. Não é critério do PDF |
 | Migração dos testes unitários MSTest→xUnit (ADR-003) | Fora do escopo deste PR; risco desnecessário | E2E já em xUnit; convergência dos unitários fica para depois |
@@ -48,6 +49,7 @@ onde ela é satisfeita no repositório e registra o que ficou **fora de escopo**
 
 ## 4. Governança
 
-- **ADR-005 (proposto)** em `docs/ai/knowledge/CONTEXT.md` — aguarda aprovação do Domain Expert
-  (agent-laws §3). Escopo restrito ao monólito; não contradiz ADR-001..004 (microsserviços `GameStore.*`).
+- **ADR-005 — Accepted** (aprovada pelo Domain Expert em 2026-09-06). Texto completo em
+  [`../ai/knowledge/decisions/ADR-0005-TheThroneOfGames.Monolith-cicd-net10.md`](../ai/knowledge/decisions/ADR-0005-TheThroneOfGames.Monolith-cicd-net10.md).
+  Escopo restrito ao monólito; não contradiz ADR-001..004 (microsserviços `GameStore.*`).
 - `prd-fase2.json` continua na fase `4-containerization`; **nenhuma fase foi avançada** sem aprovação.

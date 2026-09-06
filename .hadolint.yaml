@@ -1,0 +1,5 @@
+# hadolint — lint dos Dockerfiles (job `security-scan`).
+failure-threshold: error
+ignored:
+  - DL3008  # "pin versions in apt-get install" — impraticável só para o curl do healthcheck
+  - DL3059  # múltiplos RUN consecutivos — legibilidade, não segurança

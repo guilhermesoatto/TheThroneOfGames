@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      microsoft:
+        patterns:
+          - "Microsoft.*"
+          - "System.*"
+    ignore:
+      # FluentAssertions 8.x mudou para licença comercial (Xceed) — manter na 7.x. Ver ADR-005.
+      - dependency-name: "FluentAssertions"
+      # Swashbuckle 9.0.4+ migra para Microsoft.OpenApi 2.x e quebra o Program.cs. Ver ADR-005.
+      - dependency-name: "Swashbuckle.AspNetCore*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

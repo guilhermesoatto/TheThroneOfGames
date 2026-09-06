@@ -2,7 +2,9 @@
 
 > **Gerado por:** manualmente (não via `tools/reflect.py`) — decisão de infraestrutura/esteira.
 > **Data:** 2026-09-06
-> **Status:** **Proposed** — aguarda aprovação do Domain Expert (agent-laws §3).
+> **Status:** **Accepted** — aprovada pelo Domain Expert em 2026-09-06 (agent-laws §3).
+> **Revisão pós-aprovação:** SQL Server passou a ser validado no CI via *service container*
+> (job `integration-db`) + job `security` (CodeQL, hadolint, SCA bloqueante). Ver §Decisão itens 10–11.
 
 ---
 
@@ -52,10 +54,19 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
 6. `Program.cs`: `Database.Migrate()` passa a ser guardado por `Database.IsRelational()` (permite host
    de teste in-process sem quebrar o `docker compose`).
 7. **Lint** = `dotnet format --verify-no-changes` contra um `.editorconfig` novo (escopo pragmático).
-8. **Testes de unidade ampliados** em Domain e Application (14 → 57 testes) cobrindo invariantes de
-   `Usuario`, validação de senha, ativação, compra de jogo e hashing PBKDF2.
+8. **Testes de unidade ampliados** em Domain e Application (14 → 63 testes no total) cobrindo invariantes
+   de `Usuario`, validação de senha, ativação, compra de jogo e hashing PBKDF2.
 9. **Gate de cobertura via Codecov** (`codecov.yml`, modelo *ratchet*: cobertura não pode cair;
    patch novo ≥ 60%). Sem FluentAssertions — asserções em xUnit `Assert` nativo (a 8.x virou licença paga).
+10. **Job `integration-db`** (revisão pós-aprovação): novo projeto `TheThroneOfGames.Integration.Tests`
+    (xUnit) roda contra **SQL Server real** via *service container* do GitHub Actions — valida migrations
+    ponta-a-ponta, dialeto SQL, precisão de coluna decimal e tradução de query (o que o EF InMemory não pega).
+    O job `integration` self-contained (InMemory, sem Docker) é mantido como camada rápida.
+11. **Job `security`** (revisão pós-aprovação): SCA bloqueante (`dotnet list package --vulnerable`
+    falha em HIGH/CRITICAL — agent-laws N-08) + **hadolint** nos dois Dockerfiles + Trivy fs; e job
+    **CodeQL** (SAST C#) cujos achados vão para a aba *Security* mas **não bloqueiam** o deploy.
+    `.github/dependabot.yml` abre PRs semanais (NuGet + Actions), com `FluentAssertions` e
+    `Swashbuckle.AspNetCore` em `ignore` (travas das dívidas conhecidas).
 
 ## Consequências
 
@@ -72,7 +83,10 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
 - **Cobertura ainda abaixo de 80%** (~23% total; Application 53%, Domain 36%, API 33%, Infrastructure 6,8%).
   O denominador de Infrastructure é dominado por migrations do EF (mantidas na contagem por decisão do time).
   O gate *ratchet* impede regressão; subir o alvo é trabalho contínuo.
-- Frameworks de teste mistos: unit em MSTest+Moq, E2E em xUnit (convergência para xUnit adiada).
+- Frameworks de teste mistos: unit em MSTest+Moq, E2E/Integration em xUnit (convergência para xUnit adiada).
+- CodeQL adiciona ~4–6 min ao pipeline (job paralelo, não bloqueia `package`).
+- O job `integration-db` depende de Docker no runner (`ubuntu-latest` já tem); localmente exige
+  `docker compose up mssql` ou `INTEGRATION_DB_CONNECTION` apontando para um SQL Server.
 - `Swashbuckle` preso em `9.0.1` (a linha `9.0.4+` migra para `Microsoft.OpenApi 2.x` e quebra o
   `Program.cs`). Bump adiado.
 - 22 avisos de compilação remanescentes (CS8618, `Rfc2898DeriveBytes`/SYSLIB0060); `TreatWarningsAsErrors`
@@ -87,8 +101,10 @@ Estado anterior (ver `docs/reports/validacao-branch-fase-2-monolito-2026-09-06.m
 | Toolchain | `global.json` |
 | Lint | `.editorconfig` |
 | Projeto E2E | `TheThroneOfGames.E2E.Tests/` (`CustomWebApplicationFactory`, `UserJourneyTests`, `HealthAndMetricsTests`) |
+| Projeto Integration | `TheThroneOfGames.Integration.Tests/` (`SqlServerFixture`, `MigrationsTests`, `RepositorySqlServerTests`, `ApiJourneySqlServerTests`) |
 | Testes de unidade | `Domain.Tests/Entities/UsuarioTests.cs`; `Application.Tests/Services/{UsuarioServiceTests,GameServiceBehaviorTests,PasswordHashingTests}.cs` |
 | Cobertura | `codecov.yml` (gate ratchet) + steps `codecov/codecov-action` nos jobs `test`/`integration`/`e2e` |
+| Segurança | `.github/dependabot.yml`, `.hadolint.yaml`, jobs `security-scan` (SCA+hadolint) e `codeql` no pipeline |
 | Pipeline | `.github/workflows/ci-cd.yml` (reescrito) |
 | Removido | `.github/workflows/ci-suitcase-gate0.yml` (pipeline TypeScript dormente) |
 | Relatórios | `docs/reports/validacao-pos-migracao-net10.md`, `docs/reports/alinhamento-rubrica-fase2.md` |

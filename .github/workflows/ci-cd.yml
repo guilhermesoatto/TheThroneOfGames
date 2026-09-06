@@ -89,11 +89,11 @@ jobs:
       - name: Restore
         run: dotnet restore ${{ env.SOLUTION }}
 
-      - name: Test (exclui E2E)
+      - name: Test (unit — exclui E2E e Integration)
         run: >
           dotnet test ${{ env.SOLUTION }}
           --configuration Release
-          --filter "FullyQualifiedName!~E2E.Tests"
+          --filter "FullyQualifiedName!~E2E.Tests&FullyQualifiedName!~Integration.Tests"
           --logger "trx;LogFileName=unit-tests.trx"
           --collect:"XPlat Code Coverage"
           --results-directory ./TestResults
@@ -210,10 +210,61 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────
-  # SECURITY SCAN — Trivy no filesystem / dependências
+  # INTEGRATION-DB — testes contra SQL Server REAL (service container).
+  # Valida o que o EF InMemory não valida: migrations ponta-a-ponta,
+  # dialeto SQL, precisão de coluna, tradução de query.
+  # ─────────────────────────────────────────────────────────────
+  integration-db:
+    name: Integration (SQL Server real)
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: "Y"
+          MSSQL_SA_PASSWORD: "Your_strong_Pass123"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P Your_strong_Pass123 -Q 'SELECT 1' -b"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 15
+          --health-start-period 20s
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore TheThroneOfGames.Integration.Tests/TheThroneOfGames.Integration.Tests.csproj
+
+      - name: Integration tests
+        env:
+          INTEGRATION_DB_CONNECTION: "Server=localhost,1433;User Id=sa;Password=Your_strong_Pass123;TrustServerCertificate=true;Encrypt=false"
+        run: >
+          dotnet test TheThroneOfGames.Integration.Tests/TheThroneOfGames.Integration.Tests.csproj
+          --configuration Release
+          --logger "trx;LogFileName=integration-db.trx"
+          --results-directory ./TestResults
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-db-results
+          path: ./TestResults/**/*
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────
+  # SECURITY — SCA bloqueante (dotnet + Trivy fs) + hadolint nos Dockerfiles
   # ─────────────────────────────────────────────────────────────
   security-scan:
-    name: Security Scan (fs)
+    name: Security (SCA + hadolint)
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -222,7 +273,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Trivy filesystem scan
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore ${{ env.SOLUTION }}
+
+      - name: dotnet — falha em pacote com CVE HIGH/CRITICAL (agent-laws N-08)
+        run: |
+          set -o pipefail
+          dotnet list ${{ env.SOLUTION }} package --vulnerable --include-transitive 2>&1 | tee vuln.txt
+          if grep -Eiq '\b(High|Critical)\b' vuln.txt; then
+            echo "::error::Pacote(s) com vulnerabilidade HIGH/CRITICAL encontrados."
+            exit 1
+          fi
+          echo "OK: nenhum pacote HIGH/CRITICAL."
+
+      - name: hadolint — Dockerfile raiz
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: error
+
+      - name: hadolint — TheThroneOfGames.API/Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: TheThroneOfGames.API/Dockerfile
+          failure-threshold: error
+
+      - name: Trivy filesystem scan (SARIF)
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'fs'
@@ -245,13 +326,45 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────
+  # CODEQL — SAST no código C# (resultados na aba Security; não bloqueia o deploy)
+  # ─────────────────────────────────────────────────────────────
+  codeql:
+    name: CodeQL (SAST)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          build-mode: manual
+
+      - name: Build
+        run: dotnet build ${{ env.SOLUTION }} --configuration Release
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:csharp"
+
+  # ─────────────────────────────────────────────────────────────
   # PACKAGE — constrói e publica a imagem Docker (Build Artifact) no GHCR
   # Só em push; depende de TODA a CI verde.
   # ─────────────────────────────────────────────────────────────
   package:
     name: Package (Docker → GHCR)
     runs-on: ubuntu-latest
-    needs: [ build, lint, test, integration, e2e ]
+    needs: [ build, lint, test, integration, integration-db, e2e, security-scan ]
     if: github.event_name == 'push'
     permissions:
       contents: read

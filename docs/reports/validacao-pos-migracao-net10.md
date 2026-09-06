@@ -17,9 +17,11 @@ Sucessor de [`validacao-branch-fase-2-monolito-2026-09-06.md`](validacao-branch-
 | Runtime | `net9.0` (CI fixava `9.0.x`, sem `global.json`) | **`net10.0`**, `global.json` fixa `10.0.302` |
 | Pacotes Microsoft.* | `9.0.x` | `10.0.11` (EF Core, ASP.NET, Config.Binder) |
 | CVEs | SSH.NET **HIGH** (transitiva), MimeKit + OpenTelemetry.Api **Moderate** | **0 vulneráveis** (MimeKit 4.17, OpenTelemetry 1.18, SSH.NET removido com Testcontainers) |
-| `Infrastructure.Tests` | Testcontainers + SQL Server real (exige Docker) | **EF Core InMemory** (sem Docker) |
+| `Infrastructure.Tests` | Testcontainers + SQL Server real (exige Docker) | **EF Core InMemory** (smoke rápido, sem Docker) |
 | Suíte E2E | inexistente | **`TheThroneOfGames.E2E.Tests`** (xUnit + `WebApplicationFactory` + InMemory) |
-| CI | 1 job `build-and-test` monolítico | **7 jobs**: build · lint · test · integration · e2e · package · deploy |
+| Integração SQL real | não havia no CI | **`TheThroneOfGames.Integration.Tests`** + job `integration-db` (SQL Server 2022 via *service container*) |
+| Segurança na esteira | só Trivy (não bloqueante) | job `security-scan` (SCA bloqueante + hadolint) + job `codeql` (SAST) + `dependabot.yml` |
+| CI | 1 job `build-and-test` monolítico | **10 jobs**: build · lint · test · integration · integration-db · e2e · security-scan · codeql · package · deploy |
 | `Program.cs` | `Database.Migrate()` incondicional | guardado por `Database.IsRelational()` (permite host de teste in-process) |
 | Lint | inexistente | `.editorconfig` + `dotnet format --verify-no-changes` |
 | Swashbuckle | `9.0.1` | mantido em `9.0.1` (linha 9.0.4+ migra p/ Microsoft.OpenApi 2.x e quebra o `Program.cs` — dívida registrada) |
@@ -33,7 +35,7 @@ Comandos (todos **sem Docker / sem SQL Server**):
 dotnet --version                                  # 10.0.302
 dotnet build TheThroneOfGames.sln -c Release      # 0 erros, 22 avisos
 dotnet format TheThroneOfGames.sln --verify-no-changes --severity warn   # exit 0 (limpo)
-dotnet test TheThroneOfGames.sln -c Release       # 57/57
+dotnet test TheThroneOfGames.sln -c Release       # 57 (unit+e2e); +6 integração exigem SQL Server
 dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0 vulneráveis (8/8 projetos)
 ```
 
@@ -46,7 +48,9 @@ dotnet list TheThroneOfGames.sln package --vulnerable --include-transitive   # 0
 | **test** — `Infrastructure.Tests` (InMemory) | ✅ 5/5 |
 | **e2e** — `E2E.Tests` (`UserJourneyTests`) | ✅ 3/3 |
 | **integration** — `E2E.Tests` (`HealthAndMetricsTests`) | ✅ 2/2 |
-| **Total de testes** | ✅ **57/57** |
+| **integration-db** — `Integration.Tests` (SQL Server 2022 local) | ✅ 6/6 |
+| **security** — `dotnet list --vulnerable` + hadolint (`--failure-threshold error`) | ✅ limpo |
+| **Total de testes** | ✅ **63/63** |
 | **Vulnerabilidades (M-07/N-08)** | ✅ 0 HIGH/CRITICAL, 0 Moderate |
 
 ## 3. Avisos remanescentes (22) — dívida técnica, não bloqueiam

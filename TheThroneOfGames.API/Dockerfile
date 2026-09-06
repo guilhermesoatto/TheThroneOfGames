@@ -41,9 +41,9 @@ COPY --from=publish /app/publish .
 # Usuário não-root: a imagem base .NET 10 já provê o usuário/grupo "app" (UID 1654).
 RUN chown -R app:app /app
 
-# Health check
+# Health check (curl -f já retorna != 0 em falha HTTP)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:80/api/usuario/public-info || exit 1
+    CMD ["curl", "-f", "http://localhost:80/api/usuario/public-info"]
 
 # Expose port
 EXPOSE 80

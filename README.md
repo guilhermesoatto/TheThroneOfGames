@@ -67,14 +67,17 @@ Configure a connection string e o segredo JWT em `TheThroneOfGames.API/appsettin
 dotnet test TheThroneOfGames.sln
 ```
 
-Isso executa os **57 testes automatizados** da Fase 2, **sem necessidade de Docker ou SQL Server**:
+Isso executa **63 testes automatizados**. Os 57 de unidade/E2E rodam **sem Docker**; os 6 de
+integração (`TheThroneOfGames.Integration.Tests`) precisam de um SQL Server — no CI via
+*service container*, localmente via `docker compose up mssql` (ou `INTEGRATION_DB_CONNECTION`).
 
 | Projeto | Testes | O que valida |
 |---|---|---|
 | `TheThroneOfGames.Domain.Tests` | 15 | Invariantes e comportamento de `Usuario` (ativação, papéis, perfil) |
 | `TheThroneOfGames.Application.Tests` | 32 | `UsuarioService` (validação de senha, ativação, perfil), `GameService` (compra, catálogo), hashing PBKDF2 |
-| `TheThroneOfGames.Infrastructure.Tests` | 5 | Persistência (`GameEntityRepository`/`UsuarioRepository`) via **EF Core InMemory** |
-| `TheThroneOfGames.E2E.Tests` | 5 | Jornadas HTTP ponta-a-ponta via `WebApplicationFactory` (registrar → ativar → logar → criar jogo) + saúde/métricas |
+| `TheThroneOfGames.Infrastructure.Tests` | 5 | Persistência via **EF Core InMemory** (smoke rápido, sem Docker) |
+| `TheThroneOfGames.E2E.Tests` | 5 | Jornadas HTTP via `WebApplicationFactory` + InMemory (registrar → ativar → logar → criar jogo) + saúde/métricas |
+| `TheThroneOfGames.Integration.Tests` | 6 | **SQL Server real**: migrations ponta-a-ponta, precisão decimal, repositórios e jornada HTTP sobre SQL |
 
 Cobertura de linha é medida no CI (`--collect:"XPlat Code Coverage"`) e enviada ao **Codecov**,
 que aplica um gate *ratchet* (a cobertura não pode cair) — ver [`codecov.yml`](codecov.yml).
@@ -110,11 +113,13 @@ um **job independente**; a CD dispara automaticamente após a CI verde (push em 
 `release/fase-2-monolito`):
 
 ```
-build ─┬─ lint ──────────────┐
-       ├─ test (unit) ───────┤
-       ├─ integration ───────┼─→ package (Docker → ghcr.io) ─→ deploy (promove :production)
-       ├─ e2e ───────────────┤
-       └─ security-scan ─────┘
+build ─┬─ lint ───────────────────┐
+       ├─ test (unit) ────────────┤
+       ├─ integration (InMemory) ─┤
+       ├─ integration-db (SQL) ───┼─→ package (Docker → ghcr.io) ─→ deploy (promove :production)
+       ├─ e2e ────────────────────┤
+       └─ security-scan ──────────┘
+codeql (SAST) ── paralelo, não bloqueia
 ```
 
 | Job | Ação |
@@ -122,9 +127,11 @@ build ─┬─ lint ──────────────┐
 | `build` | `dotnet build -c Release` + `dotnet publish` da API → artefato `api-publish` |
 | `lint` | `dotnet format --verify-no-changes` (formatação/estilo via `.editorconfig`) |
 | `test` | testes unitários (Domain + Application + Infrastructure/InMemory) + cobertura → Codecov (gate *ratchet*) |
-| `integration` | validação self-contained: a app compõe, o modelo EF valida, `/api/usuario/public-info` e `/metrics` respondem — **sem** SQL/Prometheus/Grafana (fora de escopo nesta fase, ver [alinhamento-rubrica-fase2.md](docs/reports/alinhamento-rubrica-fase2.md)) |
+| `integration` | validação self-contained: a app compõe, o modelo EF valida, `/api/usuario/public-info` e `/metrics` respondem — sem Docker |
+| `integration-db` | testes contra **SQL Server 2022 real** (*service container*): migrations ponta-a-ponta, dialeto/precisão, repositórios e jornada HTTP sobre SQL |
 | `e2e` | jornadas HTTP ponta-a-ponta (`WebApplicationFactory` + InMemory) |
-| `security-scan` | Trivy no filesystem/dependências |
+| `security-scan` | SCA bloqueante (`dotnet list package --vulnerable` falha em HIGH/CRITICAL) + hadolint nos Dockerfiles + Trivy fs |
+| `codeql` | SAST no código C# — achados na aba *Security*; **não bloqueia** o deploy |
 | `package` | build + push da imagem Docker em `ghcr.io` + Trivy na imagem (só em push, depende de toda a CI verde) |
 | `deploy` | promove a imagem publicada para `:production`; o deploy demonstrado no vídeo é `docker compose pull && docker compose up -d` puxando essa imagem |
 
