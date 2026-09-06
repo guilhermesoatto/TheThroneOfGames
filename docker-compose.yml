@@ -20,6 +20,9 @@ services:
 
   # TheThroneOfGames API (Monolito - Fase 2)
   api:
+    # `docker compose pull` puxa a imagem publicada pela esteira de CD (job `package` -> GHCR).
+    # `docker compose up --build` reconstrói localmente a partir do Dockerfile.
+    image: ghcr.io/guilhermesoatto/thethroneofgames/thethroneofgames-api:${API_TAG:-release-fase-2-monolito}
     build:
       context: .
       dockerfile: TheThroneOfGames.API/Dockerfile
