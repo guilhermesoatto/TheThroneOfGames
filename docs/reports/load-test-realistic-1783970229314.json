@@ -1,0 +1,35 @@
+{
+  "runId": 1783970229314,
+  "stages": [
+    150
+  ],
+  "cpuRequestMillicores": {
+    "usuarios-api": 150,
+    "catalogo-api": 150,
+    "vendas-api": 150
+  },
+  "results": [
+    {
+      "concurrency": 150,
+      "rps": 67.6,
+      "ok": 16227,
+      "errors": 0,
+      "browses": 13839,
+      "buys": 2388,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 17.5,
+          "pctOfRequest": 11.7
+        },
+        "catalogo-api": {
+          "millicores": 10.1,
+          "pctOfRequest": 6.7
+        },
+        "vendas-api": {
+          "millicores": 10.1,
+          "pctOfRequest": 6.8
+        }
+      }
+    }
+  ]
+}

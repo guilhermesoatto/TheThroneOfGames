@@ -3,12 +3,24 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Prometheus;
+using Serilog;
+using Serilog.Formatting.Compact;
+using TheThroneOfGames.API.Telemetry;
 using TheThroneOfGames.Application;
 using TheThroneOfGames.Domain.Events;
 using TheThroneOfGames.Infrastructure.Events;
 using TheThroneOfGames.Infrastructure.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Logs estruturados (JSON) via Serilog — substitui o logger de console padrão do ASP.NET Core.
+// CorrelationId é anexado por request via CorrelationIdMiddleware (LogContext.PushProperty).
+builder.Host.UseSerilog((context, configuration) =>
+    configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithProperty("Service", TelemetryExtensions.ServiceName)
+        .WriteTo.Console(new RenderedCompactJsonFormatter()));
 
 // Get connection string
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("DefaultConnection is not configured.");
@@ -23,6 +35,10 @@ builder.Services.AddScoped<TheThroneOfGames.API.Services.AuthenticationService>(
 
 // Event Bus - Barramento de eventos de domínio (in-memory, monolito)
 builder.Services.AddSingleton<IEventBus, SimpleEventBus>();
+
+// APM leve: tracing distribuído via OpenTelemetry (exportado para o console/stdout).
+// Métricas seguem via prometheus-net (UseHttpMetrics/MapMetrics abaixo).
+builder.Services.AddApplicationTracing();
 
 // JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
@@ -122,8 +138,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Correlation ID por request — propagado nos logs estruturados e no header de resposta.
+app.UseMiddleware<TheThroneOfGames.API.Middleware.CorrelationIdMiddleware>();
+
 // Global exception handling middleware
 app.UseMiddleware<TheThroneOfGames.API.Middleware.ExceptionMiddleware>();
+
+app.UseSerilogRequestLogging();
 
 // Métricas Prometheus (scrape em /metrics, ver monitoring/prometheus.yml)
 app.UseHttpMetrics();

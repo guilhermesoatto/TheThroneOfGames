@@ -21,7 +21,10 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
+            var correlationId = httpContext.Items["CorrelationId"]?.ToString();
+            _logger.LogError(ex,
+                "Erro em {Aggregate}.{Action} | CorrelationId={CorrelationId} | Path={Path}",
+                "TheThroneOfGames.API", "UnhandledException", correlationId, httpContext.Request.Path);
             httpContext.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             httpContext.Response.ContentType = "application/problem+json";
             var detail = ex.InnerException != null ? ex.InnerException.Message : ex.Message;

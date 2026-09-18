@@ -98,4 +98,12 @@ docker compose pull      # puxa a imagem publicada pela esteira
 docker compose up -d      # "produção" local: API + SQL Server + Prometheus + Grafana
 # Swagger: http://localhost:5000/swagger  → pre-register → activate → login → POST /api/admin/game
 # Grafana: http://localhost:3000  (admin/admin) — métricas HTTP da API
+
+# APM leve (tracing + logs estruturados, adicionado em 2026-09-17):
+docker compose logs -f api
+# Repita uma chamada no Swagger (ex.: GET /api/usuario/public-info) e mostre no terminal:
+#   1. O bloco "Activity.TraceId / Activity.SpanId / Activity.Tags" — span do OpenTelemetry
+#      para aquela requisição HTTP (rota, status code, duração).
+#   2. As linhas JSON do Serilog logo acima/abaixo, com o MESMO valor em "@tr" (TraceId) e em
+#      "CorrelationId" — prova de que log e trace da mesma requisição estão correlacionados.
 ```

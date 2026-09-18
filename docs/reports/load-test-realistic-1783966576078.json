@@ -1,0 +1,219 @@
+{
+  "runId": 1783966576078,
+  "stages": [
+    10,
+    20,
+    35,
+    50,
+    75,
+    100,
+    130,
+    160,
+    200
+  ],
+  "cpuRequestMillicores": {
+    "usuarios-api": 150,
+    "catalogo-api": 150,
+    "vendas-api": 150
+  },
+  "results": [
+    {
+      "concurrency": 10,
+      "rps": 5,
+      "ok": 124,
+      "errors": 0,
+      "browses": 106,
+      "buys": 18,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 15.1,
+          "pctOfRequest": 10.1
+        },
+        "catalogo-api": {
+          "millicores": 111.6,
+          "pctOfRequest": 74.4
+        },
+        "vendas-api": {
+          "millicores": 173.2,
+          "pctOfRequest": 115.5
+        }
+      }
+    },
+    {
+      "concurrency": 20,
+      "rps": 10.4,
+      "ok": 260,
+      "errors": 0,
+      "browses": 223,
+      "buys": 37,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 11.2,
+          "pctOfRequest": 7.5
+        },
+        "catalogo-api": {
+          "millicores": 47.2,
+          "pctOfRequest": 31.5
+        },
+        "vendas-api": {
+          "millicores": 58.5,
+          "pctOfRequest": 39
+        }
+      }
+    },
+    {
+      "concurrency": 35,
+      "rps": 18,
+      "ok": 450,
+      "errors": 0,
+      "browses": 394,
+      "buys": 56,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 8.5,
+          "pctOfRequest": 5.7
+        },
+        "catalogo-api": {
+          "millicores": 84.9,
+          "pctOfRequest": 56.6
+        },
+        "vendas-api": {
+          "millicores": 65.4,
+          "pctOfRequest": 43.6
+        }
+      }
+    },
+    {
+      "concurrency": 50,
+      "rps": 25.6,
+      "ok": 639,
+      "errors": 0,
+      "browses": 541,
+      "buys": 98,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 15.4,
+          "pctOfRequest": 10.3
+        },
+        "catalogo-api": {
+          "millicores": 107,
+          "pctOfRequest": 71.3
+        },
+        "vendas-api": {
+          "millicores": 107.9,
+          "pctOfRequest": 71.9
+        }
+      }
+    },
+    {
+      "concurrency": 75,
+      "rps": 39,
+      "ok": 975,
+      "errors": 0,
+      "browses": 846,
+      "buys": 129,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 12.6,
+          "pctOfRequest": 8.4
+        },
+        "catalogo-api": {
+          "millicores": 149.4,
+          "pctOfRequest": 99.6
+        },
+        "vendas-api": {
+          "millicores": 140.4,
+          "pctOfRequest": 93.6
+        }
+      }
+    },
+    {
+      "concurrency": 100,
+      "rps": 51.4,
+      "ok": 1285,
+      "errors": 0,
+      "browses": 1099,
+      "buys": 186,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 13.8,
+          "pctOfRequest": 9.2
+        },
+        "catalogo-api": {
+          "millicores": 169.4,
+          "pctOfRequest": 112.9
+        },
+        "vendas-api": {
+          "millicores": 172.5,
+          "pctOfRequest": 115
+        }
+      }
+    },
+    {
+      "concurrency": 130,
+      "rps": 66.6,
+      "ok": 1664,
+      "errors": 0,
+      "browses": 1384,
+      "buys": 280,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 21.3,
+          "pctOfRequest": 14.2
+        },
+        "catalogo-api": {
+          "millicores": 273.2,
+          "pctOfRequest": 182.1
+        },
+        "vendas-api": {
+          "millicores": 327.4,
+          "pctOfRequest": 218.3
+        }
+      }
+    },
+    {
+      "concurrency": 160,
+      "rps": 82.2,
+      "ok": 2054,
+      "errors": 0,
+      "browses": 1739,
+      "buys": 315,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 22.5,
+          "pctOfRequest": 15
+        },
+        "catalogo-api": {
+          "millicores": 334.5,
+          "pctOfRequest": 223
+        },
+        "vendas-api": {
+          "millicores": 293,
+          "pctOfRequest": 195.4
+        }
+      }
+    },
+    {
+      "concurrency": 200,
+      "rps": 102.3,
+      "ok": 2558,
+      "errors": 0,
+      "browses": 2200,
+      "buys": 358,
+      "cpu": {
+        "usuarios-api": {
+          "millicores": 22.6,
+          "pctOfRequest": 15.1
+        },
+        "catalogo-api": {
+          "millicores": 431.8,
+          "pctOfRequest": 287.8
+        },
+        "vendas-api": {
+          "millicores": 381.6,
+          "pctOfRequest": 254.4
+        }
+      }
+    }
+  ]
+}

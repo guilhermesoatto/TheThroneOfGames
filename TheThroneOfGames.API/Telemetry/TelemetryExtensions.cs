@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Prometheus;
 
 namespace TheThroneOfGames.API.Telemetry
@@ -8,15 +10,24 @@ namespace TheThroneOfGames.API.Telemetry
     /// </summary>
     public static class TelemetryExtensions
     {
+        public const string ServiceName = "TheThroneOfGames.API";
+
         /// <summary>
-        /// Add OpenTelemetry instrumentation (metrics, traces, logs).
+        /// Add OpenTelemetry distributed tracing (APM). Métricas continuam via prometheus-net
+        /// (UseHttpMetrics/MapMetrics em Program.cs) — este método cobre só tracing.
+        /// Exporta para o console (stdout do container) para inspeção via `docker compose logs api`
+        /// sem depender de um collector/backend externo (Jaeger/Datadog/NewRelic) na entrega acadêmica.
         /// </summary>
-        public static IServiceCollection AddOpenTelemetry(this IServiceCollection services)
+        public static IServiceCollection AddApplicationTracing(this IServiceCollection services)
         {
-            // OpenTelemetry instrumentation is currently disabled in the build to avoid
-            // depending on specific OpenTelemetry package versions in this branch.
-            // To re-enable, add the appropriate OpenTelemetry packages and restore
-            // the instrumentation calls (AddOpenTelemetryMetrics / AddOpenTelemetryTracing).
+            services.AddOpenTelemetry()
+                .ConfigureResource(resource => resource.AddService(ServiceName))
+                .WithTracing(tracing => tracing
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddSource(ServiceName)
+                    .AddConsoleExporter());
+
             return services;
         }
 

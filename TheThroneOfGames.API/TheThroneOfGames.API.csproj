@@ -13,6 +13,10 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.18.0" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Formatting.Compact" Version="3.0.0" />
     <!-- Swashbuckle mantido em 9.0.1 (Microsoft.OpenApi 1.6.x): a linha 9.0.4+ migra para
          Microsoft.OpenApi 2.x, que renomeia o namespace Microsoft.OpenApi.Models e quebraria
          a configuração do Swagger em Program.cs. Bump adiado (dívida técnica registrada). -->
