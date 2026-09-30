@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Prometheus;
 using Serilog;
+using Serilog.Filters;
 using Serilog.Formatting.Compact;
 using TheThroneOfGames.API.Telemetry;
 using TheThroneOfGames.Application;
@@ -20,6 +21,9 @@ builder.Host.UseSerilog((context, configuration) =>
         .ReadFrom.Configuration(context.Configuration)
         .Enrich.FromLogContext()
         .Enrich.WithProperty("Service", TelemetryExtensions.ServiceName)
+        // Scrape do Prometheus em /metrics acontece a cada 5s (monitoring/prometheus.yml) e
+        // não é tráfego de negócio — excluído pra não afogar o log com ruído de infraestrutura.
+        .Filter.ByExcluding(Matching.WithProperty<string>("RequestPath", p => p == "/metrics"))
         .WriteTo.Console(new RenderedCompactJsonFormatter()));
 
 // Get connection string

@@ -81,6 +81,22 @@ function detectBranch() {
   }
 }
 
+/** Deriva a URL https://github.com/<owner>/<repo> a partir do remote "origin" (aceita HTTPS ou SSH). */
+function getRepoUrl() {
+  try {
+    const remote = execSync('git remote get-url origin', { cwd: REPO_ROOT }).toString().trim();
+    const match = remote.match(/github\.com[:/]{1,2}([^/]+)\/([^/.]+?)(?:\.git)?$/);
+    if (!match) {
+      log('WARN', `Remote "origin" não parece ser do GitHub (${remote}) — pulando demo do Actions.`);
+      return null;
+    }
+    return `https://github.com/${match[1]}/${match[2]}`;
+  } catch (err) {
+    log('WARN', `Não foi possível ler o remote "origin" (${err.message}) — pulando demo do Actions.`);
+    return null;
+  }
+}
+
 function resolvePhase() {
   const cliArg = process.argv.find((a) => a.startsWith('--phase='));
   if (cliArg) {
@@ -519,6 +535,62 @@ async function runFlow(page, currentUrlRef, services, readmeUrls, state, steps, 
   log('FLOW', `Fluxo "${flowName}" concluído`);
 }
 
+// ── Navegação: CI/CD (GitHub Actions) ────────────────────────────────────────
+// O rubric da entrega pede pra mostrar a esteira COMPLETA (CI até CD), não só o app
+// rodando — sem isso o vídeo prova que a app funciona, mas não que ela chegou lá via
+// pipeline automatizada. Mostra o run mais recente e verde da branch atual, e abre o
+// job "Deploy (CD)" pra revelar o summary com a tag da imagem promovida.
+async function demoGithubActions(page, { repoUrl, branch }) {
+  if (!repoUrl || !branch) {
+    log('WARN', 'CI/CD: repoUrl ou branch indisponível — pulando essa parte do vídeo.');
+    return;
+  }
+
+  const query = `branch%3A${encodeURIComponent(branch)}+is%3Asuccess`;
+  const actionsUrl = `${repoUrl}/actions?query=${query}`;
+  log('CI', `Abrindo runs do GitHub Actions — ${actionsUrl}`);
+  await page.goto(actionsUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.waitForTimeout(PAUSE);
+
+  const runLink = page.locator('a[href*="/actions/runs/"]').first();
+  if ((await runLink.count()) === 0) {
+    log('WARN', 'CI/CD: nenhum run encontrado na lista (branch/filtro) — pulando.');
+    return;
+  }
+  log('CI', 'Abrindo o run verde mais recente da branch');
+  await runLink.click();
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForTimeout(PAUSE);
+
+  // Log real de um job de CI (não só o grafo) — prova visual de "testes automatizados
+  // executando", não só a bolinha verde. Rola o painel de log pra ficar mais legível no vídeo.
+  const testJob = page.locator('text=3.2 · Test (unit)').first();
+  if (await testJob.count()) {
+    log('CI', 'Abrindo o log do job "3.2 · Test (unit)" — mostra a execução real dos testes');
+    await testJob.click();
+    await page.waitForTimeout(BEAT);
+    const logLines = page.locator('.js-checks-log-display, [class*="LogLines"], .logs-container').first();
+    if (await logLines.count()) {
+      await logLines.scrollIntoViewIfNeeded().catch(() => {});
+      await logLines.evaluate((el) => { el.scrollTop = el.scrollHeight; }).catch(() => {});
+    }
+    await page.waitForTimeout(PAUSE);
+  } else {
+    log('WARN', 'CI/CD: job "3.2 · Test (unit)" não encontrado — pulando o log de teste.');
+  }
+
+  const deployJob = page.locator('text=Deploy (CD)').first();
+  if (await deployJob.count()) {
+    log('CI', 'Abrindo o job "Deploy (CD)" — mostra a promoção da imagem para :production');
+    await deployJob.click();
+    await page.waitForTimeout(PAUSE);
+  } else {
+    log('WARN', 'CI/CD: job "Deploy (CD)" não encontrado no run — seguindo com a tela do grafo de jobs.');
+  }
+
+  await page.waitForTimeout(BEAT);
+}
+
 // ── Navegação: Observabilidade ───────────────────────────────────────────────
 
 async function demoGrafanaPrometheus(page, { prometheusUrl, grafanaUrl }) {
@@ -645,6 +717,9 @@ async function main() {
       })
     );
     await page.waitForTimeout(PAUSE);
+
+    log('STEP-1b', 'CI/CD — GitHub Actions (run verde da branch, log de teste, job Deploy)');
+    await demoGithubActions(page, { repoUrl: getRepoUrl(), branch: detectBranch() });
 
     log('STEP-2', 'Fluxo A — registro -> login (admin) -> criar jogo');
     await runFlow(page, currentUrlRef, services, readmeUrls, state, flows.admin, 'admin');

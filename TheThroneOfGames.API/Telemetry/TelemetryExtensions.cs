@@ -23,7 +23,11 @@ namespace TheThroneOfGames.API.Telemetry
             services.AddOpenTelemetry()
                 .ConfigureResource(resource => resource.AddService(ServiceName))
                 .WithTracing(tracing => tracing
-                    .AddAspNetCoreInstrumentation()
+                    .AddAspNetCoreInstrumentation(options =>
+                        // Sem isso, o scrape do Prometheus em /metrics (a cada 5s, ver
+                        // monitoring/prometheus.yml) gera um span a cada request e afoga o
+                        // console com ruído de infraestrutura em vez de tráfego de negócio.
+                        options.Filter = httpContext => !httpContext.Request.Path.StartsWithSegments("/metrics"))
                     .AddHttpClientInstrumentation()
                     .AddSource(ServiceName)
                     .AddConsoleExporter());
